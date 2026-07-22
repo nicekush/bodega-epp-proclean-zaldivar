@@ -201,7 +201,7 @@
                             </div>
                             <div class="form-group">
                                 <label for="inflow-supplier"><i class="fa-solid fa-building-flag"></i> Proveedor / Entidad <span class="required">*</span></label>
-                                <input type="text" id="inflow-supplier" placeholder="Ej. 3M Chile S.A." required>
+                                <input type="text" id="inflow-supplier" value="ProCleanMG" placeholder="Ej. ProCleanMG" required>
                             </div>
                             <div class="form-group">
                                 <label for="inflow-date"><i class="fa-solid fa-calendar-day"></i> Fecha de Recepción <span class="required">*</span></label>
@@ -786,71 +786,75 @@
                     </div>
                 </div>
 
-                <div class="grid-2-1" style="display: grid; grid-template-columns: 1fr 2fr; gap: 24px; align-items: start;">
-                    <!-- Panel Izquierdo: Registrar Préstamo -->
+                <div style="display: flex; flex-direction: column; gap: 24px;">
+                    <!-- Panel Superior: Registrar Préstamo -->
                     <div class="card">
                         <div class="section-title">
                             <span class="sec-num">01</span>
-                            <h3>Registrar Préstamo</h3>
+                            <h3>Registrar Préstamo de Equipo</h3>
                         </div>
                         <form id="loan-form" onsubmit="handleCreateLoan(event)">
-                            <div class="form-group">
-                                <label for="loan-rut">RUT Colaborador <span class="required">*</span></label>
-                                <div class="autocomplete-wrapper" style="position:relative;">
-                                    <input type="text" id="loan-rut" placeholder="Ej. 12.345.678-9" required oninput="onLoanRutInput(this.value)">
-                                    <div class="autocomplete-suggestions" id="loan-rut-suggestions"></div>
+                            <div class="form-grid cols-4" style="gap: 16px; margin-bottom: 20px;">
+                                <div class="form-group" style="margin-bottom:0;">
+                                    <label for="loan-rut">RUT Colaborador <span class="required">*</span></label>
+                                    <div class="autocomplete-wrapper" style="position:relative;">
+                                        <input type="text" id="loan-rut" placeholder="Ej. 12.345.678-9" required oninput="onLoanRutInput(this.value)">
+                                        <div class="autocomplete-suggestions" id="loan-rut-suggestions"></div>
+                                    </div>
                                 </div>
-                            </div>
-                            <div class="form-group">
-                                <label for="loan-worker-name">Nombre Completo</label>
-                                <input type="text" id="loan-worker-name" placeholder="Autocompletado..." readonly style="background-color: var(--bg-secondary);">
-                            </div>
-                            <div class="form-grid cols-2" style="gap: 16px;">
-                                <div class="form-group">
+                                <div class="form-group" style="margin-bottom:0;">
+                                    <label for="loan-worker-name">Nombre Completo</label>
+                                    <input type="text" id="loan-worker-name" placeholder="Autocompletado..." readonly style="background-color: var(--bg-secondary);">
+                                </div>
+                                <div class="form-group" style="margin-bottom:0;">
                                     <label for="loan-area">Área de Trabajo</label>
                                     <input type="text" id="loan-area" placeholder="Autocompletado..." readonly style="background-color: var(--bg-secondary);">
                                 </div>
-                                <div class="form-group">
+                                <div class="form-group" style="margin-bottom:0;">
                                     <label for="loan-turno">Turno</label>
                                     <input type="text" id="loan-turno" placeholder="Autocompletado..." readonly style="background-color: var(--bg-secondary);">
                                 </div>
                             </div>
 
-                            <!-- Selector de Equipos -->
-                            <div style="background: var(--bg-secondary); padding: 15px; border-radius: var(--radius-md); border: 1px dashed var(--border-color); margin-bottom: 20px;">
-                                <h4 style="margin-bottom: 8px; font-size: 0.85rem;">Seleccionar Equipo</h4>
-                                <div class="form-group" style="margin-bottom:0;">
-                                    <label>Seleccionar Equipo (Filtro Inteligente)</label>
-                                    <div class="epp-search-container" id="loan-product-search-container">
-                                        <div class="epp-search-input-wrapper">
-                                            <i class="fa-solid fa-magnifying-glass search-icon"></i>
-                                            <input type="text" class="epp-search-input" id="loan-product-search-input" placeholder="🔍 Escriba código o nombre de equipo..." autocomplete="off">
-                                            <i class="fa-solid fa-circle-xmark clear-icon" id="loan-product-clear-icon" title="Limpiar selección"></i>
+                            <div class="form-grid cols-2" style="gap: 20px; align-items: flex-start; margin-bottom: 20px;">
+                                <!-- Selector de Equipos -->
+                                <div style="background: var(--bg-tertiary); padding: 16px; border-radius: var(--radius-md); border: 1px dashed var(--border-color);">
+                                    <h4 style="margin-bottom: 12px; font-size: 0.88rem; font-weight: 600;"><i class="fa-solid fa-toolbox"></i> Seleccionar Equipo o Herramienta</h4>
+                                    <div class="form-group" style="margin-bottom:0;">
+                                        <label>Seleccionar Equipo (Filtro Inteligente)</label>
+                                        <div class="epp-search-container" id="loan-product-search-container">
+                                            <div class="epp-search-input-wrapper">
+                                                <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                                                <input type="text" class="epp-search-input" id="loan-product-search-input" placeholder="🔍 Escriba código o nombre de equipo..." autocomplete="off">
+                                                <i class="fa-solid fa-circle-xmark clear-icon" id="loan-product-clear-icon" title="Limpiar selección"></i>
+                                            </div>
+                                            <div class="epp-search-dropdown" id="loan-product-search-dropdown"></div>
                                         </div>
-                                        <div class="epp-search-dropdown" id="loan-product-search-dropdown"></div>
+                                        <input type="hidden" id="loan-product-select" required>
                                     </div>
-                                    <input type="hidden" id="loan-product-select" required>
+                                    <div class="form-group" id="loan-serial-group" style="display:none; margin-top:12px;">
+                                        <label for="loan-serial-select">Nº de Serie Disponible</label>
+                                        <select id="loan-serial-select" style="width:100%; height:42px; background:var(--bg-secondary); color:var(--text-primary); border:1px solid var(--border-color); border-radius:var(--radius-md); padding:0 12px;"></select>
+                                    </div>
                                 </div>
-                                <div class="form-group" id="loan-serial-group" style="display:none; margin-top:8px;">
-                                    <label for="loan-serial-select">Nº de Serie Disponible</label>
-                                    <select id="loan-serial-select"></select>
+
+                                <!-- Firma Digital -->
+                                <div class="form-group" style="margin-bottom:0;">
+                                    <label><i class="fa-solid fa-signature"></i> Firma Digital del Colaborador <span class="required">*</span></label>
+                                    <div class="signature-container" style="border: 1px solid var(--border-color); border-radius: var(--radius-md); background: #fff; position: relative;">
+                                        <canvas id="loan-signature-pad" width="400" height="120" style="display:block; width:100%; height:120px; cursor:crosshair;"></canvas>
+                                        <button type="button" class="btn btn-secondary btn-sm" onclick="clearLoanSignature()" style="position: absolute; right: 10px; bottom: 10px; padding: 4px 8px; font-size: 0.75rem;">
+                                            Limpiar
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
 
-                            <!-- Firma Digital -->
-                            <div class="form-group">
-                                <label>Firma Digital del Colaborador <span class="required">*</span></label>
-                                <div class="signature-container" style="border: 1px solid var(--border-color); border-radius: var(--radius-md); background: #fff; position: relative;">
-                                    <canvas id="loan-signature-pad" width="300" height="120" style="display:block; width:100%; height:120px; cursor:crosshair;"></canvas>
-                                    <button type="button" class="btn btn-secondary btn-sm" onclick="clearLoanSignature()" style="position: absolute; right: 10px; bottom: 10px; padding: 4px 8px; font-size: 0.75rem;">
-                                        Limpiar
-                                    </button>
-                                </div>
+                            <div style="display: flex; justify-content: flex-end;">
+                                <button type="submit" class="btn btn-primary" style="padding: 12px 32px; justify-content: center;">
+                                    <i class="fa-solid fa-people-carry-box"></i> Registrar Salida / Préstamo
+                                </button>
                             </div>
-
-                            <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center; margin-top: 10px;">
-                                <i class="fa-solid fa-people-carry-box"></i> Registrar Salida
-                            </button>
                         </form>
                     </div>
 

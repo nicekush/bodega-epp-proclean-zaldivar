@@ -1945,4 +1945,13 @@ body.dark-mode .epp-search-option {
     color: #ef4444;
 }
 
+/* Elevación de Z-Index para Modal de Confirmación Global */
+#confirm-action-modal {
+    z-index: 999999 !important;
+}
 
+#confirm-action-modal .modal-content {
+    z-index: 1000000 !important;
+    position: relative;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+}

@@ -58,6 +58,7 @@ export function showConfirmDialog(title, message) {
 
         modal.classList.add("active");
         modal.style.display = "flex";
+        modal.style.zIndex = "999999";
 
         const cleanUp = (value) => {
             modal.classList.remove("active");

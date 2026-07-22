@@ -165,6 +165,8 @@ export function removeInflowRow(rowId) {
 export function resetInflowForm() {
     const form = document.getElementById("inflow-form");
     if (form) form.reset();
+    const supplierInput = document.getElementById("inflow-supplier");
+    if (supplierInput) supplierInput.value = "ProCleanMG";
     setupInflowForm();
     setCurrentDates();
 }

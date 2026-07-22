@@ -312,6 +312,105 @@ export function closeNewSupplyModal() {
     clearEvidenceInput();
 }
 
+export function setupSmartSupplyEPPSelector(row) {
+    const container = row.querySelector(".epp-search-container");
+    if (!container) return;
+
+    const searchInput = container.querySelector(".epp-search-input");
+    const nameInput = row.querySelector(".supply-item-name");
+    const dropdown = container.querySelector(".epp-search-dropdown");
+    const clearBtn = container.querySelector(".clear-icon");
+
+    function renderDropdown(filterText = "") {
+        const query = filterText.toLowerCase().trim();
+        const matches = dbInventario.filter(item => {
+            const codeMatch = (item.codigo || "").toLowerCase().includes(query);
+            const nameMatch = (item.nombre || "").toLowerCase().includes(query);
+            const catMatch = (item.categoria || "").toLowerCase().includes(query);
+            return codeMatch || nameMatch || catMatch;
+        });
+
+        if (matches.length === 0) {
+            dropdown.innerHTML = `<div style="padding: 12px; text-align: center; color: var(--text-muted); font-size: 0.85rem;">No se encontraron EPPs coincidentes. Escriba para crear ítem libre.</div>`;
+        } else {
+            dropdown.innerHTML = matches.map(item => {
+                const badgeClass = item.stock <= 0 ? "stock-badge-zero" : "stock-badge-ok";
+                const badgeText = item.stock <= 0 ? "Sin Stock" : `Stock Actual: ${item.stock}`;
+                return `
+                    <div class="epp-search-option" data-id="${item.id}">
+                        <div class="epp-search-option-info">
+                            <span class="epp-search-option-code">${item.codigo || 'S/C'}</span>
+                            <span class="epp-search-option-title">${item.nombre}</span>
+                            <span class="epp-search-option-category"><i class="fa-solid fa-tag"></i> ${item.categoria || 'Sin categoría'} (${item.unidad || 'Unidades'})</span>
+                        </div>
+                        <span class="epp-search-option-stock ${badgeClass}">${badgeText}</span>
+                    </div>
+                `;
+            }).join("");
+
+            dropdown.querySelectorAll(".epp-search-option").forEach(opt => {
+                opt.addEventListener("click", (e) => {
+                    e.stopPropagation();
+                    const eppId = opt.dataset.id;
+                    const item = dbInventario.find(i => i.id === eppId);
+                    if (item) {
+                        selectItem(item);
+                    }
+                });
+            });
+        }
+    }
+
+    function openDropdown(filterText = "") {
+        renderDropdown(filterText);
+        dropdown.classList.add("active");
+        row.classList.add("has-active-dropdown");
+    }
+
+    function closeDropdown() {
+        dropdown.classList.remove("active");
+        row.classList.remove("has-active-dropdown");
+    }
+
+    function selectItem(item) {
+        const itemText = `${item.codigo ? item.codigo + ' - ' : ''}${item.nombre}`;
+        searchInput.value = itemText;
+        nameInput.value = item.nombre;
+        if (clearBtn) clearBtn.style.display = "block";
+        closeDropdown();
+    }
+
+    function clearSelection() {
+        searchInput.value = "";
+        nameInput.value = "";
+        if (clearBtn) clearBtn.style.display = "none";
+        closeDropdown();
+    }
+
+    if (clearBtn) {
+        clearBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            clearSelection();
+        });
+    }
+
+    searchInput.addEventListener("focus", () => {
+        openDropdown(searchInput.value);
+    });
+
+    searchInput.addEventListener("input", () => {
+        nameInput.value = searchInput.value;
+        if (clearBtn) clearBtn.style.display = searchInput.value ? "block" : "none";
+        openDropdown(searchInput.value);
+    });
+
+    document.addEventListener("click", (e) => {
+        if (!container.contains(e.target)) {
+            closeDropdown();
+        }
+    });
+}
+
 export function addNewSupplyItemRow() {
     const container = document.getElementById("new-supply-items-container");
     if (!container) return;
@@ -322,8 +421,16 @@ export function addNewSupplyItemRow() {
     row.id = rowId;
     row.innerHTML = `
         <div class="form-group">
-            <label>Artículo Solicitado</label>
-            <input type="text" class="supply-item-name" placeholder="Ej. Zapatos de Seguridad S1" required>
+            <label>Artículo Solicitado (Filtro Inteligente)</label>
+            <div class="epp-search-container">
+                <div class="epp-search-input-wrapper">
+                    <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                    <input type="text" class="epp-search-input" placeholder="🔍 Escriba código, SKU o artículo..." autocomplete="off">
+                    <i class="fa-solid fa-circle-xmark clear-icon" title="Limpiar selección"></i>
+                </div>
+                <div class="epp-search-dropdown"></div>
+            </div>
+            <input type="hidden" class="supply-item-name" required>
         </div>
         <div class="form-group">
             <label>Cantidad Solicitada</label>
@@ -334,6 +441,8 @@ export function addNewSupplyItemRow() {
         </button>
     `;
     container.appendChild(row);
+
+    setupSmartSupplyEPPSelector(row);
 
     row.querySelector(".btn-remove").addEventListener("click", () => {
         removeNewSupplyItemRow(rowId);
