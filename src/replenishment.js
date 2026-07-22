@@ -152,6 +152,104 @@ export function populateLowStockReplenishItems() {
 // Apertura y Guardado de Solicitudes (Creación y Edición)
 // --------------------------------------------------------------------------
 
+export function setupSmartReplenishEPPSelector() {
+    const container = document.getElementById("new-replenish-search-container");
+    if (!container) return;
+
+    const searchInput = document.getElementById("new-replenish-item-search-input");
+    const hiddenSelect = document.getElementById("new-replenish-item-select");
+    const dropdown = document.getElementById("new-replenish-item-search-dropdown");
+    const clearBtn = document.getElementById("new-replenish-item-clear-icon");
+
+    if (!searchInput || !hiddenSelect || !dropdown) return;
+
+    function renderDropdown(filterText = "") {
+        const query = filterText.toLowerCase().trim();
+        const matches = dbInventario.filter(item => {
+            const codeMatch = (item.codigo || "").toLowerCase().includes(query);
+            const nameMatch = (item.nombre || "").toLowerCase().includes(query);
+            const catMatch = (item.categoria || "").toLowerCase().includes(query);
+            return codeMatch || nameMatch || catMatch;
+        });
+
+        if (matches.length === 0) {
+            dropdown.innerHTML = `<div style="padding: 12px; text-align: center; color: var(--text-muted); font-size: 0.85rem;">No se encontraron EPPs coincidentes.</div>`;
+        } else {
+            dropdown.innerHTML = matches.map(item => {
+                const isCritical = (Number(item.stock) <= Number(item.stock_minimo));
+                const badgeClass = isCritical ? "stock-badge-zero" : "stock-badge-ok";
+                const badgeText = isCritical ? `Stock: ${item.stock} [CRÍTICO]` : `Stock: ${item.stock}`;
+                return `
+                    <div class="epp-search-option" data-id="${item.id}">
+                        <div class="epp-search-option-info">
+                            <span class="epp-search-option-code">${item.codigo || 'S/C'}</span>
+                            <span class="epp-search-option-title">${item.nombre}</span>
+                            <span class="epp-search-option-category"><i class="fa-solid fa-tag"></i> ${item.categoria || 'Sin categoría'} (${item.unidad || 'Unidades'})</span>
+                        </div>
+                        <span class="epp-search-option-stock ${badgeClass}">${badgeText}</span>
+                    </div>
+                `;
+            }).join("");
+
+            dropdown.querySelectorAll(".epp-search-option").forEach(opt => {
+                opt.addEventListener("click", (e) => {
+                    e.stopPropagation();
+                    const eppId = opt.dataset.id;
+                    const item = dbInventario.find(i => i.id === eppId);
+                    if (item) {
+                        selectItem(item);
+                    }
+                });
+            });
+        }
+    }
+
+    function openDropdown(filterText = "") {
+        renderDropdown(filterText);
+        dropdown.classList.add("active");
+    }
+
+    function closeDropdown() {
+        dropdown.classList.remove("active");
+    }
+
+    function selectItem(item) {
+        hiddenSelect.value = item.id;
+        searchInput.value = `${item.codigo ? item.codigo + ' - ' : ''}${item.nombre}`;
+        if (clearBtn) clearBtn.style.display = "block";
+        closeDropdown();
+    }
+
+    function clearSelection() {
+        hiddenSelect.value = "";
+        searchInput.value = "";
+        if (clearBtn) clearBtn.style.display = "none";
+        closeDropdown();
+    }
+
+    if (clearBtn) {
+        clearBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            clearSelection();
+        });
+    }
+
+    searchInput.addEventListener("focus", () => {
+        openDropdown(searchInput.value.includes(" - ") ? "" : searchInput.value);
+    });
+
+    searchInput.addEventListener("input", () => {
+        if (clearBtn) clearBtn.style.display = searchInput.value ? "block" : "none";
+        openDropdown(searchInput.value);
+    });
+
+    document.addEventListener("click", (e) => {
+        if (!container.contains(e.target)) {
+            closeDropdown();
+        }
+    });
+}
+
 export function openNewReplenishmentModal(eppId = null) {
     const modal = document.getElementById("new-replenishment-modal");
     if (!modal) return;
@@ -159,17 +257,15 @@ export function openNewReplenishmentModal(eppId = null) {
     // Resetear formulario e items
     document.getElementById("new-replenish-id").value = "";
     document.getElementById("new-replenish-comments").value = "";
-    selectedReplenishItems = [];
+    const hiddenSelect = document.getElementById("new-replenish-item-select");
+    const searchInput = document.getElementById("new-replenish-item-search-input");
+    const clearBtn = document.getElementById("new-replenish-item-clear-icon");
+    if (hiddenSelect) hiddenSelect.value = "";
+    if (searchInput) searchInput.value = "";
+    if (clearBtn) clearBtn.style.display = "none";
 
-    // Cargar selector de EPPs
-    const itemSelect = document.getElementById("new-replenish-item-select");
-    if (itemSelect) {
-        itemSelect.innerHTML = `<option value="">-- Seleccionar EPP --</option>`;
-        dbInventario.forEach(item => {
-            const extra = (item.stock <= item.stock_minimo) ? " [CRÍTICO]" : "";
-            itemSelect.innerHTML += `<option value="${item.id}">${item.nombre} (${item.codigo}) - Stock: ${item.stock}${extra}</option>`;
-        });
-    }
+    selectedReplenishItems = [];
+    setupSmartReplenishEPPSelector();
 
     // Si se abrió desde un botón de acción directa en el catálogo de EPP
     if (eppId) {
@@ -202,15 +298,13 @@ export function openEditReplenishmentModal(id) {
     const modal = document.getElementById("new-replenishment-modal");
     if (!modal) return;
 
-    // Poblar selector
-    const itemSelect = document.getElementById("new-replenish-item-select");
-    if (itemSelect) {
-        itemSelect.innerHTML = `<option value="">-- Seleccionar EPP --</option>`;
-        dbInventario.forEach(item => {
-            const extra = (item.stock <= item.stock_minimo) ? " [CRÍTICO]" : "";
-            itemSelect.innerHTML += `<option value="${item.id}">${item.nombre} (${item.codigo}) - Stock: ${item.stock}${extra}</option>`;
-        });
-    }
+    const hiddenSelect = document.getElementById("new-replenish-item-select");
+    const searchInput = document.getElementById("new-replenish-item-search-input");
+    const clearBtn = document.getElementById("new-replenish-item-clear-icon");
+    if (hiddenSelect) hiddenSelect.value = "";
+    if (searchInput) searchInput.value = "";
+    if (clearBtn) clearBtn.style.display = "none";
+    setupSmartReplenishEPPSelector();
 
     // Asignar ID, comentarios y clonar los items correspondientes
     document.getElementById("new-replenish-id").value = id;

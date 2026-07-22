@@ -164,18 +164,123 @@ function checkActiveLoansWarning(rut) {
     }
 }
 
+export function setupSmartLoanProductSelector() {
+    const container = document.getElementById("loan-product-search-container");
+    if (!container) return;
+
+    const searchInput = document.getElementById("loan-product-search-input");
+    const hiddenSelect = document.getElementById("loan-product-select");
+    const dropdown = document.getElementById("loan-product-search-dropdown");
+    const clearBtn = document.getElementById("loan-product-clear-icon");
+
+    if (!searchInput || !hiddenSelect || !dropdown) return;
+
+    // Productos filtrados por tipo_control === 'Préstamo'
+    const loanProducts = dbInventario.filter(p => p.tipo_control === 'Préstamo');
+
+    function renderDropdown(filterText = "") {
+        const query = filterText.toLowerCase().trim();
+        const matches = loanProducts.filter(item => {
+            const codeMatch = (item.codigo || "").toLowerCase().includes(query);
+            const nameMatch = (item.nombre || "").toLowerCase().includes(query);
+            const catMatch = (item.categoria || "").toLowerCase().includes(query);
+            return codeMatch || nameMatch || catMatch;
+        });
+
+        if (matches.length === 0) {
+            dropdown.innerHTML = `<div style="padding: 12px; text-align: center; color: var(--text-muted); font-size: 0.85rem;">No hay equipos en préstamo coincidentes.</div>`;
+        } else {
+            dropdown.innerHTML = matches.map(item => {
+                const badgeClass = item.stock <= 0 ? "stock-badge-zero" : "stock-badge-ok";
+                const badgeText = item.stock <= 0 ? "Sin Stock" : `Disponible: ${item.stock}`;
+                return `
+                    <div class="epp-search-option" data-id="${item.id}">
+                        <div class="epp-search-option-info">
+                            <span class="epp-search-option-code">${item.codigo || 'S/C'}</span>
+                            <span class="epp-search-option-title">${item.nombre}</span>
+                            <span class="epp-search-option-category"><i class="fa-solid fa-toolbox"></i> ${item.categoria || 'Equipo/Herramienta'}</span>
+                        </div>
+                        <span class="epp-search-option-stock ${badgeClass}">${badgeText}</span>
+                    </div>
+                `;
+            }).join("");
+
+            dropdown.querySelectorAll(".epp-search-option").forEach(opt => {
+                opt.addEventListener("click", (e) => {
+                    e.stopPropagation();
+                    const productId = opt.dataset.id;
+                    const item = loanProducts.find(i => i.id === productId);
+                    if (item) {
+                        selectItem(item);
+                    }
+                });
+            });
+        }
+    }
+
+    function openDropdown(filterText = "") {
+        renderDropdown(filterText);
+        dropdown.classList.add("active");
+        const parentCard = container.closest('.card');
+        if (parentCard) parentCard.classList.add("has-active-dropdown");
+    }
+
+    function closeDropdown() {
+        dropdown.classList.remove("active");
+        const parentCard = container.closest('.card');
+        if (parentCard) parentCard.classList.remove("has-active-dropdown");
+    }
+
+    function selectItem(item) {
+        hiddenSelect.value = item.id;
+        searchInput.value = `${item.codigo ? item.codigo + ' - ' : ''}${item.nombre}`;
+        if (clearBtn) clearBtn.style.display = "block";
+        closeDropdown();
+        onLoanProductSelectChange(item.id);
+    }
+
+    function clearSelection() {
+        hiddenSelect.value = "";
+        searchInput.value = "";
+        if (clearBtn) clearBtn.style.display = "none";
+        closeDropdown();
+        onLoanProductSelectChange("");
+    }
+
+    if (clearBtn) {
+        clearBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            clearSelection();
+        });
+    }
+
+    searchInput.addEventListener("focus", () => {
+        openDropdown(searchInput.value.includes(" - ") ? "" : searchInput.value);
+    });
+
+    searchInput.addEventListener("input", () => {
+        if (clearBtn) clearBtn.style.display = searchInput.value ? "block" : "none";
+        openDropdown(searchInput.value);
+    });
+
+    document.addEventListener("click", (e) => {
+        if (!container.contains(e.target)) {
+            closeDropdown();
+        }
+    });
+}
+
 // Cargar selectores de productos tipo préstamo
 export function populateLoanProductSelect() {
-    const select = document.getElementById("loan-product-select");
-    if (!select) return;
-    
-    // Filtrar catálogo por tipo_control === 'Préstamo'
-    const loanProducts = dbInventario.filter(p => p.tipo_control === 'Préstamo');
-    
-    select.innerHTML = `<option value="" disabled selected>Seleccione Equipo...</option>` + 
-        loanProducts.map(p => `<option value="${p.id}">${p.nombre} (Stock: ${p.stock})</option>`).join("");
-    
-    document.getElementById("loan-serial-group").style.display = "none";
+    setupSmartLoanProductSelector();
+    const hiddenSelect = document.getElementById("loan-product-select");
+    const searchInput = document.getElementById("loan-product-search-input");
+    const clearBtn = document.getElementById("loan-product-clear-icon");
+    if (hiddenSelect) hiddenSelect.value = "";
+    if (searchInput) searchInput.value = "";
+    if (clearBtn) clearBtn.style.display = "none";
+    const serialGroup = document.getElementById("loan-serial-group");
+    if (serialGroup) serialGroup.style.display = "none";
 }
 
 export function onLoanProductSelectChange(productId) {

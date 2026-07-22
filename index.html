@@ -819,8 +819,17 @@
                             <!-- Selector de Equipos -->
                             <div style="background: var(--bg-secondary); padding: 15px; border-radius: var(--radius-md); border: 1px dashed var(--border-color); margin-bottom: 20px;">
                                 <h4 style="margin-bottom: 8px; font-size: 0.85rem;">Seleccionar Equipo</h4>
-                                <div class="form-group">
-                                    <select id="loan-product-select" onchange="onLoanProductSelectChange(this.value)"></select>
+                                <div class="form-group" style="margin-bottom:0;">
+                                    <label>Seleccionar Equipo (Filtro Inteligente)</label>
+                                    <div class="epp-search-container" id="loan-product-search-container">
+                                        <div class="epp-search-input-wrapper">
+                                            <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                                            <input type="text" class="epp-search-input" id="loan-product-search-input" placeholder="🔍 Escriba código o nombre de equipo..." autocomplete="off">
+                                            <i class="fa-solid fa-circle-xmark clear-icon" id="loan-product-clear-icon" title="Limpiar selección"></i>
+                                        </div>
+                                        <div class="epp-search-dropdown" id="loan-product-search-dropdown"></div>
+                                    </div>
+                                    <input type="hidden" id="loan-product-select" required>
                                 </div>
                                 <div class="form-group" id="loan-serial-group" style="display:none; margin-top:8px;">
                                     <label for="loan-serial-select">Nº de Serie Disponible</label>
@@ -1906,8 +1915,16 @@
                         <h5 style="margin-bottom:12px; font-weight:600; font-size: 0.95rem;"><i class="fa-solid fa-cart-plus"></i> Agregar Artículos al Pedido</h5>
                         <div style="display: grid; grid-template-columns: 2fr 1fr auto; gap: 12px; align-items: flex-end;">
                             <div class="form-group" style="margin-bottom:0;">
-                                <label for="new-replenish-item-select">Artículo EPP</label>
-                                <select id="new-replenish-item-select" style="width: 100%; height: 46px; background: var(--bg-secondary); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 0 12px;"></select>
+                                <label for="new-replenish-item-search-input">Artículo EPP (Filtro Inteligente)</label>
+                                <div class="epp-search-container" id="new-replenish-search-container">
+                                    <div class="epp-search-input-wrapper">
+                                        <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                                        <input type="text" class="epp-search-input" id="new-replenish-item-search-input" placeholder="🔍 Escriba código, SKU o artículo..." autocomplete="off">
+                                        <i class="fa-solid fa-circle-xmark clear-icon" id="new-replenish-item-clear-icon" title="Limpiar selección"></i>
+                                    </div>
+                                    <div class="epp-search-dropdown" id="new-replenish-item-search-dropdown"></div>
+                                </div>
+                                <input type="hidden" id="new-replenish-item-select">
                             </div>
                             <div class="form-group" style="margin-bottom:0;">
                                 <label for="new-replenish-item-qty">Cantidad</label>
