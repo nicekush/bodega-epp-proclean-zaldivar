@@ -247,8 +247,8 @@ function toggleTheme() {
 }
 
 async function confirmResetDatabase() {
-    if (currentUser.rol !== "Administrador" && currentUser.rol !== "Supervisor") {
-        showToast("Acceso denegado: Se requiere rango de Administrador o Supervisor.", "danger");
+    if (!currentUser || currentUser.rol !== "Administrador") {
+        showToast("Acceso denegado: Se requiere rango exclusivo de Administrador para reiniciar la base de datos.", "danger");
         return;
     }
     

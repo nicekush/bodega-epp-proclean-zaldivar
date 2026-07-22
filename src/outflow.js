@@ -167,11 +167,11 @@ export function autofillWorkerDetails() {
     }
     if (areaSelect) {
         areaSelect.value = recent.area || "";
-        areaSelect.disabled = true;
+        areaSelect.disabled = false;
     }
     if (turnoSelect) {
         turnoSelect.value = recent.turno || "";
-        turnoSelect.disabled = true;
+        turnoSelect.disabled = false;
     }
 }
 

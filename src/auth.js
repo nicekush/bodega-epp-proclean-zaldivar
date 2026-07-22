@@ -443,8 +443,8 @@ export function applyRoleRestrictions() {
         if (areaKitsManagementCard) areaKitsManagementCard.style.display = "block";
         if (serialManagementCard) serialManagementCard.style.display = "block";
         if (reconciliationManagementCard) reconciliationManagementCard.style.display = "block";
-        if (adminActionsContainer) adminActionsContainer.style.display = "flex";
-        if (adminDeniedMessage) adminDeniedMessage.style.display = "none";
+        if (adminActionsContainer) adminActionsContainer.style.display = "none";
+        if (adminDeniedMessage) adminDeniedMessage.style.display = "block";
         
         if (navInflow) navInflow.style.display = "flex";
         if (navLoans) navLoans.style.display = "flex";
