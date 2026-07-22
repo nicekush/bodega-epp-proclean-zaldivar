@@ -1,0 +1,2087 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Módulo de Bodega - Control de EPP ProCleanMG</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Main Stylesheet -->
+    <link rel="stylesheet" href="style.css">
+
+</head>
+<body class="dark-mode">
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <aside class="app-sidebar" id="sidebar">
+            <div class="sidebar-header" style="padding: 10px 0 20px;">
+                <div class="logo-container" style="display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 8px; width: 100%;">
+                    <img src="LOGO PROCLEANMG.jpg" alt="ProCleanMG Logo" class="sidebar-logo-img" style="height: 52px; width: auto; max-width: 100%; object-fit: contain; filter: drop-shadow(0 2px 8px rgba(0,0,0,0.15));">
+                    <span class="logo-sub" style="font-size: 0.72rem; color: var(--color-primary); text-transform: uppercase; letter-spacing: 0.12em; font-weight: 700; margin-top: 4px;">Gestión de Bodega</span>
+                </div>
+            </div>
+            
+            <nav class="sidebar-nav">
+                <div class="nav-item active" data-view="view-inventory" onclick="switchView('view-inventory')">
+                    <i class="fa-solid fa-boxes-stacked"></i>
+                    <span>Inventario de Stock</span>
+                </div>
+                <div class="nav-item" data-view="view-inflow" onclick="switchView('view-inflow')">
+                    <i class="fa-solid fa-file-import"></i>
+                    <span>Ingreso por Guía</span>
+                </div>
+                <div class="nav-item" data-view="view-outflow" onclick="switchView('view-outflow')">
+                    <i class="fa-solid fa-hand-holding-hand"></i>
+                    <span>Entrega de EPP</span>
+                </div>
+                <div class="nav-item" data-view="view-loans" onclick="switchView('view-loans')">
+                    <i class="fa-solid fa-people-carry-box"></i>
+                    <span>Préstamos de Equipos</span>
+                </div>
+                <div class="nav-item" data-view="view-supplies" onclick="switchView('view-supplies')">
+                    <i class="fa-solid fa-clipboard-list"></i>
+                    <span>Requerimientos de Personal</span>
+                </div>
+                <div class="nav-item" data-view="view-replenishments" onclick="switchView('view-replenishments')">
+                    <i class="fa-solid fa-cart-shopping"></i>
+                    <span>Solicitudes de Compra</span>
+                </div>
+                <div class="nav-item" data-view="view-workers" onclick="switchView('view-workers')">
+                    <i class="fa-solid fa-id-card-clip"></i>
+                    <span>Ficha de Colaborador</span>
+                </div>
+                <div class="nav-item" data-view="view-analytics" onclick="switchView('view-analytics')">
+                    <i class="fa-solid fa-chart-line"></i>
+                    <span>Analíticas de EPP</span>
+                </div>
+                <div class="nav-item" data-view="view-reports" onclick="switchView('view-reports')">
+                    <i class="fa-solid fa-file-contract"></i>
+                    <span>Historial y Reportes</span>
+                </div>
+                <div class="nav-item" data-view="view-settings" onclick="switchView('view-settings')">
+                    <i class="fa-solid fa-gears"></i>
+                    <span>Configuración</span>
+                </div>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="theme-toggle">
+                    <span class="theme-label"><i class="fa-solid fa-moon"></i> Modo Oscuro</span>
+                    <label class="switch">
+                        <input type="checkbox" id="theme-switch" checked onchange="toggleTheme()">
+                        <span class="slider round"></span>
+                    </label>
+                </div>
+                <div class="user-profile" onclick="openUserModal()" style="cursor: pointer;" title="Cambiar Operador de Turno">
+                    <div class="avatar"><i class="fa-solid fa-user-gear"></i></div>
+                    <div class="user-info">
+                        <span class="user-name" id="display-user-name">Bodega Central</span>
+                        <span class="user-role" id="display-user-role">Administrador</span>
+                    </div>
+                </div>
+        </aside>
+
+        <!-- Capa overlay para cerrar menú móvil al tocar afuera -->
+        <div id="sidebar-overlay" class="sidebar-overlay" onclick="toggleMobileSidebar(false)"></div>
+
+        <!-- Main Content Area -->
+        <main class="app-content">
+            <!-- Toast notification container -->
+            <div id="toast-container"></div>
+
+            <!-- Header -->
+            <header class="content-header">
+                <button type="button" id="sidebar-toggle" class="btn-sidebar-toggle" onclick="toggleMobileSidebar(true)" aria-label="Abrir Menú">
+                    <i class="fa-solid fa-bars"></i>
+                </button>
+                <div class="header-title">
+                    <h2 id="view-title">Inventario de Stock</h2>
+                    <p class="subtitle" id="view-subtitle">Supervise los niveles de equipo de protección personal disponibles.</p>
+                </div>
+                <div class="header-actions"></div>
+            </header>
+
+            <!-- VIEW: INVENTARIO DE STOCK -->
+            <div id="view-inventory" class="view-panel active">
+                <!-- Dashboard Stats -->
+                <div class="dashboard-stats">
+                    <div class="card stat-card">
+                        <div class="stat-content">
+                            <span class="stat-num" id="stat-total-items">0</span>
+                            <span class="stat-desc">Tipos de EPP</span>
+                        </div>
+                        <div class="stat-icon primary"><i class="fa-solid fa-shapes"></i></div>
+                    </div>
+                    <div class="card stat-card">
+                        <div class="stat-content">
+                            <span class="stat-num" id="stat-total-stock">0</span>
+                            <span class="stat-desc">Stock Total Disponible</span>
+                        </div>
+                        <div class="stat-icon success"><i class="fa-solid fa-layer-group"></i></div>
+                    </div>
+                    <div class="card stat-card">
+                        <div class="stat-content">
+                            <span class="stat-num text-danger" id="stat-low-stock">0</span>
+                            <span class="stat-desc">EPPs con Stock Bajo / Crítico</span>
+                        </div>
+                        <div class="stat-icon warning" id="stat-low-stock-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
+                    </div>
+                </div>
+
+                <!-- Lista de Stock -->
+                <div class="card">
+                    <div class="section-title">
+                        <span class="sec-num">01</span>
+                        <h3>Filtros & Catálogo de EPP</h3>
+                    </div>
+                    
+                    <div class="filters-bar" style="margin-bottom: 20px;">
+                        <div class="search-input-wrapper">
+                            <i class="fa-solid fa-magnifying-glass"></i>
+                            <input type="text" id="inventory-search" placeholder="Buscar por código o nombre de EPP..." oninput="filterInventoryTable()">
+                        </div>
+                        <select id="inventory-filter-category" class="filter-select" onchange="filterInventoryTable()">
+                            <option value="">Todas las Categorías</option>
+                        </select>
+                        <button class="btn btn-secondary" id="btn-manage-cats" onclick="openCategoryModal()" title="Gestionar Categorías">
+                            <i class="fa-solid fa-tags"></i> Categorías
+                        </button>
+                        <button class="btn btn-secondary" onclick="exportStockCSV()" title="Exportar Stock Actual a CSV">
+                            <i class="fa-solid fa-file-excel text-success"></i> Exportar CSV
+                        </button>
+                        <button class="btn btn-secondary" onclick="printStockReport()" title="Imprimir Catálogo de Stock">
+                            <i class="fa-solid fa-print"></i> Imprimir
+                        </button>
+                        <button class="btn btn-primary" id="btn-new-epp" onclick="openNewEPPModal()">
+                            <i class="fa-solid fa-plus"></i> Crear Nuevo Item
+                        </button>
+                    </div>
+
+                    <div class="table-container">
+                        <table id="table-inventory">
+                            <thead>
+                                <tr>
+                                    <th class="sortable active" data-sort="codigo" onclick="handleInventorySort('codigo')">Código <i class="fa-solid fa-sort-up sort-icon"></i></th>
+                                    <th class="sortable" data-sort="nombre" onclick="handleInventorySort('nombre')">Nombre del EPP <i class="fa-solid fa-sort sort-icon"></i></th>
+                                    <th class="sortable" data-sort="categoria" onclick="handleInventorySort('categoria')">Categoría <i class="fa-solid fa-sort sort-icon"></i></th>
+                                    <th class="sortable" data-sort="stock_minimo" onclick="handleInventorySort('stock_minimo')">Stock Mín. <i class="fa-solid fa-sort sort-icon"></i></th>
+                                    <th class="sortable" data-sort="stock" onclick="handleInventorySort('stock')">Stock Actual <i class="fa-solid fa-sort sort-icon"></i></th>
+                                    <th>Estado</th>
+                                    <th>Acción</th>
+                                </tr>
+                            </thead>
+                             <tbody id="inventory-tbody">
+                                 <!-- Dinámico en JS -->
+                                 <tr>
+                                     <td colspan="7" style="text-align: center; color: var(--text-muted);">No hay stock registrado en el catálogo.</td>
+                                 </tr>
+                             </tbody>
+                        </table>
+                    </div>
+                    <div id="inventory-pagination" class="pagination-container"></div>
+                </div>
+            </div>
+
+            <!-- VIEW: INGRESO POR GUÍA -->
+            <div id="view-inflow" class="view-panel">
+                <form id="inflow-form" onsubmit="saveInflow(event)">
+                    <div class="card">
+                        <div class="section-title">
+                            <span class="sec-num">01</span>
+                            <h3>Datos de Guía de Despacho / Recepción</h3>
+                        </div>
+                        <div class="form-grid cols-3">
+                            <div class="form-group">
+                                <label for="inflow-doc-number"><i class="fa-solid fa-receipt"></i> Nº Guía de Despacho <span class="required">*</span></label>
+                                <input type="text" id="inflow-doc-number" placeholder="Ej. GD-100234" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="inflow-supplier"><i class="fa-solid fa-building-flag"></i> Proveedor / Entidad <span class="required">*</span></label>
+                                <input type="text" id="inflow-supplier" placeholder="Ej. 3M Chile S.A." required>
+                            </div>
+                            <div class="form-group">
+                                <label for="inflow-date"><i class="fa-solid fa-calendar-day"></i> Fecha de Recepción <span class="required">*</span></label>
+                                <input type="datetime-local" id="inflow-date" required>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card" style="margin-top: 24px;">
+                        <div class="section-title">
+                            <span class="sec-num">02</span>
+                            <h3>Detalle de EPPs Recibidos</h3>
+                        </div>
+
+                        <div class="dynamic-table-container">
+                            <div class="dynamic-table-header">
+                                <h4>Items Ingresados</h4>
+                                <button type="button" class="btn btn-secondary btn-sm" onclick="addInflowRow()">
+                                    <i class="fa-solid fa-plus"></i> Añadir Línea
+                                </button>
+                            </div>
+
+                            <div id="inflow-rows-container">
+                                <!-- Filas dinámicas en JS -->
+                            </div>
+                        </div>
+
+                        <div class="form-group" style="margin-top: 20px;">
+                            <label for="inflow-comments"><i class="fa-solid fa-comment-dots"></i> Observaciones</label>
+                            <textarea id="inflow-comments" placeholder="Notas sobre el estado de la entrega o el despacho..." rows="3"></textarea>
+                        </div>
+
+                        <div style="margin-top: 24px; display: flex; justify-content: flex-end; gap: 12px;">
+                            <button type="button" class="btn btn-secondary" onclick="resetInflowForm()">Limpiar</button>
+                            <button type="submit" class="btn btn-success">
+                                <i class="fa-solid fa-circle-check"></i> Registrar Ingreso en Bodega
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <!-- VIEW: ENTREGA DE EPP (SALIDA) -->
+            <div id="view-outflow" class="view-panel">
+                <form id="outflow-form" onsubmit="saveOutflowAndPrint(event)">
+                    <div class="card">
+                        <div class="section-title">
+                            <span class="sec-num">01</span>
+                            <h3>Información del Colaborador</h3>
+                        </div>
+                        <div class="form-grid cols-4">
+                            <div class="form-group">
+                                <label for="outflow-worker-name"><i class="fa-solid fa-user"></i> Nombre Completo <span class="required">*</span></label>
+                                <input type="text" id="outflow-worker-name" placeholder="Ej. Juan Carlos Pérez" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="outflow-worker-rut"><i class="fa-solid fa-id-card"></i> RUT / C.I. <span class="required">*</span></label>
+                                <input type="text" id="outflow-worker-rut" placeholder="Ej. 12.345.678-9" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="outflow-worker-area"><i class="fa-solid fa-briefcase"></i> Área de Trabajo <span class="required">*</span></label>
+                                <div style="display: flex; gap: 8px; width: 100%;">
+                                    <select id="outflow-worker-area" style="flex: 1;" required>
+                                        <option value="" disabled selected>Seleccione área...</option>
+                                    </select>
+                                    <button type="button" class="btn btn-secondary" id="btn-manage-areas" style="padding: 0 12px; height: 46px;" onclick="openAreasModal()" title="Gestionar Áreas de Trabajo">
+                                        <i class="fa-solid fa-gear"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-primary" id="btn-load-area-kit" style="padding: 0 12px; height: 46px; font-weight: bold;" onclick="cargarKitPorArea()" title="Cargar Kit Estándar del Área">
+                                        <i class="fa-solid fa-people-carry-box"></i> Kit
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="outflow-worker-turno"><i class="fa-solid fa-clock"></i> Turno <span class="required">*</span></label>
+                                <div style="display: flex; gap: 8px; width: 100%;">
+                                    <select id="outflow-worker-turno" style="flex: 1;" required>
+                                        <option value="" disabled selected>Seleccione turno...</option>
+                                    </select>
+                                    <button type="button" class="btn btn-secondary" id="btn-manage-turnos" style="padding: 0 12px; height: 46px;" onclick="openTurnosModal()" title="Gestionar Turnos">
+                                        <i class="fa-solid fa-gear"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card" style="margin-top: 24px;">
+                        <div class="section-title">
+                            <span class="sec-num">02</span>
+                            <h3>EPP a Entregar</h3>
+                        </div>
+
+                        <div class="dynamic-table-container">
+                            <div class="dynamic-table-header">
+                                <h4>Items Seleccionados</h4>
+                                <button type="button" class="btn btn-secondary btn-sm" onclick="addOutflowRow()">
+                                    <i class="fa-solid fa-plus"></i> Añadir Línea
+                                </button>
+                            </div>
+
+                            <div id="outflow-rows-container">
+                                <!-- Filas dinámicas en JS -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Justificaciones y Datos Adicionales -->
+                    <div class="card" style="margin-top: 24px;">
+                        <div class="section-title">
+                            <span class="sec-num">03</span>
+                            <h3>Datos de la Entrega y Justificación</h3>
+                        </div>
+                        <div class="form-grid cols-2" style="gap: 16px;">
+                            <div class="form-group">
+                                <label for="outflow-motivo">Motivo de la Entrega <span class="required">*</span></label>
+                                <select id="outflow-motivo" required onchange="toggleOutflowMotivoFields(this.value)">
+                                    <option value="Normal" selected>Normal / Reposición Periódica</option>
+                                    <option value="Desgaste">Desgaste Prematuro (Requiere Notas)</option>
+                                    <option value="Pérdida">Pérdida / Robo (Requiere Notas)</option>
+                                    <option value="Talla">Cambio de Talla</option>
+                                    <option value="Primer Día">Primer Día / Inducción</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="outflow-comments">Notas / Justificación</label>
+                                <textarea id="outflow-comments" placeholder="Escriba aquí la justificación de re-entrega prematura, pérdida o detalles de la entrega..." style="width: 100%; height: 46px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 8px 12px; background: var(--bg-primary); color: var(--text-primary); font-family: inherit; font-size: 0.9rem; resize: none;"></textarea>
+                            </div>
+                        </div>
+
+                        <!-- Campos condicionales para Ropa de Trabajo -->
+                        <div id="outflow-clothes-container" style="display: none; margin-top: 16px; border-top: 1px solid var(--border-color); padding-top: 16px;">
+                            <h4 style="font-size: 0.85rem; margin-bottom: 12px; color: var(--text-primary);"><i class="fa-solid fa-shirt"></i> Detalles de Ropa de Trabajo</h4>
+                            <div class="form-grid cols-2" style="gap: 16px;">
+                                <div class="form-group">
+                                    <label for="outflow-talla">Talla Entregada</label>
+                                    <input type="text" id="outflow-talla" placeholder="Ej. L, 46, XL...">
+                                </div>
+                                <div class="form-group">
+                                    <label for="outflow-razon-ropa">Razón de Cambio de Ropa</label>
+                                    <select id="outflow-razon-ropa">
+                                        <option value="Desgaste">Desgaste Natural</option>
+                                        <option value="Talla">Cambio de Talla</option>
+                                        <option value="Pérdida">Pérdida o Robo</option>
+                                        <option value="Primer Día">Primer Día / Inducción</option>
+                                        <option value="Temporada">Cambio de Temporada</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card" style="margin-top: 24px;">
+                        <div class="section-title">
+                            <span class="sec-num">04</span>
+                            <h3>Firma del Colaborador (Digital)</h3>
+                        </div>
+                        <div class="signature-box">
+                            <p style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 8px; text-align: center; width: 100%;">
+                                Registre la firma de conformidad del trabajador dibujando con el mouse, lápiz o dedo dentro del recuadro:
+                            </p>
+                            <div class="signature-canvas-wrapper" style="border: 1px solid var(--border-color); background: #ffffff; border-radius: var(--radius-sm); overflow: hidden; width: 100%; max-width: 480px; height: 150px;">
+                                <canvas id="outflow-sig-canvas" style="width: 100%; height: 100%; display: block; cursor: crosshair;"></canvas>
+                            </div>
+                            <button type="button" class="btn btn-secondary btn-sm" onclick="clearSignatureCanvas()" style="margin-top: 8px;">
+                                <i class="fa-solid fa-eraser"></i> Limpiar Lienzo
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="card" style="margin-top: 24px;">
+                        <div class="section-title">
+                            <span class="sec-num">05</span>
+                            <h3>Confirmación de Entrega</h3>
+                        </div>
+                        <div style="display: flex; flex-direction: column; gap: 16px;">
+                            <p style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5;">
+                                Al registrar la entrega, se descontará el stock de bodega, se guardará la firma digitalizada y se generará el acta correspondiente.
+                            </p>
+                            <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 8px;">
+                                <button type="button" class="btn btn-secondary" onclick="resetOutflowForm()">Limpiar</button>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fa-solid fa-print"></i> Registrar e Imprimir Acta
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <!-- VIEW: HISTORIAL Y REPORTES -->
+            <div id="view-reports" class="view-panel">
+                <!-- Filtros del Historial -->
+                <div class="card">
+                    <div class="section-title">
+                        <span class="sec-num">01</span>
+                        <h3>Historial de Movimientos de Bodega</h3>
+                    </div>
+
+                    <div class="filters-bar">
+                        <div class="search-input-wrapper">
+                            <i class="fa-solid fa-magnifying-glass"></i>
+                            <input type="text" id="history-search" placeholder="Buscar por colaborador, guía o producto..." oninput="filterHistoryTable()">
+                        </div>
+                        <select id="history-filter-type" class="filter-select" onchange="filterHistoryTable()">
+                            <option value="">Todos los Movimientos</option>
+                            <option value="ingreso">Solo Ingresos (Entradas)</option>
+                            <option value="salida">Solo Salidas (Entregas)</option>
+                        </select>
+                        <select id="history-filter-product" class="filter-select" onchange="filterHistoryTable()">
+                            <option value="">Todos los Productos (SKU)</option>
+                        </select>
+                        <button class="btn btn-secondary" onclick="exportHistoryCSV()">
+                            <i class="fa-solid fa-file-excel text-success"></i> Excel
+                        </button>
+                        <button class="btn btn-secondary" onclick="generateCorporatePDFReport()">
+                            <i class="fa-solid fa-file-pdf text-danger"></i> PDF
+                        </button>
+                        <button class="btn btn-primary" onclick="printStockReport()">
+                            <i class="fa-solid fa-print"></i> Stock
+                        </button>
+                    </div>
+
+                    <div class="table-container" style="margin-top: 20px;">
+                        <table id="table-history">
+                            <thead>
+                                <tr>
+                                    <th>Fecha y Hora</th>
+                                    <th>Tipo</th>
+                                    <th>Documento / Receptor</th>
+                                    <th>Detalle del Movimiento</th>
+                                    <th>Usuario</th>
+                                    <th>Acción</th>
+                                </tr>
+                            </thead>
+                            <tbody id="history-tbody">
+                                <!-- Dinámico en JS -->
+                                <tr>
+                                    <td colspan="6" style="text-align: center; color: var(--text-muted);">No se registran movimientos en el historial.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div id="history-pagination" class="pagination-container"></div>
+                </div>
+            </div>
+
+            <!-- VIEW: INSUMOS PARA MEJORAS -->
+            <div id="view-supplies" class="view-panel">
+                <!-- Dashboard Stats de Requerimientos -->
+                <div class="dashboard-stats">
+                    <div class="card stat-card">
+                        <div class="stat-content">
+                            <span class="stat-num" id="stat-total-supplies">0</span>
+                            <span class="stat-desc">Total Requerimientos</span>
+                        </div>
+                        <div class="stat-icon info"><i class="fa-solid fa-file-signature"></i></div>
+                    </div>
+                    <div class="card stat-card">
+                        <div class="stat-content">
+                            <span class="stat-num text-warning" id="stat-pending-supplies">0</span>
+                            <span class="stat-desc">Pendientes / En Proceso</span>
+                        </div>
+                        <div class="stat-icon warning"><i class="fa-solid fa-clock"></i></div>
+                    </div>
+                    <div class="card stat-card">
+                        <div class="stat-content">
+                            <span class="stat-num text-success" id="stat-received-supplies">0</span>
+                            <span class="stat-desc">Entregados / Resueltos</span>
+                        </div>
+                        <div class="stat-icon success"><i class="fa-solid fa-circle-check"></i></div>
+                    </div>
+                </div>
+
+                <!-- Tabla de Seguimiento de Requerimientos -->
+                <div class="card">
+                    <div class="section-title">
+                        <span class="sec-num">01</span>
+                        <h3>Seguimiento de Requerimientos de Personal</h3>
+                    </div>
+
+                    <div class="filters-bar" style="margin-bottom: 20px;">
+                        <div class="search-input-wrapper">
+                            <i class="fa-solid fa-magnifying-glass"></i>
+                            <input type="text" id="supplies-search" placeholder="Buscar por código, trabajador, RUT o motivo..." oninput="filterSuppliesTable()">
+                        </div>
+                        <select id="supplies-filter-status" class="filter-select" onchange="filterSuppliesTable()">
+                            <option value="">Todos los Estados</option>
+                            <option value="Pendiente">Pendiente</option>
+                            <option value="Parcial">Recepción Parcial</option>
+                            <option value="Recibido">Entregado</option>
+                        </select>
+                        <button class="btn btn-primary" onclick="openNewSupplyModal()">
+                            <i class="fa-solid fa-plus"></i> Nuevo Requerimiento
+                        </button>
+                    </div>
+
+                    <div class="table-container">
+                        <table id="table-supplies">
+                            <thead>
+                                <tr>
+                                    <th>Código</th>
+                                    <th>Trabajador</th>
+                                    <th>Requerimiento / Motivo</th>
+                                    <th>Items Solicitados</th>
+                                    <th>Prioridad</th>
+                                    <th>SLA (Antigüedad)</th>
+                                    <th>Evidencia</th>
+                                    <th>Estado</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="supplies-tbody">
+                                <!-- Dinámico en JS -->
+                                <tr>
+                                    <td colspan="9" style="text-align: center; color: var(--text-muted);">No hay requerimientos registrados.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VIEW: FICHA DE COLABORADOR -->
+            <div id="view-workers" class="view-panel">
+                <div class="card">
+                    <div class="section-title">
+                        <span class="sec-num">01</span>
+                        <h3>Buscador de Colaborador por RUT</h3>
+                    </div>
+                    <form onsubmit="event.preventDefault(); window.searchWorkerProfile();" class="filters-bar" style="margin-bottom: 20px; display:flex; max-width:600px; width:100%;">
+                        <div class="search-input-wrapper" style="flex: 1;">
+                            <i class="fa-solid fa-id-card"></i>
+                            <input type="text" id="worker-search-rut" placeholder="Ingrese el RUT del trabajador..." oninput="this.value = window.formatRut ? window.formatRut(this.value) : this.value">
+                        </div>
+                        <button type="submit" class="btn btn-primary" style="margin-left: 8px; height: 46px;">
+                            <i class="fa-solid fa-magnifying-glass"></i> Buscar
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Ficha del Colaborador (Oculta por defecto) -->
+                <div id="worker-profile-container" style="display: none;">
+                    <div class="card" style="margin-top: 24px; background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-tertiary) 100%); border: 1px solid var(--border-color);">
+                        <div style="display: flex; align-items: center; justify-content: space-between; gap: 20px; width: 100%;">
+                            <div style="display: flex; align-items: center; gap: 20px;">
+                                <div style="width: 60px; height: 60px; border-radius: 50%; background: rgba(255,122,0,0.1); color: var(--color-primary); display: flex; align-items: center; justify-content: center; font-size: 1.8rem; border: 1px solid rgba(255,122,0,0.2); flex-shrink: 0;">
+                                    <i class="fa-solid fa-user-tie"></i>
+                                </div>
+                                <div>
+                                    <h2 id="w-profile-name" style="margin: 0; font-size: 1.5rem; font-weight: 800;">-</h2>
+                                    <div style="display: flex; flex-wrap: wrap; gap: 16px; margin-top: 6px; font-size: 0.85rem; color: var(--text-secondary);">
+                                        <span id="w-profile-rut">RUT: -</span>
+                                        <span id="w-profile-area"><i class="fa-solid fa-briefcase"></i> -</span>
+                                        <span id="w-profile-turno" style="background: rgba(255,122,0,0.15); color: var(--color-primary); padding: 1px 6px; border-radius: 4px; font-weight:700;">-</span>
+                                        <span id="w-profile-talla-ropa" style="background: rgba(16,185,129,0.15); color: var(--emerald); padding: 1px 6px; border-radius: 4px; font-weight:700;"><i class="fa-solid fa-shirt"></i> Talla Ropa: -</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <button type="button" class="btn btn-secondary btn-sm" onclick="window.openEditWorkerModal()" style="display: flex; align-items: center; gap: 6px;">
+                                <i class="fa-solid fa-user-pen"></i> Editar Datos
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- EPP Vigentes -->
+                    <div class="card" style="margin-top: 24px;">
+                        <div class="section-title">
+                            <span class="sec-num">02</span>
+                            <h3>Equipos de Protección Activos (Vida Útil Vigente)</h3>
+                        </div>
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Artículo EPP</th>
+                                        <th>Fecha de Entrega</th>
+                                        <th style="text-align: center;">Vida Útil Sugerida</th>
+                                        <th>Tiempo Transcurrido (SLA)</th>
+                                        <th>Estado</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="worker-epps-tbody">
+                                    <!-- Dinámico -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Historial Completo de Salidas -->
+                    <div class="card" style="margin-top: 24px;">
+                        <div class="section-title">
+                            <span class="sec-num">03</span>
+                            <h3>Historial de Entregas Firmadas</h3>
+                        </div>
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Fecha</th>
+                                        <th>Registrado Por</th>
+                                        <th>Items Entregados</th>
+                                        <th style="text-align: center;">Firma</th>
+                                        <th style="text-align: center; width: 120px;">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="worker-history-tbody">
+                                    <!-- Dinámico -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VIEW: ANALÍTICAS Y KPIS -->
+            <div id="view-analytics" class="view-panel">
+                <!-- Segmentadores de Datos (Filtros en Caliente) -->
+                <div class="card" style="margin-bottom: 24px;">
+                    <div class="section-title" style="margin-bottom: 16px;">
+                        <span class="sec-num"><i class="fa-solid fa-filter" style="font-size:0.8rem;"></i></span>
+                        <h3>Filtros y Segmentadores de Datos</h3>
+                    </div>
+                    <div class="form-grid cols-4" style="gap: 16px;">
+                        <div class="form-group">
+                            <label for="ana-filter-area"><i class="fa-solid fa-briefcase"></i> Área de Trabajo</label>
+                            <select id="ana-filter-area" class="filter-select" style="width: 100%;" onchange="renderAnalyticsDashboard()">
+                                <option value="">Todas las Áreas</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="ana-filter-category"><i class="fa-solid fa-tag"></i> Categoría de EPP</label>
+                            <select id="ana-filter-category" class="filter-select" style="width: 100%;" onchange="renderAnalyticsDashboard()">
+                                <option value="">Todas las Categorías</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="ana-filter-start-date"><i class="fa-solid fa-calendar"></i> Desde</label>
+                            <input type="date" id="ana-filter-start-date" class="filter-select" style="width: 100%; padding: 10px 12px; height: 46px;" onchange="renderAnalyticsDashboard()">
+                        </div>
+                        <div class="form-group">
+                            <label for="ana-filter-end-date"><i class="fa-solid fa-calendar"></i> Hasta</label>
+                            <input type="date" id="ana-filter-end-date" class="filter-select" style="width: 100%; padding: 10px 12px; height: 46px;" onchange="renderAnalyticsDashboard()">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- KPI Dashboard -->
+                <div class="dashboard-stats">
+                    <div class="card stat-card">
+                        <div class="stat-content">
+                            <span class="stat-num" id="ana-kpi-total">0</span>
+                            <span class="stat-desc">EPPs Despachados</span>
+                        </div>
+                        <div class="stat-icon info"><i class="fa-solid fa-truck-ramp-box"></i></div>
+                    </div>
+                    <div class="card stat-card">
+                        <div class="stat-content">
+                            <span class="stat-num text-danger" id="ana-kpi-deviation">0%</span>
+                            <span class="stat-desc">Tasa Desviación Crítica</span>
+                        </div>
+                        <div class="stat-icon error"><i class="fa-solid fa-triangle-exclamation"></i></div>
+                    </div>
+                    <div class="card stat-card">
+                        <div class="stat-content">
+                            <span class="stat-num text-success" id="ana-kpi-sla">0%</span>
+                            <span class="stat-desc">Requerimientos en SLA</span>
+                        </div>
+                        <div class="stat-icon success"><i class="fa-solid fa-business-time"></i></div>
+                    </div>
+                </div>
+
+                <!-- Gráficos -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 24px;">
+                    <div class="card">
+                        <div class="section-title">
+                            <span class="sec-num">01</span>
+                            <h3>Consumo de EPP por Área</h3>
+                        </div>
+                        <div id="analytics-area-chart-container" style="height: 300px; display: flex; align-items: center; justify-content: center;">
+                            <!-- SVG Dinámico -->
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="section-title">
+                            <span class="sec-num">02</span>
+                            <h3>Distribución de Alertas de Consumo</h3>
+                        </div>
+                        <div id="analytics-deviation-chart-container" style="height: 300px; display: flex; align-items: center; justify-content: center;">
+                            <!-- SVG Dinámico -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- NUEVO GRÁFICO: Tendencia Estacional de Consumo -->
+                <div class="card" style="margin-top: 24px;">
+                    <div class="section-title">
+                        <span class="sec-num">03</span>
+                        <h3>Línea Temporal de Consumo Estacional (Despacho Mensual)</h3>
+                    </div>
+                    <div id="analytics-seasonality-chart-container" style="height: 280px; display: flex; align-items: center; justify-content: center; overflow: visible;">
+                        <!-- SVG Dinámico -->
+                    </div>
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: 24px; margin-top: 24px;">
+                    <!-- Trabajadores con Desviación Acelerada -->
+                    <div class="card">
+                        <div class="section-title">
+                            <span class="sec-num">04</span>
+                            <h3>Colaboradores Observados (Cambios Prematuros)</h3>
+                        </div>
+                        <p style="font-size:0.8rem; color:var(--text-secondary); margin-bottom: 12px;">Haga clic en un colaborador para auditar su ficha completa.</p>
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Colaborador</th>
+                                        <th>Artículo EPP</th>
+                                        <th style="text-align: center;">Entregas</th>
+                                        <th>Frecuencia Promedio</th>
+                                        <th>Estado</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="analytics-deviations-tbody">
+                                    <!-- Dinámico -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- NUEVO PANEL: Runway de Autonomía de Abastecimiento -->
+                    <div class="card">
+                        <div class="section-title">
+                            <span class="sec-num">05</span>
+                            <h3>Runway de Autonomía de Bodega</h3>
+                        </div>
+                        <p style="font-size:0.8rem; color:var(--text-secondary); margin-bottom: 12px;">Días estimados de stock según ritmo de consumo operacional.</p>
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Artículo SKU</th>
+                                        <th style="text-align: center;">Stock</th>
+                                        <th>Autonomía</th>
+                                        <th>Riesgo</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="analytics-runway-tbody">
+                                    <!-- Dinámico -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VIEW: PRESTAMOS DE EQUIPOS (RETORNO DIARIO) -->
+            <div id="view-loans" class="view-panel">
+                <!-- Dashboard Stats de Préstamos -->
+                <div class="dashboard-stats">
+                    <div class="card stat-card">
+                        <div class="stat-content">
+                            <span class="stat-num" id="loan-stat-active">0</span>
+                            <span class="stat-desc">Equipos Fuera</span>
+                        </div>
+                        <div class="stat-icon info"><i class="fa-solid fa-people-carry-box"></i></div>
+                    </div>
+                    <div class="card stat-card">
+                        <div class="stat-content">
+                            <span class="stat-num text-danger" id="loan-stat-overdue">0</span>
+                            <span class="stat-desc">Atrasados (+12h)</span>
+                        </div>
+                        <div class="stat-icon danger"><i class="fa-solid fa-triangle-exclamation"></i></div>
+                    </div>
+                    <div class="card stat-card">
+                        <div class="stat-content">
+                            <span class="stat-num text-success" id="loan-stat-returned">0</span>
+                            <span class="stat-desc">Devueltos Hoy</span>
+                        </div>
+                        <div class="stat-icon success"><i class="fa-solid fa-circle-check"></i></div>
+                    </div>
+                </div>
+
+                <div class="grid-2-1" style="display: grid; grid-template-columns: 1fr 2fr; gap: 24px; align-items: start;">
+                    <!-- Panel Izquierdo: Registrar Préstamo -->
+                    <div class="card">
+                        <div class="section-title">
+                            <span class="sec-num">01</span>
+                            <h3>Registrar Préstamo</h3>
+                        </div>
+                        <form id="loan-form" onsubmit="handleCreateLoan(event)">
+                            <div class="form-group">
+                                <label for="loan-rut">RUT Colaborador <span class="required">*</span></label>
+                                <div class="autocomplete-wrapper" style="position:relative;">
+                                    <input type="text" id="loan-rut" placeholder="Ej. 12.345.678-9" required oninput="onLoanRutInput(this.value)">
+                                    <div class="autocomplete-suggestions" id="loan-rut-suggestions"></div>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="loan-worker-name">Nombre Completo</label>
+                                <input type="text" id="loan-worker-name" placeholder="Autocompletado..." readonly style="background-color: var(--bg-secondary);">
+                            </div>
+                            <div class="form-grid cols-2" style="gap: 16px;">
+                                <div class="form-group">
+                                    <label for="loan-area">Área de Trabajo</label>
+                                    <input type="text" id="loan-area" placeholder="Autocompletado..." readonly style="background-color: var(--bg-secondary);">
+                                </div>
+                                <div class="form-group">
+                                    <label for="loan-turno">Turno</label>
+                                    <input type="text" id="loan-turno" placeholder="Autocompletado..." readonly style="background-color: var(--bg-secondary);">
+                                </div>
+                            </div>
+
+                            <!-- Selector de Equipos -->
+                            <div style="background: var(--bg-secondary); padding: 15px; border-radius: var(--radius-md); border: 1px dashed var(--border-color); margin-bottom: 20px;">
+                                <h4 style="margin-bottom: 8px; font-size: 0.85rem;">Seleccionar Equipo</h4>
+                                <div class="form-group">
+                                    <select id="loan-product-select" onchange="onLoanProductSelectChange(this.value)"></select>
+                                </div>
+                                <div class="form-group" id="loan-serial-group" style="display:none; margin-top:8px;">
+                                    <label for="loan-serial-select">Nº de Serie Disponible</label>
+                                    <select id="loan-serial-select"></select>
+                                </div>
+                            </div>
+
+                            <!-- Firma Digital -->
+                            <div class="form-group">
+                                <label>Firma Digital del Colaborador <span class="required">*</span></label>
+                                <div class="signature-container" style="border: 1px solid var(--border-color); border-radius: var(--radius-md); background: #fff; position: relative;">
+                                    <canvas id="loan-signature-pad" width="300" height="120" style="display:block; width:100%; height:120px; cursor:crosshair;"></canvas>
+                                    <button type="button" class="btn btn-secondary btn-sm" onclick="clearLoanSignature()" style="position: absolute; right: 10px; bottom: 10px; padding: 4px 8px; font-size: 0.75rem;">
+                                        Limpiar
+                                    </button>
+                                </div>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center; margin-top: 10px;">
+                                <i class="fa-solid fa-people-carry-box"></i> Registrar Salida
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- Panel Derecho: Equipos Activos en Faena -->
+                    <div class="card">
+                        <div class="section-title" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <span class="sec-num">02</span>
+                                <h3>Control de Retornos Pendientes</h3>
+                            </div>
+                            <!-- Filtro Turno Noche -->
+                            <div style="display: flex; align-items: center; gap: 8px; font-size: 0.85rem;">
+                                <label for="loan-filter-night" style="cursor:pointer; font-weight:600;"><i class="fa-solid fa-moon"></i> Turno Noche</label>
+                                <input type="checkbox" id="loan-filter-night" onchange="filterLoansTable()" style="cursor:pointer; width:16px; height:16px;">
+                            </div>
+                        </div>
+
+                        <div class="filters-bar" style="margin-bottom: 20px;">
+                            <div class="search-input-wrapper" style="width: 100%;">
+                                <i class="fa-solid fa-magnifying-glass"></i>
+                                <input type="text" id="loan-search" placeholder="Buscar por trabajador, RUT o Nº de serie..." oninput="filterLoansTable()">
+                            </div>
+                        </div>
+
+                        <div class="table-container">
+                            <table id="table-loans">
+                                <thead>
+                                    <tr>
+                                        <th>Colaborador</th>
+                                        <th>Área/Turno</th>
+                                        <th>Equipo Entregado</th>
+                                        <th>Salida</th>
+                                        <th>Antigüedad</th>
+                                        <th style="text-align: center; width: 120px;">Retorno</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="loans-tbody">
+                                    <tr><td colspan="6" style="text-align: center; color: var(--text-muted);">No hay préstamos activos.</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VIEW: SOLICITUDES DE REPOSICIÓN / ABASTECIMIENTO -->
+            <div id="view-replenishments" class="view-panel">
+                <!-- Dashboard Stats de Reposiciones -->
+                <div class="dashboard-stats">
+                    <div class="card stat-card">
+                        <div class="stat-content">
+                            <span class="stat-num" id="rep-stat-total">0</span>
+                            <span class="stat-desc">Pedidos Solicitados</span>
+                        </div>
+                        <div class="stat-icon info"><i class="fa-solid fa-cart-shopping"></i></div>
+                    </div>
+                    <div class="card stat-card">
+                        <div class="stat-content">
+                            <span class="stat-num text-warning" id="rep-stat-transit">0</span>
+                            <span class="stat-desc">Pedidos Aprobados (Pendientes)</span>
+                        </div>
+                        <div class="stat-icon warning"><i class="fa-solid fa-circle-check"></i></div>
+                    </div>
+                    <div class="card stat-card">
+                        <div class="stat-content">
+                            <span class="stat-num text-success" id="rep-stat-received">0</span>
+                            <span class="stat-desc">Pedidos Recibidos (Completados)</span>
+                        </div>
+                        <div class="stat-icon success"><i class="fa-solid fa-box-open"></i></div>
+                    </div>
+                </div>
+
+                <!-- Tabla de Seguimiento de Compras -->
+                <div class="card">
+                    <div class="section-title">
+                        <span class="sec-num">01</span>
+                        <h3>Seguimiento de Órdenes de Reposición</h3>
+                    </div>
+
+                    <div class="filters-bar" style="margin-bottom: 20px;">
+                        <div class="search-input-wrapper">
+                            <i class="fa-solid fa-magnifying-glass"></i>
+                            <input type="text" id="replenish-search" placeholder="Buscar por código, SKU o artículo..." oninput="window.filterReplenishmentsTable()">
+                        </div>
+                        <select id="replenish-filter-status" class="filter-select" onchange="window.filterReplenishmentsTable()">
+                            <option value="">Todos los Estados</option>
+                            <option value="Solicitado">Solicitado</option>
+                            <option value="Aprobado">Aprobado</option>
+                            <option value="Recibido">Recibido (En Stock)</option>
+                        </select>
+                        <button class="btn btn-primary" onclick="window.openNewReplenishmentModal()">
+                            <i class="fa-solid fa-plus"></i> Nueva Solicitud Manual
+                        </button>
+                    </div>
+
+                    <div class="table-container">
+                        <table id="table-replenishments">
+                            <thead>
+                                <tr>
+                                    <th>Código</th>
+                                    <th>Fecha</th>
+                                    <th>Artículo EPP (SKU)</th>
+                                    <th style="text-align: center;">Cantidad Solicitada</th>
+                                    <th style="text-align: center;">Cantidad Recibida</th>
+                                    <th>Estado</th>
+                                    <th>Notas / Comentarios</th>
+                                    <th>Acción</th>
+                                </tr>
+                            </thead>
+                            <tbody id="replenishments-tbody">
+                                <!-- Dinámico en JS -->
+                                <tr>
+                                    <td colspan="8" style="text-align: center; color: var(--text-muted);">No hay órdenes de reposición registradas.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VIEW: CONFIGURACIÓN -->
+            <div id="view-settings" class="view-panel">
+                <!-- Panel de Gestión de Usuarios (Exclusivo Administradores) -->
+                <div class="card" id="user-management-card" style="display: none; margin-bottom: 24px;">
+                    <div class="section-title">
+                        <span class="sec-num">01</span>
+                        <h3>Gestión de Usuarios y Accesos</h3>
+                    </div>
+                    <p style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 20px;">
+                        Cree nuevos perfiles asociados al RUT de los operadores, defina sus contraseñas iniciales y asigne sus niveles de acceso correspondientes.
+                    </p>
+
+                    <!-- Formulario de creación de usuario -->
+                    <form id="create-user-form" onsubmit="handleCreateUser(event)" style="margin-bottom: 24px; padding-bottom: 20px; border-bottom: 1px solid var(--border-color);">
+                        <div class="form-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)) 120px; gap: 16px; align-items: end;">
+                            <div class="form-group">
+                                <label for="new-user-rut">RUT <span class="required">*</span></label>
+                                <input type="text" id="new-user-rut" placeholder="Ej. 12.345.678-9" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="new-user-name">Nombre Completo <span class="required">*</span></label>
+                                <input type="text" id="new-user-name" placeholder="Ej. Juan Pérez" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="new-user-role">Rol de Acceso <span class="required">*</span></label>
+                                <select id="new-user-role" required>
+                                    <option value="Bodeguero">Bodeguero</option>
+                                    <option value="Supervisor">Supervisor</option>
+                                    <option value="Administrador">Administrador</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="new-user-password">Clave Inicial <span class="required">*</span></label>
+                                <input type="password" id="new-user-password" placeholder="Mínimo 6 carac." required minlength="6">
+                            </div>
+                            <button type="submit" class="btn btn-primary" style="height: 46px; width: 100%; justify-content: center;">
+                                <i class="fa-solid fa-user-plus"></i> Crear
+                            </button>
+                        </div>
+                    </form>
+
+                    <!-- Listado de usuarios creados -->
+                    <div class="table-responsive">
+                        <table class="data-table" id="users-table">
+                            <thead>
+                                <tr>
+                                    <th>RUT</th>
+                                    <th>Nombre del Operario</th>
+                                    <th>Nivel de Acceso (Rol)</th>
+                                    <th>Estado de Clave</th>
+                                    <th style="text-align: center; width: 120px;">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="users-table-tbody">
+                                <!-- Dinámico en JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Panel de Configuración de Kits de EPP por Área de Trabajo -->
+                <div class="card" id="area-kits-management-card" style="display: none; margin-bottom: 24px;">
+                    <div class="section-title">
+                        <span class="sec-num">02</span>
+                        <h3>Kits de EPP por Área de Trabajo</h3>
+                    </div>
+                    <p style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 20px;">
+                        Configure los artículos de EPP estándar y sus cantidades sugeridas para cada área técnica de trabajo. Estos kits se podrán pre-cargar rápidamente en las entregas diarias.
+                    </p>
+                    
+                    <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; align-items: start;">
+                        <div class="form-group">
+                            <label for="kit-area-select">Seleccione Área de Trabajo</label>
+                            <select id="kit-area-select" onchange="onKitAreaChange()"></select>
+                        </div>
+                        <div style="background: var(--bg-secondary); padding: 15px; border-radius: var(--radius-md); border: 1px dashed var(--border-color);">
+                            <h4 style="margin-bottom: 8px; font-size: 0.85rem;">Agregar EPP a la Plantilla</h4>
+                            <div class="form-grid" style="grid-template-columns: 1fr 80px 40px; gap: 8px; align-items: end;">
+                                <div class="form-group" style="margin-bottom:0;">
+                                    <label for="kit-epp-select" style="font-size:0.75rem;">Artículo EPP</label>
+                                    <select id="kit-epp-select"></select>
+                                </div>
+                                <div class="form-group" style="margin-bottom:0;">
+                                    <label for="kit-qty-input" style="font-size:0.75rem;">Cant.</label>
+                                    <input type="number" id="kit-qty-input" min="1" value="1">
+                                </div>
+                                <button type="button" class="btn btn-primary" onclick="addEPPToKit()" style="height: 38px; padding: 0; justify-content: center; width: 100%;" title="Agregar al Kit">
+                                    <i class="fa-solid fa-plus"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="data-table" id="kit-items-table">
+                            <thead>
+                                <tr>
+                                    <th>SKU</th>
+                                    <th>Artículo EPP</th>
+                                    <th style="text-align: center;">Cantidad Estándar</th>
+                                    <th style="text-align: center; width: 80px;">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="kit-items-tbody">
+                                <tr><td colspan="4" style="text-align: center; color: var(--text-muted);">Selecciona un área para ver su kit.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <div style="margin-top: 15px; text-align: right;">
+                        <button type="button" class="btn btn-primary" onclick="saveAreaKit()">
+                            <i class="fa-solid fa-save"></i> Guardar Plantilla de Kit
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Panel de Registro y Calibración de Series de Equipos -->
+                <div class="card" id="serial-management-card" style="display: none; margin-bottom: 24px;">
+                    <div class="section-title">
+                        <span class="sec-num">03</span>
+                        <h3>Registro y Calibración de Equipos Serializados</h3>
+                    </div>
+                    <p style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 20px;">
+                        Administre los números de serie individuales para detectores de gases Dräger y radios portátiles, y controle sus fechas de calibración preventiva.
+                    </p>
+
+                    <!-- Formulario de nuevo equipo serial -->
+                    <form id="create-serial-form" onsubmit="handleRegisterSerial(event)" style="margin-bottom: 20px; padding-bottom: 20px; border-bottom: 1px solid var(--border-color);">
+                        <div class="form-grid" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)) 100px; gap: 16px; align-items: end;">
+                            <div class="form-group">
+                                <label for="new-serial-product">Producto Base <span class="required">*</span></label>
+                                <select id="new-serial-product" required></select>
+                            </div>
+                            <div class="form-group">
+                                <label for="new-serial-number">Número de Serie <span class="required">*</span></label>
+                                <input type="text" id="new-serial-number" placeholder="Ej. DRG-12345" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="new-serial-cal-faena">Calib. Faena (Mensual)</label>
+                                <input type="date" id="new-serial-cal-faena">
+                            </div>
+                            <div class="form-group">
+                                <label for="new-serial-cal-proveedor">Calib. Proveedor (Trimestral)</label>
+                                <input type="date" id="new-serial-cal-proveedor">
+                            </div>
+                            <button type="submit" class="btn btn-primary" style="height: 46px; width: 100%; justify-content: center;">
+                                <i class="fa-solid fa-plus"></i> Registrar
+                            </button>
+                        </div>
+                    </form>
+
+                    <div class="table-responsive">
+                        <table class="data-table" id="serials-table">
+                            <thead>
+                                <tr>
+                                    <th>Producto</th>
+                                    <th>Nº de Serie</th>
+                                    <th>Estado</th>
+                                    <th>Calibración Faena</th>
+                                    <th>Calibración Proveedor</th>
+                                    <th style="text-align: center;">Acción</th>
+                                </tr>
+                            </thead>
+                            <tbody id="serials-tbody">
+                                <tr><td colspan="6" style="text-align: center; color: var(--text-muted);">Cargando equipos serializados...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Panel de Conciliación Semanal (Martes de Bajada) -->
+                <div class="card" id="reconciliation-management-card" style="display: none; margin-bottom: 24px;">
+                    <div class="section-title">
+                        <span class="sec-num">04</span>
+                        <h3>Martes de Bajada (Conciliación Semanal de Stock)</h3>
+                    </div>
+                    <p style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 20px;">
+                        Registre el conteo físico real de inventario de los días martes. El sistema calculará automáticamente las mermas o diferencias y generará una bitácora de ajuste.
+                    </p>
+
+                    <div id="reconciliation-assistant-container">
+                        <div style="background-color: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.15); padding: 15px; border-radius: var(--radius-md); margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; gap: 15px;">
+                            <div>
+                                <strong style="color: var(--emerald); display: block; margin-bottom: 4px; font-size: 0.95rem;">Asistente de Conciliación Semanal</strong>
+                                <span style="font-size: 0.8rem; color: var(--text-secondary); line-height: 1.4; display: block;">Inicie el proceso de bajada de inventario guiado para comparar y cuadrar el stock del sistema contra el conteo físico de bodega.</span>
+                            </div>
+                            <button type="button" class="btn btn-primary" onclick="startReconciliation()" style="flex-shrink:0;">
+                                <i class="fa-solid fa-play"></i> Iniciar Bajada
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="section-title">
+                        <span class="sec-num" id="security-section-num">02</span>
+                        <h3>Control y Seguridad del Sistema</h3>
+                    </div>
+                    <p style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 20px;">
+                        Estas configuraciones alteran de forma global la información de bodega. Solo están disponibles para operarios con rango de <strong>Supervisor</strong> o <strong>Administrador</strong>.
+                     </p>
+                     
+                     <div id="admin-actions-container" style="display: none; flex-direction: column; gap: 16px;">
+                         <div style="background-color: rgba(230, 57, 70, 0.05); border: 1px solid rgba(230, 57, 70, 0.15); padding: 20px; border-radius: var(--radius-md); display: flex; justify-content: space-between; align-items: center; gap: 20px;">
+                             <div>
+                                 <strong style="color: var(--color-danger); display: block; margin-bottom: 4px; font-size: 0.95rem;">Reiniciar Transacciones de Bodega</strong>
+                                 <span style="font-size: 0.8rem; color: var(--text-secondary); line-height: 1.4; display: block;">Esta acción eliminará todos los ingresos de guías de despacho, salidas de actas y movimientos de insumos, y dejará el inventario actual en cero stock. No afectará el catálogo de productos ni las categorías.</span>
+                             </div>
+                             <button class="btn btn-danger-outline" onclick="confirmResetDatabase()" style="flex-shrink: 0;">
+                                 <i class="fa-solid fa-trash-can"></i> Reiniciar Transacciones
+                             </button>
+                         </div>
+                     </div>
+                     
+                     <div id="admin-denied-message" style="display: block; padding: 24px; background-color: rgba(255, 183, 3, 0.05); border: 1px solid rgba(255, 183, 3, 0.15); border-radius: var(--radius-md); text-align: center; color: var(--color-warning);">
+                         <i class="fa-solid fa-triangle-exclamation" style="font-size: 1.8rem; margin-bottom: 12px; display: block;"></i>
+                         <span style="font-size: 0.9rem; font-weight: 500;">Acceso denegado. Se requiere el cargo de <strong>Supervisor</strong> o <strong>Administrador</strong> para realizar acciones de control.</span>
+                         <div style="margin-top: 8px; font-size: 0.8rem; color: var(--text-secondary);">Tu cargo actual: <strong id="admin-current-role">-</strong></div>
+                     </div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- MODAL: REGISTRO DE NUEVO ITEM EPP -->
+    <div class="modal-overlay" id="new-epp-modal">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h3>Crear Nuevo Tipo de EPP</h3>
+                <button class="btn-close" onclick="closeNewEPPModal()">&times;</button>
+            </div>
+            <form id="new-epp-form" onsubmit="saveNewEPP(event)">
+                <div class="modal-body">
+                    <div class="form-grid" style="gap: 16px;">
+                        <div class="form-group">
+                            <label for="new-epp-code">Código Único <span class="required">*</span></label>
+                            <input type="text" id="new-epp-code" placeholder="Ej. EPP-CASCO-BL" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="new-epp-name">Nombre del EPP <span class="required">*</span></label>
+                            <input type="text" id="new-epp-name" placeholder="Ej. Casco MSA Blanco" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="new-epp-category">Categoría <span class="required">*</span></label>
+                            <select id="new-epp-category" required>
+                                <option value="" disabled selected>Seleccione...</option>
+                            </select>
+                        </div>
+                        <div class="form-grid cols-2" style="gap: 16px;">
+                            <div class="form-group">
+                                <label for="new-epp-min-stock">Stock Mínimo <span class="required">*</span></label>
+                                <input type="number" id="new-epp-min-stock" min="1" value="10" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="new-epp-unit">Unidad de Medida <span class="required">*</span></label>
+                                <input type="text" id="new-epp-unit" value="Unidades" required>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="new-epp-duration">Vida Útil Sugerida (Meses) <span class="required">*</span></label>
+                            <input type="number" id="new-epp-duration" min="1" max="60" value="6" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="new-epp-control-type">Tipo de Control <span class="required">*</span></label>
+                            <select id="new-epp-control-type" required onchange="document.getElementById('new-epp-deadline-group').style.display = this.value === 'Préstamo' ? 'block' : 'none'">
+                                <option value="Consumo" selected>Consumo (Egreso Permanente)</option>
+                                <option value="Préstamo">Préstamo (Retorno Obligatorio)</option>
+                            </select>
+                        </div>
+                        <div class="form-group" id="new-epp-deadline-group" style="display: none;">
+                            <label for="new-epp-return-deadline">Plazo de Retorno <span class="required">*</span></label>
+                            <select id="new-epp-return-deadline">
+                                <option value="12h" selected>Fin de Jornada (12 Horas)</option>
+                                <option value="7d">Fin de Turno / Semanal (7 Días)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeNewEPPModal()">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Crear EPP</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: GESTION DE CATEGORIAS -->
+    <div class="modal-overlay" id="category-modal">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h3>Gestionar Categorías de EPP</h3>
+                <button class="btn-close" onclick="closeCategoryModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <!-- Formulario para agregar -->
+                <form id="add-category-form" onsubmit="saveNewCategory(event)" style="margin-bottom: 20px;">
+                    <div class="form-grid" style="grid-template-columns: 1fr 100px; gap: 12px; align-items: end;">
+                        <div class="form-group">
+                            <label for="new-category-name">Nueva Categoría <span class="required">*</span></label>
+                            <input type="text" id="new-category-name" placeholder="Ej. Protección Altura" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary" style="height: 46px; width: 100%; justify-content: center;">
+                            <i class="fa-solid fa-plus"></i> Añadir
+                        </button>
+                    </div>
+                </form>
+
+                <!-- Listado de categorías con eliminar -->
+                <label style="font-size: 0.85rem; font-weight: 600; color: var(--text-secondary); display:block; margin-bottom:8px;">
+                    Categorías Existentes
+                </label>
+                <div style="max-height: 220px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: var(--radius-md); background: var(--bg-tertiary);">
+                    <ul id="category-list" style="list-style: none; padding: 0; margin: 0;">
+                        <!-- Dinámico en JS -->
+                    </ul>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeCategoryModal()">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: GESTION DE AREAS DE TRABAJO -->
+    <div class="modal-overlay" id="areas-modal">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h3>Gestionar Áreas de Trabajo</h3>
+                <button class="btn-close" onclick="closeAreasModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <!-- Formulario para agregar -->
+                <form id="add-area-form" onsubmit="saveNewArea(event)" style="margin-bottom: 20px;">
+                    <div class="form-grid" style="grid-template-columns: 1fr 100px; gap: 12px; align-items: end;">
+                        <div class="form-group">
+                            <label for="new-area-name">Nueva Área de Trabajo <span class="required">*</span></label>
+                            <input type="text" id="new-area-name" placeholder="Ej. Logística" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary" style="height: 46px; width: 100%; justify-content: center;">
+                            <i class="fa-solid fa-plus"></i> Añadir
+                        </button>
+                    </div>
+                </form>
+
+                <!-- Listado de áreas con eliminar -->
+                <label style="font-size: 0.85rem; font-weight: 600; color: var(--text-secondary); display:block; margin-bottom:8px;">
+                    Áreas de Trabajo Existentes
+                </label>
+                <div style="max-height: 220px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: var(--radius-md); background: var(--bg-tertiary);">
+                    <ul id="areas-list" style="list-style: none; padding: 0; margin: 0;">
+                        <!-- Dinámico en JS -->
+                    </ul>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeAreasModal()">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: GESTION DE TURNOS -->
+    <div class="modal-overlay" id="turnos-modal">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h3>Gestionar Turnos de Trabajo</h3>
+                <button class="btn-close" onclick="window.closeTurnosModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <!-- Formulario para agregar -->
+                <form id="add-turno-form" onsubmit="window.saveNewTurno(event)" style="margin-bottom: 20px;">
+                    <div class="form-grid" style="grid-template-columns: 1fr 100px; gap: 12px; align-items: end;">
+                        <div class="form-group">
+                            <label for="new-turno-name">Nuevo Turno <span class="required">*</span></label>
+                            <input type="text" id="new-turno-name" placeholder="Ej. Turno Especial" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary" style="height: 46px; width: 100%; justify-content: center;">
+                            <i class="fa-solid fa-plus"></i> Añadir
+                        </button>
+                    </div>
+                </form>
+
+                <!-- Listado de turnos con eliminar -->
+                <label style="font-size: 0.85rem; font-weight: 600; color: var(--text-secondary); display:block; margin-bottom:8px;">
+                    Turnos Existentes
+                </label>
+                <div style="max-height: 220px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: var(--radius-md); background: var(--bg-tertiary);">
+                    <ul id="turnos-list" style="list-style: none; padding: 0; margin: 0;">
+                        <!-- Dinámico en JS -->
+                    </ul>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="window.closeTurnosModal()">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- MODAL: NUEVA SOLICITUD DE INSUMOS DE MEJORA -->
+    <div class="modal-overlay" id="new-supply-modal">
+        <div class="modal-content" style="max-width: 650px;">
+            <div class="modal-header">
+                <h3>Nuevo Requerimiento de Personal</h3>
+                <button class="btn-close" onclick="closeNewSupplyModal()">&times;</button>
+            </div>
+            <form id="new-supply-form" onsubmit="saveNewSupply(event)">
+                <div class="modal-body">
+                    <div class="form-grid cols-2" style="gap: 16px; margin-bottom: 20px;">
+                        <div class="form-group">
+                            <label for="new-supply-code">Código de Requerimiento <span class="required">*</span></label>
+                            <input type="text" id="new-supply-code" placeholder="Ej. REQ-004" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="new-supply-date">Fecha de Solicitud <span class="required">*</span></label>
+                            <input type="datetime-local" id="new-supply-date" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="new-supply-worker">Trabajador (Nombre Completo) <span class="required">*</span></label>
+                            <input type="text" id="new-supply-worker" placeholder="Ej. Juan Pérez" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="new-supply-rut">RUT Trabajador <span class="required">*</span></label>
+                            <input type="text" id="new-supply-rut" placeholder="Ej. 12.345.678-9" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="new-supply-turno">Turno <span class="required">*</span></label>
+                            <div style="display: flex; gap: 8px; width: 100%;">
+                                <select id="new-supply-turno" class="filter-select" style="flex: 1;" required>
+                                    <!-- Se llenará dinámicamente -->
+                                </select>
+                                <button type="button" class="btn btn-secondary" id="btn-manage-turnos" style="padding: 0 12px; height: 46px;" onclick="window.openTurnosModal()" title="Gestionar Turnos">
+                                    <i class="fa-solid fa-gear"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="new-supply-priority">Prioridad / Urgencia <span class="required">*</span></label>
+                            <select id="new-supply-priority" class="filter-select" style="width:100%;" required>
+                                <option value="Baja">Baja</option>
+                                <option value="Media" selected>Media</option>
+                                <option value="Alta">Alta (Urgente / Crítico)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="new-supply-project">Motivo / Detalle <span class="required">*</span></label>
+                            <input type="text" id="new-supply-project" placeholder="Ej. Zapatos rotos en la suela" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="new-supply-supplier">Área del Trabajador <span class="required">*</span></label>
+                            <select id="new-supply-supplier" class="filter-select" style="width:100%;" required>
+                                <!-- Se llenará dinámicamente -->
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 20px;">
+                        <label for="new-supply-evidence">Adjuntar Evidencia Fotográfica (Opcional)</label>
+                        <input type="file" id="new-supply-evidence" accept="image/*" style="padding: 6px 12px; border: 1px dashed var(--border-color); width: 100%; border-radius: var(--radius-md); background: var(--bg-tertiary);">
+                        <div id="new-supply-evidence-preview" style="margin-top: 10px; display: none; text-align: center;">
+                            <img src="" alt="Previsualización" style="max-height: 150px; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
+                            <button type="button" class="btn btn-link btn-sm text-danger" onclick="window.clearEvidenceInput()" style="display: block; margin: 5px auto 0;">Eliminar Foto</button>
+                        </div>
+                    </div>
+
+                    <div class="section-title" style="margin-bottom: 16px;">
+                        <span class="sec-num"><i class="fa-solid fa-list-check" style="font-size:0.8rem;"></i></span>
+                        <h3>Detalle de Repuestos / Insumos Solicitados</h3>
+                    </div>
+
+                    <div class="dynamic-table-container">
+                        <div class="dynamic-table-header">
+                            <h4 style="font-size:0.85rem; color:var(--text-secondary);">Items del Pedido</h4>
+                            <button type="button" class="btn btn-secondary btn-sm" onclick="addNewSupplyItemRow()">
+                                <i class="fa-solid fa-plus"></i> Añadir Línea
+                            </button>
+                        </div>
+                        <div id="new-supply-items-container">
+                            <!-- JS dinámico -->
+                        </div>
+                    </div>
+
+                    <div class="form-group" style="margin-top: 16px;">
+                        <label for="new-supply-comments">Observaciones Iniciales</label>
+                        <textarea id="new-supply-comments" placeholder="Especificaciones, prioridades o urgencias..." rows="2"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeNewSupplyModal()">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Crear Requerimiento</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: REGISTRAR RECEPCIÓN DE INSUMOS -->
+    <div class="modal-overlay" id="receive-supply-modal">
+        <div class="modal-content" style="max-width: 700px;">
+            <div class="modal-header">
+                <h3>Registrar Recepción de Insumos</h3>
+                <button class="btn-close" onclick="closeReceiveSupplyModal()">&times;</button>
+            </div>
+            <form id="receive-supply-form" onsubmit="saveReceiveSupply(event)">
+                <input type="hidden" id="receive-supply-id">
+                <div class="modal-body">
+                    <div style="background: var(--bg-tertiary); padding: 16px; border-radius: var(--radius-md); border:1px solid var(--border-color); margin-bottom: 20px;">
+                        <div style="display:grid; grid-template-columns: repeat(2, 1fr); gap: 12px; font-size: 0.9rem;">
+                            <div><strong>Código:</strong> <span id="lbl-rec-code">-</span></div>
+                            <div><strong>Proyecto:</strong> <span id="lbl-rec-project">-</span></div>
+                            <div><strong>Proveedor:</strong> <span id="lbl-rec-supplier">-</span></div>
+                            <div><strong>Fecha Pedido:</strong> <span id="lbl-rec-date">-</span></div>
+                        </div>
+                    </div>
+
+                    <div class="section-title" style="margin-bottom: 16px;">
+                        <span class="sec-num"><i class="fa-solid fa-boxes-packing" style="font-size:0.8rem;"></i></span>
+                        <h3>Ingreso de Repuestos Arribados</h3>
+                    </div>
+
+                    <!-- Lista de productos a recibir -->
+                    <div class="table-container" style="margin-bottom: 16px;">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Nombre del Item</th>
+                                    <th style="width: 100px; text-align: center;">Solicitado</th>
+                                    <th style="width: 100px; text-align: center;">Recibido Ant.</th>
+                                    <th style="width: 130px; text-align: center;">Ingreso Actual</th>
+                                    <th style="width: 100px; text-align: center;">Restante</th>
+                                </tr>
+                            </thead>
+                            <tbody id="receive-supply-items-tbody">
+                                <!-- Dinámico en JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="form-group">
+                         <label for="receive-supply-comments">Notas de esta Recepción</label>
+                         <textarea id="receive-supply-comments" placeholder="Ej. Detallar si llegó dañado, número de guía de despacho, etc..." rows="2"></textarea>
+                     </div>
+                </div>
+                <div class="modal-footer">
+                     <button type="button" class="btn btn-secondary" onclick="closeReceiveSupplyModal()">Cancelar</button>
+                     <button type="submit" class="btn btn-success">
+                         <i class="fa-solid fa-circle-check"></i> Guardar Recepción
+                     </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+
+
+    <!-- MODAL: DETALLE DE ENTREGA / VALE DE FIRMA (PREVIEW) -->
+    <div class="modal-overlay" id="voucher-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Vista Previa del Acta de Entrega</h3>
+                <button class="btn-close" onclick="closeVoucherModal()">&times;</button>
+            </div>
+            <div class="modal-body" style="background-color: var(--bg-tertiary);">
+                <!-- Vale para ser impreso o visualizado -->
+                <div class="print-voucher-view" id="voucher-print-area" style="display: block;">
+                    <div class="voucher-header">
+                        <img src="LOGO PROCLEANMG.jpg" alt="ProCleanMG" class="voucher-logo">
+                        <div class="voucher-title-area">
+                            <h2>ACTA DE ENTREGA DE EPP</h2>
+                            <div class="voucher-meta" id="v-meta-id">ID: ACTA-0000</div>
+                        </div>
+                    </div>
+
+                    <div class="voucher-section">
+                        <div class="voucher-section-title">1. Datos del Colaborador</div>
+                        <div class="voucher-details-grid">
+                            <div class="detail-item">
+                                <span class="detail-label">Trabajador:</span>
+                                <span class="detail-val" id="v-worker-name">-</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">RUT / ID:</span>
+                                <span class="detail-val" id="v-worker-rut">-</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">Área / Sector:</span>
+                                <span class="detail-val" id="v-worker-area">-</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">Turno:</span>
+                                <span class="detail-val" id="v-worker-turno">-</span>
+                            </div>
+                            <div class="detail-item" style="grid-column: span 2;">
+                                <span class="detail-label">Fecha / Hora:</span>
+                                <span class="detail-val" id="v-date">-</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="voucher-section">
+                        <div class="voucher-section-title">2. Equipos Entregados</div>
+                        <table class="voucher-table">
+                            <thead>
+                                <tr>
+                                    <th style="text-align: left;">Código EPP</th>
+                                    <th style="text-align: left;">Descripción del Equipo</th>
+                                    <th>Categoría</th>
+                                    <th>Cant.</th>
+                                    <th>Unidad</th>
+                                </tr>
+                            </thead>
+                            <tbody id="v-table-tbody">
+                                <!-- JS -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="voucher-terms">
+                        <strong>Declaración de Recepción:</strong> Declaro haber recibido por parte del empleador ProCleanMG, los Elementos de Protección Personal (EPP) detallados precedentemente, nuevos y en perfecto estado. Me comprometo a utilizarlos permanentemente en forma obligatoria durante el desempeño de mis funciones, a cuidarlos adecuadamente y a solicitar su reposición inmediata en caso de desgaste, daño o pérdida según las normas de higiene y seguridad de la compañía.
+                    </div>
+
+                    <div class="voucher-signature-area">
+                        <div class="signature-block">
+                            <div class="signed-image-container" style="position: relative; height: 90px; display: flex; align-items: center; justify-content: center;">
+                                <img src="" id="v-signature-img" alt="Firma Trabajador" style="display: none; max-height: 80px; max-width: 100%;">
+                                <!-- Contenedor de firma física para imprimir y firmar a mano -->
+                                <div id="v-signature-physical" style="display: block; width: 100%; border-bottom: 1px dashed var(--border-color); height: 50px; margin-top: 20px;">
+                                    <span style="font-size: 0.75rem; color: var(--text-secondary); display: block; text-align: left; padding-left: 5px; margin-top: 28px;" id="v-signature-physical-rut">RUT: -</span>
+                                </div>
+                            </div>
+                            <div class="signature-line" id="v-signature-name">Firma del Trabajador</div>
+                        </div>
+                        <div class="signature-block">
+                            <div class="signed-image-container" style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 90px;">
+                                <div id="v-supervisor-stamp-container" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;">
+                                    <span style="font-size: 0.72rem; font-weight: 700; color: #10b981; background: rgba(16, 185, 129, 0.12); padding: 3px 8px; border-radius: 12px; border: 1px solid rgba(16, 185, 129, 0.3);">
+                                        <i class="fa-solid fa-circle-check"></i> Validación Digital
+                                    </span>
+                                    <span id="v-supervisor-name" style="font-size: 0.95rem; font-weight: 700; color: var(--text-primary); margin-top: 2px;">-</span>
+                                </div>
+                            </div>
+                            <div class="signature-line">Firma Digital Bodega</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer no-print-actions">
+                <button class="btn btn-secondary" onclick="closeVoucherModal()">Cerrar</button>
+                <button class="btn btn-primary" onclick="printVoucher()">
+                    <i class="fa-solid fa-print"></i> Imprimir Acta
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="login-overlay active" id="login-overlay">
+        <div class="login-card">
+            <div class="login-logo-container" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; margin-bottom: 24px; text-align: center;">
+                <img src="LOGO PROCLEANMG.jpg" alt="ProCleanMG Logo" class="login-logo" style="height: 72px; width: auto; max-width: 100%; object-fit: contain; margin-bottom: 4px;">
+                <span style="font-size: 0.75rem; color: var(--color-primary); text-transform: uppercase; letter-spacing: 0.12em; font-weight: 700;">Control de Bodega EPP</span>
+            </div>
+            <form id="login-form" onsubmit="handleLogin(event)">
+                <div class="form-group">
+                    <label for="login-rut">RUT del Usuario</label>
+                    <input type="text" id="login-rut" placeholder="12.345.678-9" required autocomplete="username">
+                </div>
+                <div class="form-group">
+                    <label for="login-password">Contraseña</label>
+                    <input type="password" id="login-password" placeholder="••••••••" required autocomplete="current-password">
+                </div>
+                <button type="submit" class="btn btn-primary btn-login" style="width: 100%; justify-content: center; height: 46px; margin-top: 8px;">
+                    <i class="fa-solid fa-right-to-bracket"></i> Ingresar al Sistema
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: CAMBIO DE CONTRASEÑA OBLIGATORIO -->
+    <div class="modal-overlay" id="force-password-modal">
+        <div class="modal-content" style="max-width: 400px;">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-key" style="color: var(--color-primary); margin-right: 8px;"></i> Cambio de Clave Obligatorio</h3>
+            </div>
+            <form id="force-password-form" onsubmit="handleForcePasswordChange(event)">
+                <div class="modal-body">
+                    <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 16px; line-height: 1.4;">
+                        Como es su primer inicio de sesión o su clave fue restablecida, debe configurar una contraseña nueva para continuar.
+                    </p>
+                    <div class="form-grid" style="gap: 16px;">
+                        <div class="form-group">
+                            <label for="new-force-password">Nueva Contraseña <span class="required">*</span></label>
+                            <input type="password" id="new-force-password" placeholder="Mínimo 6 caracteres" required minlength="6">
+                        </div>
+                        <div class="form-group">
+                            <label for="confirm-force-password">Confirmar Nueva Contraseña <span class="required">*</span></label>
+                            <input type="password" id="confirm-force-password" placeholder="Repita la contraseña" required minlength="6">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center;">Guardar y Continuar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: PERFIL DE USUARIO ACTIVO (Cerrar Sesión) -->
+    <div class="modal-overlay" id="user-modal">
+        <div class="modal-content" style="max-width: 400px;">
+            <div class="modal-header">
+                <h3>Mi Perfil de Operador</h3>
+                <button class="btn-close" onclick="closeUserModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div style="text-align: center; margin-bottom: 24px; padding: 16px; background: var(--bg-tertiary); border-radius: var(--radius-md);">
+                    <div class="avatar" style="width: 60px; height: 60px; font-size: 1.8rem; margin: 0 auto 12px; background: rgba(255, 122, 0, 0.1); color: var(--color-primary); display: flex; align-items: center; justify-content: center; border-radius: 50%;">
+                        <i class="fa-solid fa-user-gear"></i>
+                    </div>
+                    <h4 id="profile-display-name" style="font-size: 1.1rem; font-weight: 700; margin-bottom: 4px;">-</h4>
+                    <p id="profile-display-rut" style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 4px;">RUT: -</p>
+                    <span id="profile-display-role" class="badge" style="background: var(--color-primary); color: white; padding: 4px 8px; border-radius: var(--radius-sm); font-size: 0.75rem; text-transform: uppercase;">-</span>
+                </div>
+                
+                <!-- Opción de cambiar clave propia voluntariamente -->
+                <form id="change-my-password-form" onsubmit="handleOwnPasswordChange(event)" style="border-top: 1px solid var(--border-color); padding-top: 16px;">
+                    <h5 style="margin-bottom: 12px; font-size: 0.9rem; color: var(--text-primary);">Cambiar mi contraseña</h5>
+                    <div class="form-grid" style="gap: 12px;">
+                        <div class="form-group">
+                            <label for="my-new-password">Nueva Contraseña</label>
+                            <input type="password" id="my-new-password" placeholder="Mínimo 6 caracteres" required minlength="6">
+                        </div>
+                        <button type="submit" class="btn btn-secondary btn-sm" style="justify-content: center; margin-top: 4px;">Actualizar Contraseña</button>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeUserModal()">Cerrar</button>
+                <button type="button" class="btn btn-danger" onclick="handleLogout()" style="margin-left: auto;">
+                    <i class="fa-solid fa-right-from-bracket"></i> Cerrar Sesión
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: AJUSTE RÁPIDO DE STOCK -->
+    <div class="modal-overlay" id="adjust-stock-modal">
+        <div class="modal-content" style="max-width: 400px;">
+            <div class="modal-header">
+                <h3>Ajuste Rápido de Stock</h3>
+                <button class="btn-close" onclick="closeAdjustStockModal()">&times;</button>
+            </div>
+            <form id="adjust-stock-form" onsubmit="saveAdjustStock(event)">
+                <input type="hidden" id="adjust-stock-id">
+                <div class="modal-body">
+                    <p style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 16px;" id="adjust-stock-label">
+                        Ingrese el nuevo nivel de inventario para el EPP:
+                    </p>
+                    <div class="form-group">
+                        <label for="adjust-stock-value">Cantidad en Inventario <span class="required">*</span></label>
+                        <input type="number" id="adjust-stock-value" min="0" required style="font-size: 1.5rem; text-align: center; height: 56px;">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeAdjustStockModal()">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: CONFIRMACIÓN DE ACCIÓN (Premium) -->
+    <div class="modal-overlay" id="confirm-action-modal">
+        <div class="modal-content" style="max-width: 450px;">
+            <div class="modal-header">
+                <h3 id="confirm-modal-title">Confirmar Acción</h3>
+                <button class="btn-close" id="confirm-modal-btn-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p id="confirm-modal-message" style="font-size: 0.95rem; color: var(--text-primary); line-height: 1.5; margin-bottom: 8px;">
+                    ¿Está seguro de proceder con esta acción?
+                </p>
+            </div>
+            <div class="modal-footer" style="display: flex; gap: 12px; justify-content: flex-end;">
+                <button type="button" class="btn btn-secondary" id="confirm-modal-btn-no">Cancelar</button>
+                <button type="button" class="btn btn-primary" id="confirm-modal-btn-yes" style="background-color: var(--color-primary); border-color: var(--color-primary);">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: EDICIÓN DE EPP (Catálogo & Stock Crítico) -->
+    <div class="modal-overlay" id="edit-epp-modal">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h3>Editar Elemento de Protección (EPP)</h3>
+                <button class="btn-close" onclick="closeEditEPPModal()">&times;</button>
+            </div>
+            <form id="edit-epp-form" onsubmit="saveEditEPP(event)">
+                <input type="hidden" id="edit-epp-id">
+                <div class="modal-body">
+                    <div class="form-grid" style="gap: 16px;">
+                        <div class="form-group">
+                            <label for="edit-epp-code">Código Único</label>
+                            <input type="text" id="edit-epp-code" disabled style="opacity: 0.6; cursor: not-allowed;">
+                        </div>
+                        <div class="form-group">
+                            <label for="edit-epp-name">Nombre del EPP <span class="required">*</span></label>
+                            <input type="text" id="edit-epp-name" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="edit-epp-category">Categoría <span class="required">*</span></label>
+                            <select id="edit-epp-category" required></select>
+                        </div>
+                        <div class="form-grid cols-2" style="gap: 16px;">
+                            <div class="form-group">
+                                <label for="edit-epp-min-stock">Stock Mínimo (Límite Crítico) <span class="required">*</span></label>
+                                <input type="number" id="edit-epp-min-stock" min="1" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="edit-epp-unit">Unidad de Medida <span class="required">*</span></label>
+                                <input type="text" id="edit-epp-unit" required>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="edit-epp-duration">Vida Útil Sugerida (Meses) <span class="required">*</span></label>
+                            <input type="number" id="edit-epp-duration" min="1" max="60" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="edit-epp-control-type">Tipo de Control <span class="required">*</span></label>
+                            <select id="edit-epp-control-type" required onchange="document.getElementById('edit-epp-deadline-group').style.display = this.value === 'Préstamo' ? 'block' : 'none'">
+                                <option value="Consumo">Consumo (Egreso Permanente)</option>
+                                <option value="Préstamo">Préstamo (Retorno Obligatorio)</option>
+                            </select>
+                        </div>
+                        <div class="form-group" id="edit-epp-deadline-group" style="display: none;">
+                            <label for="edit-epp-return-deadline">Plazo de Retorno <span class="required">*</span></label>
+                            <select id="edit-epp-return-deadline">
+                                <option value="12h" selected>Fin de Jornada (12 Horas)</option>
+                                <option value="7d">Fin de Turno / Semanal (7 Días)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer" style="display: flex; justify-content: space-between;">
+                    <button type="button" class="btn btn-danger-outline" id="btn-delete-epp-action" style="margin-right: auto;">
+                        <i class="fa-solid fa-trash-can"></i> Eliminar EPP
+                    </button>
+                    <button type="button" class="btn btn-secondary" onclick="closeEditEPPModal()" style="margin-left: 8px;">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: EDICIÓN DE TRABAJADOR / FICHA -->
+    <div class="modal-overlay" id="edit-worker-modal">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h3>Editar Datos de Colaborador</h3>
+                <button class="btn-close" onclick="closeEditWorkerModal()">&times;</button>
+            </div>
+            <form id="edit-worker-form" onsubmit="saveEditWorker(event)">
+                <div class="modal-body">
+                    <div class="form-grid" style="gap: 16px;">
+                        <div class="form-group">
+                            <label for="edit-worker-profile-rut">RUT (Identificador Único)</label>
+                            <input type="text" id="edit-worker-profile-rut" disabled style="opacity: 0.6; cursor: not-allowed;">
+                        </div>
+                        <div class="form-group">
+                            <label for="edit-worker-profile-name">Nombre Completo <span class="required">*</span></label>
+                            <input type="text" id="edit-worker-profile-name" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="edit-worker-profile-area">Área de Trabajo <span class="required">*</span></label>
+                            <select id="edit-worker-profile-area" required></select>
+                        </div>
+                        <div class="form-group">
+                            <label for="edit-worker-profile-turno">Turno <span class="required">*</span></label>
+                            <select id="edit-worker-profile-turno" required></select>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeEditWorkerModal()">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: EDICIÓN DE USUARIO (Exclusivo Administrador) -->
+    <div class="modal-overlay" id="edit-user-modal">
+        <div class="modal-content" style="max-width: 450px;">
+            <div class="modal-header">
+                <h3>Editar Operador</h3>
+                <button class="btn-close" onclick="closeEditUserModal()">&times;</button>
+            </div>
+            <form id="edit-user-form" onsubmit="saveEditUser(event)">
+                <input type="hidden" id="edit-user-rut">
+                <div class="modal-body">
+                    <div class="form-grid" style="gap: 16px;">
+                        <div class="form-group">
+                            <label for="edit-user-rut-display">RUT (No editable)</label>
+                            <input type="text" id="edit-user-rut-display" disabled style="opacity: 0.6; cursor: not-allowed;">
+                        </div>
+                        <div class="form-group">
+                            <label for="edit-user-name">Nombre Completo <span class="required">*</span></label>
+                            <input type="text" id="edit-user-name" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="edit-user-role">Rol de Acceso <span class="required">*</span></label>
+                            <select id="edit-user-role" required>
+                                <option value="Bodeguero">Bodeguero</option>
+                                <option value="Supervisor">Supervisor</option>
+                                <option value="Administrador">Administrador</option>
+                            </select>
+                        </div>
+                        <div style="border-top: 1px solid var(--border-color); padding-top: 16px; margin-top: 8px;">
+                            <h5 style="margin-bottom: 12px; font-size: 0.9rem; color: var(--text-primary);">Restablecer Contraseña</h5>
+                            <div class="form-group">
+                                <label for="edit-user-new-password">Nueva Contraseña Provisoria</label>
+                                <input type="password" id="edit-user-new-password" placeholder="Dejar en blanco para no cambiar">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeEditUserModal()">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: NUEVA SOLICITUD DE REPOSICIÓN (MULTI-ITEM) -->
+    <div class="modal-overlay" id="new-replenishment-modal">
+        <div class="modal-content" style="max-width: 700px;">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-cart-plus" style="color: var(--color-primary); margin-right: 8px;"></i> Solicitud de Pedido de Abastecimiento</h3>
+                <button class="btn-close" onclick="window.closeNewReplenishmentModal()">&times;</button>
+            </div>
+            <form id="new-replenishment-form">
+                <input type="hidden" id="new-replenish-id">
+                <div class="modal-body">
+                    <div style="background: var(--bg-tertiary); padding: 16px; border-radius: var(--radius-md); border: 1px solid var(--border-color); margin-bottom: 20px;">
+                        <h5 style="margin-bottom:12px; font-weight:600; font-size: 0.95rem;"><i class="fa-solid fa-cart-plus"></i> Agregar Artículos al Pedido</h5>
+                        <div style="display: grid; grid-template-columns: 2fr 1fr auto; gap: 12px; align-items: flex-end;">
+                            <div class="form-group" style="margin-bottom:0;">
+                                <label for="new-replenish-item-select">Artículo EPP</label>
+                                <select id="new-replenish-item-select" style="width: 100%; height: 46px; background: var(--bg-secondary); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 0 12px;"></select>
+                            </div>
+                            <div class="form-group" style="margin-bottom:0;">
+                                <label for="new-replenish-item-qty">Cantidad</label>
+                                <input type="number" id="new-replenish-item-qty" min="1" placeholder="Cant." style="width: 100%; height: 46px; background: var(--bg-secondary); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 0 12px;">
+                            </div>
+                            <button type="button" class="btn btn-primary" onclick="window.addReplenishmentItemRow()" style="height:46px; padding: 0 16px;">
+                                <i class="fa-solid fa-plus"></i> Agregar
+                            </button>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                        <h5 style="font-weight:600; font-size: 0.95rem;">Artículos en este Pedido</h5>
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="window.populateLowStockReplenishItems()" title="Auto-cargar todos los EPPs que tienen stock igual o menor a su mínimo">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i> Auto-cargar Críticos
+                        </button>
+                    </div>
+
+                    <div class="table-container" style="max-height: 220px; overflow-y: auto; margin-bottom: 20px; border: 1px solid var(--border-color); border-radius: var(--radius-md);">
+                        <table style="width: 100%;">
+                            <thead>
+                                <tr>
+                                    <th>Artículo EPP</th>
+                                    <th style="width: 120px; text-align: center;">SKU</th>
+                                    <th style="width: 100px; text-align: center;">Cantidad</th>
+                                    <th style="width: 80px; text-align: center;">Acción</th>
+                                </tr>
+                            </thead>
+                            <tbody id="new-replenish-items-tbody">
+                                <tr>
+                                    <td colspan="4" style="text-align: center; color: var(--text-muted); padding: 20px;">No se han agregado artículos a la solicitud.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="new-replenish-comments">Comentarios / Notas para el Pedido</label>
+                        <textarea id="new-replenish-comments" placeholder="Ej. Detallar urgencias, áreas de destino, etc..." rows="2" style="width: 100%; background: var(--bg-tertiary); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 12px; font-family: inherit; resize: vertical;"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="window.closeNewReplenishmentModal()">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Registrar Pedido</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: REGISTRAR RECEPCIÓN DE REPOSICIÓN (MULTI-ITEM) -->
+    <div class="modal-overlay" id="receive-replenishment-modal">
+        <div class="modal-content" style="max-width: 650px;">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-box-open" style="color: var(--color-success); margin-right: 8px;"></i> Recepción de Mercadería</h3>
+                <button class="btn-close" onclick="window.closeReceiveReplenishmentModal()">&times;</button>
+            </div>
+            <form id="receive-replenishment-form">
+                <input type="hidden" id="receive-replenish-id">
+                <div class="modal-body">
+                    <div style="background: var(--bg-tertiary); padding: 16px; border-radius: var(--radius-md); border: 1px solid var(--border-color); margin-bottom: 20px;">
+                        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; font-size: 0.9rem;">
+                            <div><strong>Código Pedido:</strong> <span id="lbl-rep-rec-code">-</span></div>
+                            <div><strong>Fecha Pedido:</strong> <span id="lbl-rep-rec-date">-</span></div>
+                            <div style="grid-column: span 2;"><strong>Solicitado por:</strong> <span id="lbl-rep-rec-user">-</span></div>
+                        </div>
+                    </div>
+
+                    <h5 style="margin-bottom: 12px; font-weight:600; font-size: 0.95rem;">Confirmar Cantidades Recibidas</h5>
+                    <div class="table-container" style="margin-bottom: 20px; border: 1px solid var(--border-color); border-radius: var(--radius-md);">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Artículo EPP</th>
+                                    <th style="width: 100px; text-align: center;">Solicitado</th>
+                                    <th style="width: 130px; text-align: center;">Ingreso Actual</th>
+                                </tr>
+                            </thead>
+                            <tbody id="receive-replenish-items-tbody">
+                                <!-- Dinámico en JS -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="receive-replenish-comments">Observaciones de Recepción / Guía de Despacho</label>
+                        <textarea id="receive-replenish-comments" placeholder="Ej. Nº de guía de despacho, observaciones sobre el estado de entrega..." rows="2" style="width: 100%; background: var(--bg-tertiary); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 12px; font-family: inherit; resize: vertical;"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="window.closeReceiveReplenishmentModal()">Cancelar</button>
+                    <button type="submit" class="btn btn-success"><i class="fa-solid fa-circle-check"></i> Ingresar a Bodega</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: DETALLE DE PEDIDO / COMPROBANTE DE SOLICITUD (PREVIEW) -->
+    <div class="modal-overlay" id="replenishment-voucher-modal">
+        <div class="modal-content" style="max-width: 700px;">
+            <div class="modal-header">
+                <h3>Vista Previa del Pedido de Abastecimiento</h3>
+                <button class="btn-close" onclick="window.closeReplenishmentVoucherModal()">&times;</button>
+            </div>
+            <div class="modal-body" style="background-color: var(--bg-tertiary);">
+                <!-- Vale para ser impreso o visualizado -->
+                <div class="print-voucher-view" id="replenishment-voucher-print-area" style="display: block;">
+                    <div class="voucher-header">
+                        <img src="LOGO PROCLEANMG.jpg" alt="ProCleanMG" class="voucher-logo">
+                        <div class="voucher-title-area">
+                            <h2>SOLICITUD DE PEDIDO</h2>
+                            <div class="voucher-meta" id="rep-v-meta-id">ID: PED-0000</div>
+                        </div>
+                    </div>
+
+                    <div class="voucher-section">
+                        <div class="voucher-section-title">1. Información General del Pedido</div>
+                        <div class="voucher-details-grid">
+                            <div class="detail-item">
+                                <span class="detail-label">Fecha Solicitud:</span>
+                                <span class="detail-val" id="rep-v-date">-</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">Solicitado Por:</span>
+                                <span class="detail-val" id="rep-v-user">-</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">Estado Actual:</span>
+                                <span class="detail-val" id="rep-v-status">-</span>
+                            </div>
+                            <div class="detail-item" style="grid-column: span 2;">
+                                <span class="detail-label">Observaciones:</span>
+                                <span class="detail-val" id="rep-v-comments">-</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="voucher-section">
+                        <div class="voucher-section-title">2. Listado de Artículos Solicitados</div>
+                        <table class="voucher-table">
+                            <thead>
+                                <tr>
+                                    <th style="text-align: left;">Código SKU</th>
+                                    <th style="text-align: left;">Descripción del EPP</th>
+                                    <th style="text-align: center;">Cant. Solicitada</th>
+                                </tr>
+                            </thead>
+                            <tbody id="rep-v-table-tbody">
+                                <!-- JS -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="voucher-signature-area" style="margin-top: 40px; display: flex; justify-content: space-between; gap: 40px;">
+                        <div class="signature-block" style="flex: 1; text-align: center;">
+                            <div class="signed-image-container" style="height: 60px; border-bottom: 1px dashed var(--border-color); margin-top: 20px;"></div>
+                            <div class="signature-line" style="border-top: none; margin-top: 10px; text-align: center;">Firma Solicitante (Bodega)</div>
+                        </div>
+                        <div class="signature-block" style="flex: 1; text-align: center;">
+                            <div class="signed-image-container" style="height: 60px; border-bottom: 1px dashed var(--border-color); margin-top: 20px;"></div>
+                            <div class="signature-line" style="border-top: none; margin-top: 10px; text-align: center;">Firma Autorización (Soporte)</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer no-print-actions">
+                <button class="btn btn-secondary" onclick="window.closeReplenishmentVoucherModal()">Cerrar</button>
+                <button class="btn btn-primary" onclick="window.printReplenishmentVoucher()">
+                    <i class="fa-solid fa-print"></i> Imprimir / PDF
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN JAVASCRIPT CORE -->
+    <script type="module" src="/src/main.js" defer></script>
+</body>
+</html>

@@ -1,0 +1,837 @@
+{
+    "summary": {
+        "Protección de Cabeza": {
+            "sku_count": 3,
+            "total_qty": 52
+        },
+        "Protección de Altura": {
+            "sku_count": 7,
+            "total_qty": 21
+        },
+        "Protección de Pies": {
+            "sku_count": 38,
+            "total_qty": 101
+        },
+        "Protección Auditiva": {
+            "sku_count": 1,
+            "total_qty": 16
+        },
+        "Ropa de Trabajo y Cuerpo": {
+            "sku_count": 64,
+            "total_qty": 425
+        },
+        "Protección Visual": {
+            "sku_count": 18,
+            "total_qty": 362
+        },
+        "Protección Respiratoria": {
+            "sku_count": 6,
+            "total_qty": 184
+        },
+        "Protección de Manos": {
+            "sku_count": 9,
+            "total_qty": 402
+        },
+        "Protección Solar e Higiene": {
+            "sku_count": 3,
+            "total_qty": 69
+        },
+        "Equipos de Medición y Servicios": {
+            "sku_count": 3,
+            "total_qty": 4
+        },
+        "Otros EPP / Accesorios": {
+            "sku_count": 1,
+            "total_qty": 2
+        }
+    },
+    "products": {
+        "Protección de Cabeza": [
+            {
+                "codigo": "10800000060200",
+                "nombre": "CASCO MSA V-GARD POLIE (297447) 475364 GRIS",
+                "cantidad_comprada": 16
+            },
+            {
+                "codigo": "80100002513000",
+                "nombre": "LEGIONARIO P/CASCO CUBRE CUELLO ALASKA NARANJO",
+                "cantidad_comprada": 16
+            },
+            {
+                "codigo": "03160000803810",
+                "nombre": "LINTERNA CINTILLO LED C/SENSOR GREENWAY",
+                "cantidad_comprada": 20
+            }
+        ],
+        "Protección de Altura": [
+            {
+                "codigo": "70800027834105",
+                "nombre": "ARNES MSA C/ARG. ESPALDA PECHO CINTURA N/P 278341XL",
+                "cantidad_comprada": 2
+            },
+            {
+                "codigo": "70800000570000",
+                "nombre": "ARNES MSA CON ARGOLLA DE PECHO Y 2 ARGOLLA DE POSICIONAMIENT",
+                "cantidad_comprada": 2
+            },
+            {
+                "codigo": "70104110210100",
+                "nombre": "ARNES YARDBIRD S/CINT (3A) (AP) SEGMA 41102101 (M-L)",
+                "cantidad_comprada": 3
+            },
+            {
+                "codigo": "70104140101100",
+                "nombre": "CABO D/VIDA STONES (CINTA -2EST-107) SEGMA 41401013",
+                "cantidad_comprada": 3
+            },
+            {
+                "codigo": "70802785130000",
+                "nombre": "FAJA CONECTORA MSA DE 2.5 MTS Nº 278513",
+                "cantidad_comprada": 3
+            },
+            {
+                "codigo": "70802784170000",
+                "nombre": "LINEA VIDA EN Y ELASTICADA C/GANCHO ESCALA 1.2 MTS 278417",
+                "cantidad_comprada": 4
+            },
+            {
+                "codigo": "70100421040000",
+                "nombre": "RETRACTIL CABLE 6 MT SEGMA 42104005",
+                "cantidad_comprada": 4
+            }
+        ],
+        "Protección de Pies": [
+            {
+                "codigo": "9105000000B138",
+                "nombre": "BOTA BOLSTER ANTIPERFORANTE UNISEX NEGRO - ROJO 38",
+                "cantidad_comprada": 1
+            },
+            {
+                "codigo": "9105000000B139",
+                "nombre": "BOTA BOLSTER ANTIPERFORANTE UNISEX NEGRO-ROJO 39",
+                "cantidad_comprada": 2
+            },
+            {
+                "codigo": "9105000000B140",
+                "nombre": "BOTA BOLSTER ANTIPERFORANTE UNISEX NEGRO-ROJO 40",
+                "cantidad_comprada": 5
+            },
+            {
+                "codigo": "9105000000B141",
+                "nombre": "BOTA BOLSTER ANTIPERFORANTE UNISEX NEGRO-ROJO 41",
+                "cantidad_comprada": 4
+            },
+            {
+                "codigo": "9105000000B142",
+                "nombre": "BOTA BOLSTER ANTIPERFORANTE UNISEX NEGRO-ROJO 42",
+                "cantidad_comprada": 6
+            },
+            {
+                "codigo": "9105000000B143",
+                "nombre": "BOTA BOLSTER ANTIPERFORANTE UNISEX NEGRO-ROJO 43",
+                "cantidad_comprada": 6
+            },
+            {
+                "codigo": "9105000000B144",
+                "nombre": "BOTA BOLSTER ANTIPERFORANTE UNISEX NEGRO-ROJO 44",
+                "cantidad_comprada": 1
+            },
+            {
+                "codigo": "9105000000B145",
+                "nombre": "BOTA BOLSTER ANTIPERFORANTE UNISEX NEGRO-ROJO 45",
+                "cantidad_comprada": 2
+            },
+            {
+                "codigo": "9105000000B146",
+                "nombre": "BOTA BOLSTER ANTIPERFORANTE UNISEX NEGRO-ROJO 46",
+                "cantidad_comprada": 2
+            },
+            {
+                "codigo": "91020009400444",
+                "nombre": "BOTA NAZCA NU 930 TACORA N°44",
+                "cantidad_comprada": 1
+            },
+            {
+                "codigo": "91110001101446",
+                "nombre": "BOTA PROFLEX PF110 (EXPF110CDPT5) SDX CAF 46",
+                "cantidad_comprada": 1
+            },
+            {
+                "codigo": "91110001101439",
+                "nombre": "BOTA PROFLEX PF110 (EXPF110CDPT5) SDX CAFE 39",
+                "cantidad_comprada": 2
+            },
+            {
+                "codigo": "91110001101440",
+                "nombre": "BOTA PROFLEX PF110 (EXPF110CDPT5) SDX CAFE 40",
+                "cantidad_comprada": 2
+            },
+            {
+                "codigo": "91110001101441",
+                "nombre": "BOTA PROFLEX PF110 (EXPF110CDPT5) SDX CAFE 41",
+                "cantidad_comprada": 1
+            },
+            {
+                "codigo": "91110001101443",
+                "nombre": "BOTA PROFLEX PF110 (EXPF110CDPT5) SDX CAFE 43",
+                "cantidad_comprada": 2
+            },
+            {
+                "codigo": "91110001101444",
+                "nombre": "BOTA PROFLEX PF110 (EXPF110CDPT5) SDX CAFE 44",
+                "cantidad_comprada": 2
+            },
+            {
+                "codigo": "91110001101445",
+                "nombre": "BOTA PROFLEX PF110 (EXPF110CDPT5) SDX CAFE 45",
+                "cantidad_comprada": 1
+            },
+            {
+                "codigo": "91110001101442",
+                "nombre": "BOTA PROFLEX PF110 (EXPF110CDPT5) SDX CAFÉ 42",
+                "cantidad_comprada": 2
+            },
+            {
+                "codigo": "90100002490642",
+                "nombre": "BOTA PVC ANTIACIDA CHEM THOUGH LAKELAND N°42",
+                "cantidad_comprada": 4
+            },
+            {
+                "codigo": "90508028086038",
+                "nombre": "BOTA PVC GASOL 802-8086 P/A AMARILLA  Nº38",
+                "cantidad_comprada": 1
+            },
+            {
+                "codigo": "90508028086039",
+                "nombre": "BOTA PVC GASOL 802-8086 P/A AMARILLA Nº39",
+                "cantidad_comprada": 2
+            },
+            {
+                "codigo": "90508028086040",
+                "nombre": "BOTA PVC GASOL 802-8086 P/A AMARILLA Nº40",
+                "cantidad_comprada": 5
+            },
+            {
+                "codigo": "90508028086041",
+                "nombre": "BOTA PVC GASOL 802-8086 P/A AMARILLA Nº41",
+                "cantidad_comprada": 5
+            },
+            {
+                "codigo": "90508028086042",
+                "nombre": "BOTA PVC GASOL 802-8086 P/A AMARILLA Nº42",
+                "cantidad_comprada": 5
+            },
+            {
+                "codigo": "90508028086043",
+                "nombre": "BOTA PVC GASOL 802-8086 P/A AMARILLA Nº43",
+                "cantidad_comprada": 5
+            },
+            {
+                "codigo": "90508028086044",
+                "nombre": "BOTA PVC GASOL 802-8086 P/A AMARILLA Nº44",
+                "cantidad_comprada": 3
+            },
+            {
+                "codigo": "91020009400438",
+                "nombre": "BOTA TERMICA NT 940 PLTA PU AISLANTE 38",
+                "cantidad_comprada": 2
+            },
+            {
+                "codigo": "91020009400439",
+                "nombre": "BOTA TERMICA NT 940 PLTA PU AISLANTE 39",
+                "cantidad_comprada": 2
+            },
+            {
+                "codigo": "91020009400440",
+                "nombre": "BOTA TERMICA NT 940 PLTA PU AISLANTE 40",
+                "cantidad_comprada": 2
+            },
+            {
+                "codigo": "91020009400441",
+                "nombre": "BOTA TERMICA NT 940 PLTA PU AISLANTE 41",
+                "cantidad_comprada": 6
+            },
+            {
+                "codigo": "91020009400442",
+                "nombre": "BOTA TERMICA NT 940 PLTA PU AISLANTE 42",
+                "cantidad_comprada": 7
+            },
+            {
+                "codigo": "91020009400443",
+                "nombre": "BOTA TERMICA NT 940 PLTA PU AISLANTE 43",
+                "cantidad_comprada": 1
+            },
+            {
+                "codigo": "91020009400445",
+                "nombre": "BOTA TERMICA NT 940 PLTA PU AISLANTE 45",
+                "cantidad_comprada": 2
+            },
+            {
+                "codigo": "91000001060437",
+                "nombre": "BOTIN EDELBROCK ED 106 P/AISLANTE Nº 37",
+                "cantidad_comprada": 1
+            },
+            {
+                "codigo": "91000001060438",
+                "nombre": "BOTIN EDELBROCK ED 106 P/AISLANTE Nº 38",
+                "cantidad_comprada": 1
+            },
+            {
+                "codigo": "91000001060439",
+                "nombre": "BOTIN EDELBROCK ED 106 P/AISLANTE Nº 39",
+                "cantidad_comprada": 1
+            },
+            {
+                "codigo": "91000001060440",
+                "nombre": "BOTIN EDELBROCK ED 106 P/AISLANTE Nº 40",
+                "cantidad_comprada": 1
+            },
+            {
+                "codigo": "91000001300437",
+                "nombre": "BOTIN NAZCA DAMA NU 130 N°37",
+                "cantidad_comprada": 2
+            }
+        ],
+        "Protección Auditiva": [
+            {
+                "codigo": "20800000080100",
+                "nombre": "PROTECTOR AUDITIVO 3M PELTOR H510P3E-405-GU (EX-H6P3E )P",
+                "cantidad_comprada": 16
+            }
+        ],
+        "Ropa de Trabajo y Cuerpo": [
+            {
+                "codigo": "80100001800103",
+                "nombre": "BLUSA OXF M/L BLANC T/M",
+                "cantidad_comprada": 4
+            },
+            {
+                "codigo": "80100000080904",
+                "nombre": "BUZO POPLIN PIL AZUL C/CTA REFL T/L",
+                "cantidad_comprada": 5
+            },
+            {
+                "codigo": "80100000080903",
+                "nombre": "BUZO POPLIN PIL AZUL C/CTA REFL T/M",
+                "cantidad_comprada": 1
+            },
+            {
+                "codigo": "80100000080902",
+                "nombre": "BUZO POPLIN PIL AZUL C/CTA REFL T/S",
+                "cantidad_comprada": 1
+            },
+            {
+                "codigo": "80100000080905",
+                "nombre": "BUZO POPLIN PIL AZUL C/CTA REFL T/XL",
+                "cantidad_comprada": 3
+            },
+            {
+                "codigo": "80100000080906",
+                "nombre": "BUZO POPLIN PIL AZUL C/CTA REFL T/XXL",
+                "cantidad_comprada": 3
+            },
+            {
+                "codigo": "80100000080202",
+                "nombre": "BUZO POPLIN PIL GRIS C/CTA REFL T/S",
+                "cantidad_comprada": 1
+            },
+            {
+                "codigo": "80100000080206",
+                "nombre": "BUZO POPLIN PIL GRIS C/CTA REFL T/XXL",
+                "cantidad_comprada": 1
+            },
+            {
+                "codigo": "80100409020000",
+                "nombre": "CALCETIN COOL MAX HW C/COBRE NEGRO 452200221548",
+                "cantidad_comprada": 20
+            },
+            {
+                "codigo": "80110122035600",
+                "nombre": "CALCETIN HW C/COBRE ANTIBACTERIANO 35% LANA NEGRO",
+                "cantidad_comprada": 5
+            },
+            {
+                "codigo": "83092600005220",
+                "nombre": "CHALECO ALTA VISIB SIMPLE S/BOLS BLACKWOLF NARANJO FLUOR S-M",
+                "cantidad_comprada": 1
+            },
+            {
+                "codigo": "80100508100804",
+                "nombre": "CHALECO GEO AMARILLO FLUOR C/CINTA 360 T/L",
+                "cantidad_comprada": 10
+            },
+            {
+                "codigo": "80100005575104",
+                "nombre": "CHALECO GEO GABARDINA 360 NARANJO T/L",
+                "cantidad_comprada": 20
+            },
+            {
+                "codigo": "80100005575103",
+                "nombre": "CHALECO GEO GABARDINA 360 NARANJO T/M",
+                "cantidad_comprada": 1
+            },
+            {
+                "codigo": "80100005575105",
+                "nombre": "CHALECO GEO GABARDINA 360 NARANJO T/XL",
+                "cantidad_comprada": 20
+            },
+            {
+                "codigo": "80100005575106",
+                "nombre": "CHALECO GEO GABARDINA 360 NARANJO T/XXL",
+                "cantidad_comprada": 5
+            },
+            {
+                "codigo": "80100000630504",
+                "nombre": "CHALECO GEO POPLIN NARANJ C/REFL T/L",
+                "cantidad_comprada": 7
+            },
+            {
+                "codigo": "80100000630503",
+                "nombre": "CHALECO GEO POPLIN NARANJ C/REFL T/M",
+                "cantidad_comprada": 5
+            },
+            {
+                "codigo": "80100000630505",
+                "nombre": "CHALECO GEO POPLIN NARANJ C/REFL T/XL",
+                "cantidad_comprada": 3
+            },
+            {
+                "codigo": "80100000630506",
+                "nombre": "CHALECO GEO POPLIN NARANJ C/REFL T/XXL",
+                "cantidad_comprada": 1
+            },
+            {
+                "codigo": "12-06-502-T-L",
+                "nombre": "Camisa Slack Activex Acid Pro Verde UV T L",
+                "cantidad_comprada": 16
+            },
+            {
+                "codigo": "12-06-502-T-M",
+                "nombre": "Camisa Slack Activex Acid Pro Verde UV T M",
+                "cantidad_comprada": 6
+            },
+            {
+                "codigo": "12-06-502-T-XL",
+                "nombre": "Camisa Slack Activex Acid Pro Verde UV T XL",
+                "cantidad_comprada": 8
+            },
+            {
+                "codigo": "80100001020938",
+                "nombre": "JEANS PRELAVADO YISUS 38",
+                "cantidad_comprada": 1
+            },
+            {
+                "codigo": "80100001020940",
+                "nombre": "JEANS PRELAVADO YISUS 40",
+                "cantidad_comprada": 3
+            },
+            {
+                "codigo": "80100001020942",
+                "nombre": "JEANS PRELAVADO YISUS 42",
+                "cantidad_comprada": 3
+            },
+            {
+                "codigo": "80100001020944",
+                "nombre": "JEANS PRELAVADO YISUS 44",
+                "cantidad_comprada": 14
+            },
+            {
+                "codigo": "80100001020946",
+                "nombre": "JEANS PRELAVADO YISUS 46",
+                "cantidad_comprada": 8
+            },
+            {
+                "codigo": "80100001020948",
+                "nombre": "JEANS PRELAVADO YISUS 48",
+                "cantidad_comprada": 3
+            },
+            {
+                "codigo": "80100001020950",
+                "nombre": "JEANS PRELAVADO YISUS 50",
+                "cantidad_comprada": 6
+            },
+            {
+                "codigo": "80100001020952",
+                "nombre": "JEANS PRELAVADO YISUS 52",
+                "cantidad_comprada": 1
+            },
+            {
+                "codigo": "80100001020954",
+                "nombre": "JEANS PRELAVADO YISUS 54",
+                "cantidad_comprada": 1
+            },
+            {
+                "codigo": "80100001020956",
+                "nombre": "JEANS PRELAVADO YISUS 56",
+                "cantidad_comprada": 2
+            },
+            {
+                "codigo": "80101014280104",
+                "nombre": "OVEROL CHEMMAX 1 CT1SL428EB T/L",
+                "cantidad_comprada": 25
+            },
+            {
+                "codigo": "80101014280105",
+                "nombre": "OVEROL CHEMMAX 1 CT1SL428EB T/XL",
+                "cantidad_comprada": 25
+            },
+            {
+                "codigo": "000000P2510948",
+                "nombre": "PANTALON VOLGA ANTIACIDO MUJER NEGRO",
+                "cantidad_comprada": 6
+            },
+            {
+                "codigo": "80119000000904",
+                "nombre": "PIJAMA POLAR AZUL CON REFUERZO T L",
+                "cantidad_comprada": 2
+            },
+            {
+                "codigo": "80144334455604",
+                "nombre": "PIJAMA POLIPROPILENO NEGRO WW TALLA L",
+                "cantidad_comprada": 2
+            },
+            {
+                "codigo": "80144334455603",
+                "nombre": "PIJAMA POLIPROPILENO NEGRO WW TALLA M",
+                "cantidad_comprada": 8
+            },
+            {
+                "codigo": "80144334455602",
+                "nombre": "PIJAMA POLIPROPILENO NEGRO WW TALLA S",
+                "cantidad_comprada": 3
+            },
+            {
+                "codigo": "80144334455605",
+                "nombre": "PIJAMA POLIPROPILENO NEGRO WW TALLA XL",
+                "cantidad_comprada": 1
+            },
+            {
+                "codigo": "83800000910904",
+                "nombre": "PIJAMA TERMICO ALASKA F/FRANELA T/L",
+                "cantidad_comprada": 7
+            },
+            {
+                "codigo": "83800000910903",
+                "nombre": "PIJAMA TERMICO ALASKA F/FRANELA T/M",
+                "cantidad_comprada": 5
+            },
+            {
+                "codigo": "83800000910902",
+                "nombre": "PIJAMA TERMICO ALASKA F/FRANELA T/S",
+                "cantidad_comprada": 3
+            },
+            {
+                "codigo": "83800000910905",
+                "nombre": "PIJAMA TERMICO ALASKA F/FRANELA T/XL",
+                "cantidad_comprada": 3
+            },
+            {
+                "codigo": "83800000910906",
+                "nombre": "PIJAMA TERMICO BLACKWOLF F/FRANELA T/ XXL",
+                "cantidad_comprada": 1
+            },
+            {
+                "codigo": "80100002190804",
+                "nombre": "POLERA PIQUE AZUL M/LARGA BW T/L",
+                "cantidad_comprada": 10
+            },
+            {
+                "codigo": "80100002190802",
+                "nombre": "POLERA PIQUE AZUL M/LARGA BW T/S",
+                "cantidad_comprada": 2
+            },
+            {
+                "codigo": "80100002190805",
+                "nombre": "POLERA PIQUE AZUL M/LARGA BW T/XL",
+                "cantidad_comprada": 4
+            },
+            {
+                "codigo": "80100002190806",
+                "nombre": "POLERA PIQUE AZUL M/LARGA BW T/XXL",
+                "cantidad_comprada": 2
+            },
+            {
+                "codigo": "83320000031212",
+                "nombre": "POLERA PIQUE M/L GRIS BW VARON GRIS S",
+                "cantidad_comprada": 1
+            },
+            {
+                "codigo": "83320000031216",
+                "nombre": "POLERA PIQUE M/L GRIS BW VARON GRIS XXL",
+                "cantidad_comprada": 1
+            },
+            {
+                "codigo": "12-06-503-T-L",
+                "nombre": "Pantalon Slack Activex Acid Pro Verde UV T L",
+                "cantidad_comprada": 16
+            },
+            {
+                "codigo": "12-06-503-T-M",
+                "nombre": "Pantalon Slack Activex Acid Pro Verde UV T M",
+                "cantidad_comprada": 6
+            },
+            {
+                "codigo": "12-06-503-T-XL",
+                "nombre": "Pantalon Slack Activex Acid Pro Verde UV T XL",
+                "cantidad_comprada": 8
+            },
+            {
+                "codigo": "80100003880703",
+                "nombre": "SLACK DE RESISTELA C/HUINCHA REFLECTIVA",
+                "cantidad_comprada": 15
+            },
+            {
+                "codigo": "80100003880705",
+                "nombre": "SLACK DE RESISTELA C/HUINCHA REFLECTIVA T/ XL",
+                "cantidad_comprada": 15
+            },
+            {
+                "codigo": "80100003880704",
+                "nombre": "SLACK DE RESISTELA C/HUINCHA REFLECTIVA T/L",
+                "cantidad_comprada": 15
+            },
+            {
+                "codigo": "80100003880706",
+                "nombre": "SLACK DE RESISTELA C/HUINCHA REFLECTIVA T/XXL",
+                "cantidad_comprada": 8
+            },
+            {
+                "codigo": "80109806000804",
+                "nombre": "TRAJE ANTIACIDO ALASKA PU NARANJO T L",
+                "cantidad_comprada": 2
+            },
+            {
+                "codigo": "80109806000803",
+                "nombre": "TRAJE ANTIACIDO ALASKA PU NARANJO T M",
+                "cantidad_comprada": 10
+            },
+            {
+                "codigo": "80109806000805",
+                "nombre": "TRAJE ANTIACIDO ALASKA PU NARANJO T XL",
+                "cantidad_comprada": 15
+            },
+            {
+                "codigo": "80100001570304",
+                "nombre": "TRAJE ANTIACIDO ALASKA PU VERDE T L",
+                "cantidad_comprada": 10
+            },
+            {
+                "codigo": "83500001570303",
+                "nombre": "TRAJE ANTIACIDO ALASKA PU VERDE T M",
+                "cantidad_comprada": 5
+            }
+        ],
+        "Protección Visual": [
+            {
+                "codigo": "90510064630600",
+                "nombre": "CALCETA TERMICA LANA",
+                "cantidad_comprada": 16
+            },
+            {
+                "codigo": "00800686600000",
+                "nombre": "LENS COVER (EX-686) 990G GRIS AIR",
+                "cantidad_comprada": 25
+            },
+            {
+                "codigo": "800686600000",
+                "nombre": "LENS COVER (EX-686) 990G GRIS AIR",
+                "cantidad_comprada": 50
+            },
+            {
+                "codigo": "800685600000",
+                "nombre": "LENS COVER (EX-686) 990G GRIS AIR",
+                "cantidad_comprada": 50
+            },
+            {
+                "codigo": "00800685600000",
+                "nombre": "LENS COVER AIR (EX-685) CLARO 990C PARA S990",
+                "cantidad_comprada": 100
+            },
+            {
+                "codigo": "6112227000L210",
+                "nombre": "LENTE UNDER COVER SKY 2000 CLEAR",
+                "cantidad_comprada": 12
+            },
+            {
+                "codigo": "6112227000M110",
+                "nombre": "LENTE UNDER COVER SKY 2000 GRAY",
+                "cantidad_comprada": 24
+            },
+            {
+                "codigo": "83900000040904",
+                "nombre": "PARKA TERMICA ALASKA F/POLAR REF T/L",
+                "cantidad_comprada": 7
+            },
+            {
+                "codigo": "83900000040903",
+                "nombre": "PARKA TERMICA ALASKA F/POLAR REF T/M",
+                "cantidad_comprada": 5
+            },
+            {
+                "codigo": "83900000040902",
+                "nombre": "PARKA TERMICA ALASKA F/POLAR REF T/S",
+                "cantidad_comprada": 1
+            },
+            {
+                "codigo": "83900000040905",
+                "nombre": "PARKA TERMICA ALASKA F/POLAR REF T/XL",
+                "cantidad_comprada": 3
+            },
+            {
+                "codigo": "83900000040906",
+                "nombre": "PARKA TERMICA ALASKA F/POLAR REF T/XXL",
+                "cantidad_comprada": 1
+            },
+            {
+                "codigo": "80144444443604",
+                "nombre": "PIJAMA ROPA TERMICA COOL DRY TL",
+                "cantidad_comprada": 14
+            },
+            {
+                "codigo": "80144444443603",
+                "nombre": "PIJAMA ROPA TERMICA COOL DRY TM",
+                "cantidad_comprada": 1
+            },
+            {
+                "codigo": "80144444443605",
+                "nombre": "PIJAMA ROPA TERMICA COOL DRY TXL",
+                "cantidad_comprada": 6
+            },
+            {
+                "codigo": "80144444443606",
+                "nombre": "PIJAMA ROPA TERMICA COOL DRY TXXL",
+                "cantidad_comprada": 2
+            },
+            {
+                "codigo": "10010009900000",
+                "nombre": "REPUESTO VISOR TRANSPARENTE SILICONA AIR S990",
+                "cantidad_comprada": 25
+            },
+            {
+                "codigo": "30310068980000",
+                "nombre": "VISOR 6898 P/FULL FACE S600 3M N/P 70070709160",
+                "cantidad_comprada": 20
+            }
+        ],
+        "Protección Respiratoria": [
+            {
+                "codigo": "40169232410200",
+                "nombre": "FILTRO AIR (EX-6923) A1E1P3R F600VGP3 GASES ACIDOS VAPORES",
+                "cantidad_comprada": 30
+            },
+            {
+                "codigo": "40179314130200",
+                "nombre": "FILTRO AIR (EX-793 P3) PARTICULAS F700 P3",
+                "cantidad_comprada": 128
+            },
+            {
+                "codigo": "40102702000600",
+                "nombre": "RESPIRADOR (EX-AIR S702) M/ROSTRO SILICONA AIR S950M T/M",
+                "cantidad_comprada": 5
+            },
+            {
+                "codigo": "40102703000600",
+                "nombre": "RESPIRADOR (EX-AIR S703) M/ROSTRO SILICONA AIR S950L T/L",
+                "cantidad_comprada": 5
+            },
+            {
+                "codigo": "40102568000600",
+                "nombre": "RESPIRADOR (EX-FFS680) R/COMP SILICONA AIR FFS990M T/M",
+                "cantidad_comprada": 4
+            },
+            {
+                "codigo": "40100099000600",
+                "nombre": "RESPIRADOR (EX-FFS690) R/COMP SILICONA AIR FFS990L T/L",
+                "cantidad_comprada": 12
+            }
+        ],
+        "Protección de Manos": [
+            {
+                "codigo": "50200000470000",
+                "nombre": "GUANTE CABRITILLA SIN FORRO TIPO A",
+                "cantidad_comprada": 48
+            },
+            {
+                "codigo": "50100321009209",
+                "nombre": "GUANTE EAGLE J321 TALLA -9",
+                "cantidad_comprada": 20
+            },
+            {
+                "codigo": "56000000001014",
+                "nombre": "GUANTE EXAMEN NITRILO DESECH. GREENWAY CJ 100UN T/L",
+                "cantidad_comprada": 10
+            },
+            {
+                "codigo": "50100000180100",
+                "nombre": "GUANTE HILO PIGMENTADO IMPORTADO ECONOMICO",
+                "cantidad_comprada": 24
+            },
+            {
+                "codigo": "50100000040900",
+                "nombre": "GUANTE NITRILO DOBLE P/TEJIDO",
+                "cantidad_comprada": 48
+            },
+            {
+                "codigo": "50100000060300",
+                "nombre": "GUANTE NITRILO FLOC Nº 9 VERD",
+                "cantidad_comprada": 60
+            },
+            {
+                "codigo": "50100000140300",
+                "nombre": "GUANTE PVC 14 VERDE",
+                "cantidad_comprada": 40
+            },
+            {
+                "codigo": "50100000091000",
+                "nombre": "GUANTE PVC ROJO 14",
+                "cantidad_comprada": 32
+            },
+            {
+                "codigo": "50100000150300",
+                "nombre": "GUANTE SIN PIGMENTO ECONOMICO",
+                "cantidad_comprada": 120
+            }
+        ],
+        "Protección Solar e Higiene": [
+            {
+                "codigo": "30200044000000",
+                "nombre": "BLISTEX LIPS SUNTIME FPS 50",
+                "cantidad_comprada": 60
+            },
+            {
+                "codigo": "00100001060000",
+                "nombre": "BLISTEX LIPS SUNWORK PROTECCION ULTRA FPS 50",
+                "cantidad_comprada": 1
+            },
+            {
+                "codigo": "30200042000000",
+                "nombre": "PROTECTOR SOLAR SUNTIME FACTOR 50 1 KL INCLUYE BOMBA",
+                "cantidad_comprada": 8
+            }
+        ],
+        "Equipos de Medición y Servicios": [
+            {
+                "codigo": "10-01-558",
+                "nombre": "Detector BW ToxiRae Pro para medicion HCL G02-BT14-100",
+                "cantidad_comprada": 1
+            },
+            {
+                "codigo": "00-00-002",
+                "nombre": "Servicio Calibracion TRECK EQUIPO MONOGAS",
+                "cantidad_comprada": 2
+            },
+            {
+                "codigo": "SERVCALIBRA",
+                "nombre": "Servicio de Calibracion Detector de Gases",
+                "cantidad_comprada": 1
+            }
+        ],
+        "Otros EPP / Accesorios": [
+            {
+                "codigo": "00100000989000",
+                "nombre": "RODILLERA PROFESIONAL POLIESTER PLUS BLANCA",
+                "cantidad_comprada": 2
+            }
+        ]
+    }
+}
