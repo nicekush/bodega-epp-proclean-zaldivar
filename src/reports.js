@@ -249,274 +249,350 @@ export function filterHistoryTable() {
 }
 
 export function exportHistoryCSV() {
-    if (dbIngresos.length === 0 && dbSalidas.length === 0) {
-        showToast("No hay movimientos para exportar.", "warning");
+    const listToExport = (filteredHistory && filteredHistory.length > 0) ? filteredHistory : consolidatedHistory;
+
+    if (!listToExport || listToExport.length === 0) {
+        showToast("No hay movimientos en el historial para exportar.", "warning");
         return;
     }
 
-    let csvContent = "data:text/csv;charset=utf-8,";
-    csvContent += "Fecha,Tipo,Documento/Guia,Receptor/Proveedor,RUT,Area,Codigo EPP,Nombre EPP,Cantidad,Unidad,Usuario\r\n";
+    const headers = [
+        "Fecha y Hora",
+        "Tipo Movimiento",
+        "Documento / Folio",
+        "Receptor / Proveedor",
+        "RUT Trabajador",
+        "Area de Trabajo",
+        "Turno",
+        "Codigo SKU",
+        "Descripcion Articulo EPP",
+        "Categoria",
+        "Cantidad",
+        "Unidad Medida",
+        "Usuario Registrador",
+        "Comentarios / Observaciones"
+    ];
 
-    dbIngresos.forEach(ing => {
-        const localDate = new Date(ing.fecha).toLocaleDateString('es-CL');
-        ing.items.forEach(it => {
-            const epp = dbInventario.find(i => i.id === it.eppId) || { nombre: "EPP Desconocido", codigo: "???" };
-            const row = [
-                localDate,
-                "INGRESO",
-                ing.factura,
-                ing.proveedor,
-                "", 
-                "", 
-                epp.codigo,
-                `"${epp.nombre.replace(/"/g, '""')}"`,
-                it.cantidad,
-                epp.unidad || "Unidades",
-                ing.registrado_por || "Administrador Bodega"
+    const BOM = "\uFEFF";
+    let csvRows = [headers.map(h => `"${h}"`).join(";")];
+
+    listToExport.forEach(mov => {
+        const localDate = new Date(mov.fechaStr || mov.fecha);
+        const dateFormatted = isNaN(localDate) ? String(mov.fechaStr) : localDate.toLocaleString('es-CL');
+        const orig = mov.original || {};
+
+        let tipoLabel = "ENTREGA EPP";
+        if (mov.tipo === "ingreso") tipoLabel = "INGRESO GUIA";
+        if (mov.tipo === "insumo_recepcion") tipoLabel = "INSUMO MEJORA";
+
+        const docNum = orig.factura || orig.codigo_solicitud || orig.codigoSolicitud || orig.codigo || mov.documento || "";
+        const receptorProv = orig.trabajador || orig.proveedor || orig.mejora || mov.detalles || "";
+        const rut = orig.rut || "";
+        const area = orig.area || "";
+        const turno = orig.turno || "";
+        const usuario = mov.usuario || orig.registrado_por || "";
+        const comentarios = (orig.comentarios || orig.motivo_entrega || "").replace(/"/g, '""');
+
+        (mov.items || []).forEach(it => {
+            let sku = "S/C";
+            let nombreEpp = it.nombre || "Artículo Desconocido";
+            let categoria = "Sin categoría";
+            let unidad = "Unidades";
+
+            if (mov.tipo !== "insumo_recepcion") {
+                const catalogEPP = dbInventario.find(i => i.id === it.eppId);
+                if (catalogEPP) {
+                    sku = catalogEPP.codigo || "S/C";
+                    nombreEpp = catalogEPP.nombre;
+                    categoria = catalogEPP.categoria || "N/A";
+                    unidad = catalogEPP.unidad || "Unidades";
+                }
+            }
+
+            const rowValues = [
+                dateFormatted,
+                tipoLabel,
+                docNum,
+                receptorProv,
+                rut,
+                area,
+                turno,
+                sku,
+                nombreEpp,
+                categoria,
+                it.cantidad || 1,
+                unidad,
+                usuario,
+                comentarios
             ];
-            csvContent += row.join(",") + "\r\n";
+
+            const formattedRow = rowValues.map(val => `"${String(val).replace(/"/g, '""')}"`).join(";");
+            csvRows.push(formattedRow);
         });
     });
 
-    dbSalidas.forEach(sal => {
-        const localDate = new Date(sal.fecha).toLocaleDateString('es-CL');
-        sal.items.forEach(it => {
-            const epp = dbInventario.find(i => i.id === it.eppId) || { nombre: "EPP Desconocido", codigo: "???" };
-            const row = [
-                localDate,
-                "SALIDA",
-                "ACTA-ENTREGA",
-                `"${sal.trabajador.replace(/"/g, '""')}"`,
-                sal.rut,
-                sal.area,
-                epp.codigo,
-                `"${epp.nombre.replace(/"/g, '""')}"`,
-                it.cantidad,
-                epp.unidad || "Unidades",
-                sal.registrado_por || "Despacho Bodega"
-            ];
-            csvContent += row.join(",") + "\n";
-        });
-    });
-
-    dbInsumoMovimientos.forEach(mov => {
-        const localDate = new Date(mov.fecha).toLocaleDateString('es-CL');
-        mov.items.forEach(it => {
-            const row = [
-                localDate,
-                "RECEPCION_INSUMO",
-                mov.codigoSolicitud,
-                `"Proyecto: ${mov.mejora.replace(/"/g, '""')}"`,
-                "", 
-                "", 
-                "INSUMO",
-                `"${it.nombre.replace(/"/g, '""')}"`,
-                it.cantidad,
-                "Unidades",
-                mov.registrado_por || "Bodega Insumos"
-            ];
-            csvContent += row.join(",") + "\n";
-        });
-    });
-
-    const encodedUri = encodeURI(csvContent);
+    const csvString = BOM + csvRows.join("\r\n");
+    const blob = new Blob([csvString], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `reporte_bodega_movimientos_${Date.now()}.csv`);
+    link.setAttribute("href", url);
+    link.setAttribute("download", `historial_movimientos_bodega_${Date.now()}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    showToast("Historial exportado en formato CSV.", "success");
+    URL.revokeObjectURL(url);
+
+    showToast("Historial exportado a Excel (tabla plana).", "success");
 }
- 
+
 export function generateCorporatePDFReport() {
+    const listToPrint = (filteredHistory && filteredHistory.length > 0) ? filteredHistory : consolidatedHistory;
+
+    if (!listToPrint || listToPrint.length === 0) {
+        showToast("No hay movimientos para generar el reporte PDF.", "warning");
+        return;
+    }
+
     const printWindow = window.open('', '_blank');
     const today = new Date().toLocaleDateString('es-CL');
-    
-    const totalIngresos = dbIngresos.length;
-    const totalSalidas = dbSalidas.length;
-    const activeConsumables = dbInventario.filter(i => i.tipo_control !== 'Préstamo');
-    const underStock = activeConsumables.filter(i => i.stock <= i.stock_minimo).length;
-    
-    let inventoryRowsHTML = dbInventario.map(item => `
-        <tr>
-            <td>${item.codigo}</td>
-            <td>${item.nombre}</td>
-            <td>${item.categoria}</td>
-            <td style="text-align:center; font-weight:bold; color: ${item.stock <= item.stock_minimo ? '#f43f5e' : 'inherit'};">${item.stock}</td>
-            <td style="text-align:center;">${item.stock_minimo}</td>
-            <td>${item.tipo_control}</td>
-        </tr>
-    `).join("");
- 
+    const logoUrl = `${window.location.origin}/LOGO PROCLEANMG.jpg`;
+
+    let totalEntregas = 0;
+    let totalIngresos = 0;
+    let totalItemsMovidos = 0;
+
+    listToPrint.forEach(mov => {
+        if (mov.tipo === "salida") totalEntregas++;
+        if (mov.tipo === "ingreso" || mov.tipo === "insumo_recepcion") totalIngresos++;
+        (mov.items || []).forEach(it => {
+            totalItemsMovidos += Number(it.cantidad || 0);
+        });
+    });
+
+    const rowsHTML = listToPrint.map(mov => {
+        const localDate = new Date(mov.fechaStr || mov.fecha);
+        const dateFormatted = isNaN(localDate) ? String(mov.fechaStr) : localDate.toLocaleString('es-CL', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+
+        const itemsSummary = (mov.items || []).map(it => {
+            if (mov.tipo === "insumo_recepcion") {
+                return `<strong>${it.cantidad}x</strong> INSUMO: ${it.nombre}`;
+            }
+            const epp = dbInventario.find(i => i.id === it.eppId) || { nombre: "EPP Desconocido", codigo: "???" };
+            return `<strong>${it.cantidad}x</strong> [${epp.codigo}] ${epp.nombre}`;
+        }).join("<br>");
+
+        const badgeClass = mov.tipo === "ingreso" ? "badge-ingreso" : (mov.tipo === "insumo_recepcion" ? "badge-insumo" : "badge-entrega");
+        const tipoText = mov.tipo === "ingreso" ? "INGRESO GUÍA" : (mov.tipo === "insumo_recepcion" ? "INSUMO" : "ENTREGA");
+
+        return `
+            <tr>
+                <td style="white-space:nowrap; font-weight:600;">${dateFormatted}</td>
+                <td><span class="badge ${badgeClass}">${tipoText}</span></td>
+                <td>
+                    <div style="font-weight:700;">${mov.documento}</div>
+                    <div style="font-size:11px; color:#64748b;">${mov.detalles}</div>
+                </td>
+                <td style="font-size:12px; line-height:1.4;">${itemsSummary}</td>
+                <td style="font-size:11px; color:#475569;">${mov.usuario}</td>
+            </tr>
+        `;
+    }).join("");
+
     printWindow.document.write(`
+        <!DOCTYPE html>
         <html>
         <head>
-            <title>Reporte de Bodega ProCleanMG - ${today}</title>
+            <title>Reporte de Movimientos de Bodega - ProCleanMG</title>
             <style>
+                @page {
+                    size: A4 landscape;
+                    margin: 12mm;
+                }
                 body {
-                    font-family: 'Outfit', 'Inter', sans-serif;
+                    font-family: Arial, Helvetica, sans-serif;
                     color: #0f172a;
-                    margin: 40px;
+                    margin: 20px;
                     padding: 0;
                     background: #ffffff;
                 }
-                .header {
+                .header-container {
                     display: flex;
                     justify-content: space-between;
                     align-items: center;
                     border-bottom: 3px solid #ff7a00;
-                    padding-bottom: 20px;
-                    margin-bottom: 30px;
+                    padding-bottom: 16px;
+                    margin-bottom: 24px;
                 }
-                .logo-section h1 {
+                .logo-wrapper {
+                    display: flex;
+                    align-items: center;
+                    gap: 16px;
+                }
+                .logo-wrapper img {
+                    height: 52px;
+                    object-fit: contain;
+                }
+                .company-title h1 {
                     margin: 0;
-                    font-size: 24px;
+                    font-size: 20px;
                     font-weight: 800;
-                    letter-spacing: 1px;
+                    color: #1e293b;
+                    letter-spacing: 0.5px;
                 }
-                .logo-section span {
-                    color: #ff7a00;
-                }
-                .logo-section p {
-                    margin: 4px 0 0 0;
-                    font-size: 12px;
+                .company-title p {
+                    margin: 3px 0 0 0;
+                    font-size: 11px;
                     color: #64748b;
                 }
-                .date-section {
+                .report-meta {
                     text-align: right;
-                    font-size: 14px;
-                    color: #475569;
+                    font-size: 12px;
+                    color: #334155;
                 }
                 .summary-grid {
                     display: grid;
                     grid-template-columns: repeat(4, 1fr);
-                    gap: 20px;
-                    margin-bottom: 40px;
+                    gap: 16px;
+                    margin-bottom: 24px;
                 }
                 .summary-card {
                     border: 1px solid #e2e8f0;
-                    border-radius: 12px;
-                    padding: 16px;
+                    border-radius: 8px;
+                    padding: 12px 16px;
                     background: #f8fafc;
                 }
                 .summary-card label {
-                    font-size: 11px;
+                    font-size: 10px;
                     text-transform: uppercase;
                     font-weight: 700;
-                    letter-spacing: 0.5px;
                     color: #64748b;
                     display: block;
-                    margin-bottom: 6px;
+                    margin-bottom: 4px;
                 }
-                .summary-card value {
-                    font-size: 24px;
+                .summary-card .val {
+                    font-size: 20px;
                     font-weight: 800;
                     color: #0f172a;
-                    display: block;
-                }
-                .summary-card.alert value {
-                    color: #f43f5e;
-                }
-                h2 {
-                    font-size: 16px;
-                    text-transform: uppercase;
-                    letter-spacing: 1px;
-                    margin-bottom: 16px;
-                    border-left: 4px solid #ff7a00;
-                    padding-left: 10px;
                 }
                 table {
                     width: 100%;
                     border-collapse: collapse;
-                    margin-bottom: 40px;
+                    margin-bottom: 24px;
                 }
                 th {
                     background: #f1f5f9;
                     text-align: left;
-                    font-size: 10px;
+                    font-size: 11px;
                     text-transform: uppercase;
                     font-weight: 700;
-                    letter-spacing: 1px;
-                    padding: 12px;
+                    color: #334155;
+                    padding: 10px 12px;
                     border-bottom: 2px solid #cbd5e1;
                 }
                 td {
-                    padding: 12px;
-                    font-size: 13px;
+                    padding: 10px 12px;
+                    font-size: 12px;
                     border-bottom: 1px solid #e2e8f0;
+                    vertical-align: top;
                 }
                 tr:nth-child(even) td {
                     background: #f8fafc;
                 }
+                .badge {
+                    display: inline-block;
+                    padding: 3px 8px;
+                    border-radius: 4px;
+                    font-size: 10px;
+                    font-weight: 700;
+                    text-transform: uppercase;
+                }
+                .badge-entrega {
+                    background: rgba(224, 122, 95, 0.15);
+                    color: #e07a5f;
+                    border: 1px solid rgba(224, 122, 95, 0.3);
+                }
+                .badge-ingreso {
+                    background: rgba(42, 157, 143, 0.15);
+                    color: #2a9d8f;
+                    border: 1px solid rgba(42, 157, 143, 0.3);
+                }
+                .badge-insumo {
+                    background: rgba(6, 182, 212, 0.15);
+                    color: #0891b2;
+                    border: 1px solid rgba(6, 182, 212, 0.3);
+                }
                 .footer {
-                    margin-top: 60px;
+                    margin-top: 30px;
                     border-top: 1px solid #e2e8f0;
-                    padding-top: 20px;
+                    padding-top: 16px;
                     text-align: center;
                     font-size: 11px;
                     color: #94a3b8;
                 }
                 @media print {
-                    body { margin: 20px; }
+                    body { margin: 10px; }
                     .summary-card { background: #ffffff !important; border: 1px solid #cbd5e1 !important; }
                 }
             </style>
         </head>
         <body>
-            <div class="header">
-                <div class="logo-section">
-                    <h1>ProClean<span>MG</span></h1>
-                    <p>Sistema de Control y Aseguramiento de Bodega de EPP</p>
+            <div class="header-container">
+                <div class="logo-wrapper">
+                    <img src="${logoUrl}" alt="ProCleanMG Logo" onerror="this.style.display='none';">
+                    <div class="company-title">
+                        <h1>ProClean<span style="color:#ff7a00;">MG</span> - Registro de Movimientos</h1>
+                        <p>Sistema de Gestión y Control Auditor de Bodega de EPP</p>
+                    </div>
                 </div>
-                <div class="date-section">
-                    <strong>Reporte Ejecutivo de Inventario</strong><br>
-                    Fecha de Emisión: ${today}
+                <div class="report-meta">
+                    <strong>Informe de Auditoría de Movimientos</strong><br>
+                    Fecha de Emisión: ${today}<br>
+                    <span style="font-size:11px; color:#64748b;">Registros en Reporte: ${listToPrint.length}</span>
                 </div>
             </div>
-            
+
             <div class="summary-grid">
                 <div class="summary-card">
-                    <label>Total Ingresos</label>
-                    <value>${totalIngresos}</value>
+                    <label>Total Movimientos</label>
+                    <div class="val">${listToPrint.length}</div>
                 </div>
                 <div class="summary-card">
-                    <label>Total Entregas</label>
-                    <value>${totalSalidas}</value>
-                </div>
-                <div class="summary-card alert">
-                    <label>Bajo Stock Mínimo</label>
-                    <value>${underStock}</value>
+                    <label>Entregas a Colaboradores</label>
+                    <div class="val" style="color:#e07a5f;">${totalEntregas}</div>
                 </div>
                 <div class="summary-card">
-                    <label>Vigencia Operacional</label>
-                    <value>100%</value>
+                    <label>Ingresos por Guía</label>
+                    <div class="val" style="color:#2a9d8f;">${totalIngresos}</div>
+                </div>
+                <div class="summary-card">
+                    <label>Total Unidades Despachadas</label>
+                    <div class="val" style="color:#3b82f6;">${totalItemsMovidos}</div>
                 </div>
             </div>
- 
-            <h2>Estado de Stock Físico</h2>
+
             <table>
                 <thead>
                     <tr>
-                        <th>Código SKU</th>
-                        <th>Nombre EPP</th>
-                        <th>Categoría</th>
-                        <th style="text-align:center;">Stock Actual</th>
-                        <th style="text-align:center;">Stock Mínimo</th>
-                        <th>Control</th>
+                        <th>Fecha y Hora</th>
+                        <th>Tipo</th>
+                        <th>Documento / Receptor</th>
+                        <th>Detalle de Productos</th>
+                        <th>Registrado Por</th>
                     </tr>
                 </thead>
                 <tbody>
-                    ${inventoryRowsHTML}
+                    ${rowsHTML}
                 </tbody>
             </table>
- 
+
             <div class="footer">
-                ProCleanMG ERP - Reporte generado de manera segura por el Asistente Digital de Bodega.
+                ProCleanMG ERP - Reporte oficial de movimientos de bodega impreso el ${today}.
             </div>
             <script>
                 window.onload = function() {
-                    window.print();
+                    setTimeout(() => {
+                        window.print();
+                    }, 300);
                 }
             </script>
         </body>

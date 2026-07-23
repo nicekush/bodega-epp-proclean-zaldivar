@@ -328,12 +328,14 @@ function renderObservedCollaborators(filteredDeliveries) {
         del.items.forEach(item => {
             const key = `${workerKey}_${item.eppId}`;
             if (!userEPPMetrics[key]) {
+                const catalogEPP = dbInventario.find(i => i.id === item.eppId);
+                const eppName = catalogEPP ? catalogEPP.nombre : (item.nombre || "EPP Desconocido");
                 userEPPMetrics[key] = {
                     rut: del.rut,
                     trabajador: del.trabajador,
                     area: del.area,
                     eppId: item.eppId,
-                    eppName: item.nombre,
+                    eppName: eppName,
                     entregas: [],
                 };
             }
@@ -381,15 +383,10 @@ function renderObservedCollaborators(filteredDeliveries) {
         tr.className = "observed-row-clickable";
         tr.title = "Haga clic para auditar la ficha de este colaborador";
         
-        // Redirección directa al hacer clic
+        // Redirección directa fluida enviando el RUT
         tr.addEventListener("click", () => {
-            const searchInput = document.getElementById("worker-search-rut");
-            if (searchInput) {
-                searchInput.value = obs.rut;
-                window.switchView("view-workers");
-                setTimeout(() => {
-                    window.searchWorkerProfile();
-                }, 150);
+            if (window.switchView) {
+                window.switchView("view-workers", obs.rut);
             }
         });
 

@@ -24,24 +24,18 @@ let localKitItems = [];
 
 export function initSettingsView() {
     populateSettingsDropdowns();
+    setupSmartKitEPPSelector();
     renderSerialsTable();
 }
 window.initSettingsView = initSettingsView;
 
 function populateSettingsDropdowns() {
     const areaSelect = document.getElementById("kit-area-select");
-    const eppSelect = document.getElementById("kit-epp-select");
     const serialProductSelect = document.getElementById("new-serial-product");
     
     if (areaSelect) {
         areaSelect.innerHTML = `<option value="" disabled selected>Seleccione área...</option>` + 
             dbAreasFull.map(a => `<option value="${a.nombre}">${a.nombre}</option>`).join("");
-    }
-    
-    if (eppSelect) {
-        eppSelect.innerHTML = `<option value="" disabled selected>Seleccione EPP...</option>` + 
-            dbInventario.filter(i => i.tipo_control !== 'Préstamo')
-                .map(i => `<option value="${i.id}">${i.nombre}</option>`).join("");
     }
 
     if (serialProductSelect) {
@@ -49,6 +43,107 @@ function populateSettingsDropdowns() {
             dbInventario.filter(i => i.tipo_control === 'Préstamo')
                 .map(i => `<option value="${i.id}">${i.nombre}</option>`).join("");
     }
+}
+
+export function setupSmartKitEPPSelector() {
+    const container = document.getElementById("kit-epp-search-container");
+    if (!container) return;
+
+    const searchInput = document.getElementById("kit-epp-search-input");
+    const hiddenInput = document.getElementById("kit-epp-select");
+    const dropdown = document.getElementById("kit-epp-search-dropdown");
+    const clearBtn = document.getElementById("kit-epp-clear-icon");
+    const cardContainer = container.closest(".card");
+
+    function renderDropdown(filterText = "") {
+        const query = filterText.toLowerCase().trim();
+        const availableItems = dbInventario.filter(i => i.tipo_control !== 'Préstamo');
+        const matches = availableItems.filter(item => {
+            const codeMatch = (item.codigo || "").toLowerCase().includes(query);
+            const nameMatch = (item.nombre || "").toLowerCase().includes(query);
+            const catMatch = (item.categoria || "").toLowerCase().includes(query);
+            return codeMatch || nameMatch || catMatch;
+        });
+
+        if (matches.length === 0) {
+            dropdown.innerHTML = `<div style="padding: 12px; text-align: center; color: var(--text-muted); font-size: 0.85rem;">No se encontraron EPPs coincidentes.</div>`;
+        } else {
+            dropdown.innerHTML = matches.map(item => {
+                const badgeClass = item.stock <= 0 ? "stock-badge-zero" : "stock-badge-ok";
+                const badgeText = item.stock <= 0 ? "Sin Stock" : `Stock Actual: ${item.stock}`;
+                return `
+                    <div class="epp-search-option" data-id="${item.id}">
+                        <div class="epp-search-option-info">
+                            <span class="epp-search-option-code">${item.codigo || 'S/C'}</span>
+                            <span class="epp-search-option-title">${item.nombre}</span>
+                            <span class="epp-search-option-category"><i class="fa-solid fa-tag"></i> ${item.categoria || 'Sin categoría'} (${item.unidad || 'Unidades'})</span>
+                        </div>
+                        <span class="epp-search-option-stock ${badgeClass}">${badgeText}</span>
+                    </div>
+                `;
+            }).join("");
+
+            dropdown.querySelectorAll(".epp-search-option").forEach(opt => {
+                opt.addEventListener("click", (e) => {
+                    e.stopPropagation();
+                    const eppId = opt.dataset.id;
+                    const item = dbInventario.find(i => i.id === eppId);
+                    if (item) {
+                        selectItem(item);
+                    }
+                });
+            });
+        }
+    }
+
+    function openDropdown(filterText = "") {
+        renderDropdown(filterText);
+        dropdown.classList.add("active");
+        if (cardContainer) cardContainer.classList.add("has-active-dropdown");
+    }
+
+    function closeDropdown() {
+        dropdown.classList.remove("active");
+        if (cardContainer) cardContainer.classList.remove("has-active-dropdown");
+    }
+
+    function selectItem(item) {
+        const itemText = `${item.codigo ? item.codigo + ' - ' : ''}${item.nombre}`;
+        searchInput.value = itemText;
+        hiddenInput.value = item.id;
+        if (clearBtn) clearBtn.style.display = "block";
+        closeDropdown();
+    }
+
+    function clearSelection() {
+        searchInput.value = "";
+        hiddenInput.value = "";
+        if (clearBtn) clearBtn.style.display = "none";
+        closeDropdown();
+    }
+
+    if (clearBtn) {
+        clearBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            clearSelection();
+        });
+    }
+
+    searchInput.addEventListener("focus", () => {
+        openDropdown(searchInput.value);
+    });
+
+    searchInput.addEventListener("input", () => {
+        hiddenInput.value = "";
+        if (clearBtn) clearBtn.style.display = searchInput.value ? "block" : "none";
+        openDropdown(searchInput.value);
+    });
+
+    document.addEventListener("click", (e) => {
+        if (!container.contains(e.target)) {
+            closeDropdown();
+        }
+    });
 }
 
 export function onKitAreaChange() {
@@ -122,6 +217,10 @@ export function addEPPToKit() {
 
     renderKitItemsTable();
     document.getElementById("kit-epp-select").value = "";
+    const searchInput = document.getElementById("kit-epp-search-input");
+    if (searchInput) searchInput.value = "";
+    const clearBtn = document.getElementById("kit-epp-clear-icon");
+    if (clearBtn) clearBtn.style.display = "none";
     document.getElementById("kit-qty-input").value = "1";
 }
 window.addEPPToKit = addEPPToKit;

@@ -1056,8 +1056,16 @@
                             <h4 style="margin-bottom: 8px; font-size: 0.85rem;">Agregar EPP a la Plantilla</h4>
                             <div class="form-grid" style="grid-template-columns: 1fr 80px 40px; gap: 8px; align-items: end;">
                                 <div class="form-group" style="margin-bottom:0;">
-                                    <label for="kit-epp-select" style="font-size:0.75rem;">Artículo EPP</label>
-                                    <select id="kit-epp-select"></select>
+                                    <label style="font-size:0.75rem;">Artículo EPP (Filtro Inteligente)</label>
+                                    <div class="epp-search-container" id="kit-epp-search-container">
+                                        <div class="epp-search-input-wrapper">
+                                            <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                                            <input type="text" class="epp-search-input" id="kit-epp-search-input" placeholder="🔍 Buscar EPP..." autocomplete="off">
+                                            <i class="fa-solid fa-circle-xmark clear-icon" id="kit-epp-clear-icon" title="Limpiar selección"></i>
+                                        </div>
+                                        <div class="epp-search-dropdown" id="kit-epp-search-dropdown"></div>
+                                    </div>
+                                    <input type="hidden" id="kit-epp-select" required>
                                 </div>
                                 <div class="form-group" style="margin-bottom:0;">
                                     <label for="kit-qty-input" style="font-size:0.75rem;">Cant.</label>

@@ -1171,6 +1171,11 @@ body.light-mode tr:hover td {
    CSS de Impresión Nativa (window.print())
    ========================================================================== */
 @media print {
+    @page {
+        size: A4 portrait;
+        margin: 10mm;
+    }
+
     body {
         background: #ffffff !important;
         color: #000000 !important;
@@ -1181,7 +1186,8 @@ body.light-mode tr:hover td {
     .modal-overlay:not(#voucher-modal),
     #toast-container,
     .no-print-actions,
-    #voucher-modal .modal-header {
+    #voucher-modal .modal-header,
+    #voucher-modal .modal-footer {
         display: none !important;
     }
     
@@ -1195,6 +1201,7 @@ body.light-mode tr:hover td {
         margin: 0 !important;
         width: 100% !important;
         height: auto !important;
+        max-height: none !important;
         overflow: visible !important;
     }
     
@@ -1206,11 +1213,17 @@ body.light-mode tr:hover td {
         width: 100% !important;
         padding: 0 !important;
         margin: 0 !important;
+        max-height: none !important;
+        height: auto !important;
+        overflow: visible !important;
     }
     
     #voucher-modal .modal-body {
         background: #ffffff !important;
         padding: 0 !important;
+        max-height: none !important;
+        height: auto !important;
+        overflow: visible !important;
     }
     
     .print-voucher-view {

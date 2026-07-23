@@ -81,6 +81,7 @@ export async function initDatabase() {
         const { data: sal, error: errSal } = await supabase.from('salidas').select('*').order('fecha', { ascending: false });
         if (errSal) throw errSal;
         dbSalidas = sal;
+        await dbCleanDuplicateOutflows();
 
         // 6. Cargar Insumos para Mejoras
         const { data: ins, error: errIns } = await supabase.from('insumos_mejoras').select('*').order('fecha_solicitud', { ascending: false });
@@ -451,10 +452,15 @@ export async function dbInsertOutflow(outflow) {
         trabajador: outflow.trabajador,
         rut: outflow.rut,
         area: outflow.area,
+        turno: outflow.turno,
         fecha: outflow.fecha,
         items: outflow.items,
         firma: outflow.firma,
-        registrado_por: outflow.registrado_por
+        registrado_por: outflow.registrado_por,
+        comentarios: outflow.comentarios,
+        motivo_entrega: outflow.motivo_entrega,
+        talla_ropa: outflow.talla_ropa,
+        razon_cambio_ropa: outflow.razon_cambio_ropa
     }]).select();
     if (error) throw error;
 
@@ -469,6 +475,72 @@ export async function dbInsertOutflow(outflow) {
 
     dbSalidas.unshift(data[0]);
     return data[0];
+}
+
+export async function dbCleanDuplicateOutflows() {
+    if (!dbSalidas || dbSalidas.length < 2) return { cleanedCount: 0 };
+
+    const duplicateIdsToDelete = [];
+    const itemsToRestoreMap = {};
+
+    const sortedSalidas = [...dbSalidas].sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
+
+    for (let i = 0; i < sortedSalidas.length - 1; i++) {
+        const current = sortedSalidas[i];
+        if (duplicateIdsToDelete.includes(current.id)) continue;
+
+        for (let j = i + 1; j < sortedSalidas.length; j++) {
+            const next = sortedSalidas[j];
+            if (duplicateIdsToDelete.includes(next.id)) continue;
+
+            const timeDiffMs = Math.abs(new Date(next.fecha) - new Date(current.fecha));
+            if (timeDiffMs > 90000) break;
+
+            const rutMatch = (current.rut || "").trim().toUpperCase() === (next.rut || "").trim().toUpperCase();
+            const userMatch = (current.registrado_por || "").trim().toUpperCase() === (next.registrado_por || "").trim().toUpperCase();
+
+            const getItemsSignature = (itemsArr) => {
+                if (!Array.isArray(itemsArr)) return "";
+                return itemsArr
+                    .map(it => `${it.eppId}:${it.cantidad}`)
+                    .sort()
+                    .join("|");
+            };
+
+            const itemsMatch = getItemsSignature(current.items) === getItemsSignature(next.items);
+
+            if (rutMatch && userMatch && itemsMatch && getItemsSignature(current.items) !== "") {
+                console.warn("Salida duplicada por doble clic detectada:", next.id, "Fecha:", next.fecha);
+                duplicateIdsToDelete.push(next.id);
+
+                (next.items || []).forEach(item => {
+                    itemsToRestoreMap[item.eppId] = (itemsToRestoreMap[item.eppId] || 0) + Number(item.cantidad);
+                });
+            }
+        }
+    }
+
+    if (duplicateIdsToDelete.length === 0) return { cleanedCount: 0 };
+
+    console.log(`Deduplicando ${duplicateIdsToDelete.length} salidas e incrementando stock restituido...`);
+
+    for (const id of duplicateIdsToDelete) {
+        const { error } = await supabase.from('salidas').delete().eq('id', id);
+        if (error) console.error("Error eliminando registro duplicado en Supabase:", error);
+    }
+
+    for (const eppId of Object.keys(itemsToRestoreMap)) {
+        const qtyToRestore = itemsToRestoreMap[eppId];
+        const localEPP = dbInventario.find(i => i.id === eppId);
+        if (localEPP) {
+            const nuevoStock = localEPP.stock + qtyToRestore;
+            localEPP.stock = nuevoStock;
+            await dbUpdateEPPStock(eppId, nuevoStock);
+        }
+    }
+
+    dbSalidas = dbSalidas.filter(s => !duplicateIdsToDelete.includes(s.id));
+    return { cleanedCount: duplicateIdsToDelete.length, restoredItems: itemsToRestoreMap };
 }
 
 // Insumos para Mejoras (Solicitud)

@@ -148,7 +148,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 });
 
 // SPA view router
-function switchView(viewId) {
+function switchView(viewId, targetParam = null) {
     toggleMobileSidebar(false);
     document.querySelectorAll(".view-panel").forEach(panel => {
         panel.classList.remove("active");
@@ -200,12 +200,19 @@ function switchView(viewId) {
             viewTitle.textContent = "Ficha de Colaborador";
             viewSubtitle.textContent = "Consulte el historial de EPP activos y entregas firmadas del trabajador.";
             const workerSearchInput = document.getElementById("worker-search-rut");
-            if (workerSearchInput) {
-                workerSearchInput.value = "";
-            }
             const workerProfileContainer = document.getElementById("worker-profile-container");
-            if (workerProfileContainer) {
-                workerProfileContainer.style.display = "none";
+            if (targetParam) {
+                if (workerSearchInput) {
+                    workerSearchInput.value = targetParam;
+                }
+                searchWorkerProfile();
+            } else {
+                if (workerSearchInput) {
+                    workerSearchInput.value = "";
+                }
+                if (workerProfileContainer) {
+                    workerProfileContainer.style.display = "none";
+                }
             }
             break;
         case "view-analytics":

@@ -434,6 +434,8 @@ export function resetOutflowForm() {
     setupOutflowForm();
 }
 
+let isSavingOutflow = false;
+
 export async function saveOutflowAndPrint(event, callbackAfterSave) {
     event.preventDefault();
 
@@ -544,8 +546,22 @@ export async function saveOutflowAndPrint(event, callbackAfterSave) {
         talla_ropa: outflowTalla,
         razon_cambio_ropa: outflowRazonRopa
     };
+
+    if (isSavingOutflow) {
+        showToast("Procesando la entrega de EPP, por favor espere...", "warning");
+        return;
+    }
+
+    const submitBtn = event.target ? event.target.querySelector('button[type="submit"]') : null;
+    const originalBtnHTML = submitBtn ? submitBtn.innerHTML : "";
  
     try {
+        isSavingOutflow = true;
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Registrando...`;
+        }
+
         showToast("Registrando acta en Supabase...", "info");
         const registeredOutflow = await dbInsertOutflow(newOutflow);
         showToast(`Entrega a ${workerName} registrada con éxito. Abriendo impresión...`, "success");
@@ -557,6 +573,12 @@ export async function saveOutflowAndPrint(event, callbackAfterSave) {
         }
     } catch (error) {
         showToast("Error al registrar la entrega: " + error.message, "danger");
+    } finally {
+        isSavingOutflow = false;
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalBtnHTML;
+        }
     }
 }
 
@@ -655,7 +677,12 @@ export function showVoucherDetails(outflow) {
     if (signatureName) signatureName.textContent = `Firma de ${outflow.trabajador}`;
 
     const modal = document.getElementById("voucher-modal");
-    if (modal) modal.classList.add("active");
+    if (modal) {
+        modal.classList.add("active");
+        modal.scrollTop = 0;
+        const modalBody = modal.querySelector(".modal-body");
+        if (modalBody) modalBody.scrollTop = 0;
+    }
 }
 
 export function closeVoucherModal() {
@@ -665,6 +692,13 @@ export function closeVoucherModal() {
 
 export function printVoucher() {
     const originalTitle = document.title;
+
+    const modal = document.getElementById("voucher-modal");
+    if (modal) {
+        modal.scrollTop = 0;
+        const modalBody = modal.querySelector(".modal-body");
+        if (modalBody) modalBody.scrollTop = 0;
+    }
 
     if (currentActiveOutflowForPrint) {
         const rawName = (currentActiveOutflowForPrint.trabajador || "Trabajador").trim();

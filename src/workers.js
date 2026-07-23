@@ -36,7 +36,7 @@ export function searchWorkerProfile() {
     document.getElementById("w-profile-name").textContent = recent.trabajador || "Nombre no registrado";
     document.getElementById("w-profile-rut").textContent = `RUT: ${recent.rut}`;
     document.getElementById("w-profile-area").innerHTML = `<i class="fa-solid fa-briefcase"></i> ${recent.area || "Sin área asignada"}`;
-    document.getElementById("w-profile-turno").textContent = recent.turno || "Sin Turno";
+    document.getElementById("w-profile-turno").textContent = recent.turno || "Turno A";
 
     const lastClothesDelivery = workerDeliveries.find(d => d.talla_ropa);
     const lastTalla = lastClothesDelivery ? lastClothesDelivery.talla_ropa : "No registra";
@@ -169,7 +169,7 @@ export function searchWorkerProfile() {
                 <td><strong>${new Date(del.fecha).toLocaleDateString('es-CL')}</strong></td>
                 <td>${del.registrado_por || del.registradoPor || "Sistema"}</td>
                 <td><span class="badge" style="background: rgba(30, 144, 255, 0.1); color: #1e90ff;"><i class="fa-solid fa-briefcase"></i> ${del.area || "N/A"}</span></td>
-                <td><span class="badge" style="background: rgba(255, 122, 0, 0.1); color: var(--color-primary);"><i class="fa-solid fa-clock"></i> ${del.turno || "N/A"}</span></td>
+                <td><span class="badge" style="background: rgba(255, 122, 0, 0.1); color: var(--color-primary);"><i class="fa-solid fa-clock"></i> ${del.turno || recent.turno || "Turno A"}</span></td>
                 <td style="font-size: 0.8rem; color: var(--text-secondary); max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${itemsText}">${itemsText}</td>
                 <td style="text-align: center;">${signatureHTML}</td>
                 <td style="text-align: center;">
