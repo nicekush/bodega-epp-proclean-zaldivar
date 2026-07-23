@@ -448,21 +448,32 @@ export async function dbInsertInflow(inflow) {
 
 // Salidas (Actas de Entrega)
 export async function dbInsertOutflow(outflow) {
-    const { data, error } = await supabase.from('salidas').insert([{
+    const payload = {
         trabajador: outflow.trabajador,
         rut: outflow.rut,
         area: outflow.area,
-        turno: outflow.turno,
+        turno: outflow.turno || "",
         fecha: outflow.fecha,
         items: outflow.items,
         firma: outflow.firma,
-        registrado_por: outflow.registrado_por,
-        comentarios: outflow.comentarios,
-        motivo_entrega: outflow.motivo_entrega,
-        talla_ropa: outflow.talla_ropa,
-        razon_cambio_ropa: outflow.razon_cambio_ropa
-    }]).select();
-    if (error) throw error;
+        registrado_por: outflow.registrado_por
+    };
+
+    let resultData = null;
+    let { data, error } = await supabase.from('salidas').insert([payload]).select();
+    
+    if (error) {
+        if (error.message && error.message.includes('turno')) {
+            delete payload.turno;
+            const resNoTurno = await supabase.from('salidas').insert([payload]).select();
+            if (resNoTurno.error) throw resNoTurno.error;
+            resultData = resNoTurno.data[0];
+        } else {
+            throw error;
+        }
+    } else {
+        resultData = data[0];
+    }
 
     // Descontar stock de los EPPs en Supabase
     for (const item of outflow.items) {
@@ -473,8 +484,9 @@ export async function dbInsertOutflow(outflow) {
         }
     }
 
-    dbSalidas.unshift(data[0]);
-    return data[0];
+    const fullRecord = { ...outflow, ...resultData };
+    dbSalidas.unshift(fullRecord);
+    return fullRecord;
 }
 
 export async function dbCleanDuplicateOutflows() {
