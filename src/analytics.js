@@ -66,7 +66,11 @@ export function setAnalyticsDatePreset(preset) {
     const today = new Date();
     const endStr = today.toISOString().slice(0, 10);
 
-    if (preset === "this-month" && startInput && endInput) {
+    if (preset === "last-7" && startInput && endInput) {
+        const past = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+        startInput.value = past.toISOString().slice(0, 10);
+        endInput.value = endStr;
+    } else if (preset === "this-month" && startInput && endInput) {
         const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
         startInput.value = firstDay.toISOString().slice(0, 10);
         endInput.value = endStr;
@@ -103,6 +107,50 @@ export function setAnalyticsDatePreset(preset) {
 }
 window.setAnalyticsDatePreset = setAnalyticsDatePreset;
 
+// Handlers de Filtrado Cruzado (Cross-Filtering por clic en gráficos)
+export function handleAreaChartClick(area) {
+    const areaSelect = document.getElementById("ana-filter-area");
+    if (!areaSelect) return;
+    areaSelect.value = areaSelect.value === area ? "" : area;
+    renderAnalyticsDashboard();
+}
+window.handleAreaChartClick = handleAreaChartClick;
+
+export function handleAlertChartClick(status) {
+    const alertSelect = document.getElementById("ana-filter-alert");
+    if (!alertSelect) return;
+    alertSelect.value = alertSelect.value === status ? "" : status;
+    renderAnalyticsDashboard();
+}
+window.handleAlertChartClick = handleAlertChartClick;
+
+export function handleTopSKUClick(skuId) {
+    const prodSelect = document.getElementById("ana-filter-product");
+    if (!prodSelect) return;
+    prodSelect.value = prodSelect.value === skuId ? "" : skuId;
+    renderAnalyticsDashboard();
+}
+window.handleTopSKUClick = handleTopSKUClick;
+
+export function handleSeasonalityPointClick(monthKey) {
+    const startInput = document.getElementById("ana-filter-start-date");
+    const endInput = document.getElementById("ana-filter-end-date");
+    if (!startInput || !endInput) return;
+
+    const parts = monthKey.split("-");
+    const year = Number(parts[0]);
+    const month = Number(parts[1]);
+
+    const firstDay = new Date(year, month - 1, 1);
+    const lastDay = new Date(year, month, 0);
+
+    startInput.value = firstDay.toISOString().slice(0, 10);
+    endInput.value = lastDay.toISOString().slice(0, 10);
+
+    renderAnalyticsDashboard();
+}
+window.handleSeasonalityPointClick = handleSeasonalityPointClick;
+
 export function renderAnalyticsDashboard() {
     // 1. Inicializar selectores de filtros si no se ha hecho
     if (!initializedFilters) {
@@ -127,6 +175,9 @@ export function renderAnalyticsDashboard() {
     let filteredEPPsCount = 0;
     let totalDeliveriesCount = 0;
     let criticalDeviations = 0;
+
+    let shiftACount = 0;
+    let shiftBCount = 0;
 
     dbSalidas.forEach(del => {
         // Filtro por Área
@@ -189,7 +240,14 @@ export function renderAnalyticsDashboard() {
                 if (alertFilter === "normal" && isCritical) return;
 
                 itemsToInclude.push(item);
-                filteredEPPsCount += Number(item.cantidad);
+                const itemQty = Number(item.cantidad);
+                filteredEPPsCount += itemQty;
+
+                if ((del.turno || "").toLowerCase().includes("b")) {
+                    shiftBCount += itemQty;
+                } else {
+                    shiftACount += itemQty;
+                }
             });
 
             if (itemsToInclude.length > 0) {
@@ -202,6 +260,41 @@ export function renderAnalyticsDashboard() {
     });
 
     const deviationRate = totalDeliveriesCount > 0 ? Math.round((criticalDeviations / totalDeliveriesCount) * 100) : 0;
+
+    // Relación de Turnos A vs B
+    const totalShiftQty = shiftACount + shiftBCount;
+    const shiftAPct = totalShiftQty > 0 ? Math.round((shiftACount / totalShiftQty) * 100) : 0;
+    const shiftBPct = totalShiftQty > 0 ? (100 - shiftAPct) : 0;
+
+    // Tendencia vs Período Anterior
+    let trendText = "sin período anterior";
+    let prevEPPsCount = 0;
+
+    if (startDate && endDate) {
+        const periodMs = endDate.getTime() - startDate.getTime();
+        const prevStart = new Date(startDate.getTime() - periodMs);
+        const prevEnd = new Date(startDate.getTime() - 1);
+
+        dbSalidas.forEach(del => {
+            if (selectedArea && del.area !== selectedArea) return;
+            if (selectedShift && del.turno !== selectedShift) return;
+            const delDate = new Date(del.fecha);
+            if (delDate >= prevStart && delDate <= prevEnd) {
+                del.items.forEach(it => prevEPPsCount += Number(it.cantidad));
+            }
+        });
+
+        if (prevEPPsCount > 0) {
+            const diffPct = Math.round(((filteredEPPsCount - prevEPPsCount) / prevEPPsCount) * 100);
+            const icon = diffPct >= 0 ? "▲ +" : "▼ ";
+            const color = diffPct > 0 ? "var(--color-danger)" : "var(--color-success)";
+            trendText = `<span style="color:${color}; font-weight:700;">${icon}${diffPct}%</span> vs período anterior`;
+        } else {
+            trendText = `vs ${prevEPPsCount} u. período anterior`;
+        }
+    } else {
+        trendText = `Histórico (${dbSalidas.length} entregas totales)`;
+    }
 
     // Calcular SLA de requerimientos
     const filteredReqs = dbInsumos.filter(i => {
@@ -219,15 +312,29 @@ export function renderAnalyticsDashboard() {
     // Poblar KPIs en el DOM
     const kpiTotal = document.getElementById("ana-kpi-total");
     const kpiDev = document.getElementById("ana-kpi-deviation");
+    const kpiShiftRatio = document.getElementById("ana-kpi-shift-ratio");
     const kpiSLA = document.getElementById("ana-kpi-sla");
+
+    const kpiTotalSub = document.getElementById("ana-kpi-total-sub");
+    const kpiDevSub = document.getElementById("ana-kpi-deviation-sub");
+    const kpiShiftSub = document.getElementById("ana-kpi-shift-sub");
+    const kpiSLASub = document.getElementById("ana-kpi-sla-sub");
 
     if (kpiTotal) kpiTotal.textContent = filteredEPPsCount;
     if (kpiDev) kpiDev.textContent = `${deviationRate}%`;
+    if (kpiShiftRatio) kpiShiftRatio.textContent = `${shiftAPct}% / ${shiftBPct}%`;
     if (kpiSLA) kpiSLA.textContent = `${slaCompliance}%`;
+
+    if (kpiTotalSub) kpiTotalSub.innerHTML = trendText;
+    if (kpiDevSub) kpiDevSub.innerHTML = `${criticalDeviations} alertas críticas en el período`;
+    if (kpiShiftSub) kpiShiftSub.innerHTML = `Turno A: ${shiftACount} u. | Turno B: ${shiftBCount} u.`;
+    if (kpiSLASub) kpiSLASub.innerHTML = `${pendingReqs.length} pendientes (${overdueReqs.length} fuera SLA)`;
 
     // 4. Dibujar Gráficos y Widgets Dinámicos
     renderAreaChart(filteredDeliveries);
+    renderCategoryChart(filteredDeliveries);
     renderAlertsDonutChart(criticalDeviations, totalDeliveriesCount);
+    renderWeekdayChart(filteredDeliveries);
     renderTopConsumedSKUs(filteredDeliveries);
     renderSeasonalityLineChart(filteredDeliveries);
 
@@ -236,6 +343,123 @@ export function renderAnalyticsDashboard() {
     renderRunwayAutonomyTable(selectedCategory);
 }
 window.renderAnalyticsDashboard = renderAnalyticsDashboard;
+
+export function handleCategoryChartClick(category) {
+    const categorySelect = document.getElementById("ana-filter-category");
+    if (!categorySelect) return;
+    categorySelect.value = categorySelect.value === category ? "" : category;
+    renderAnalyticsDashboard();
+}
+window.handleCategoryChartClick = handleCategoryChartClick;
+
+function renderCategoryChart(filteredDeliveries) {
+    const container = document.getElementById("analytics-category-chart-container");
+    if (!container) return;
+
+    const catCounts = {};
+    let totalQty = 0;
+
+    filteredDeliveries.forEach(del => {
+        del.items.forEach(it => {
+            const eppDef = dbInventario.find(i => i.id === it.eppId);
+            const cat = eppDef ? eppDef.categoria : "Sin Categoría";
+            const qty = Number(it.cantidad);
+            catCounts[cat] = (catCounts[cat] || 0) + qty;
+            totalQty += qty;
+        });
+    });
+
+    const categories = Object.keys(catCounts);
+    if (categories.length === 0 || totalQty === 0) {
+        container.innerHTML = `<span style="font-size:0.9rem; color:var(--text-muted);">Sin datos de categorías para los filtros seleccionados.</span>`;
+        return;
+    }
+
+    const maxVal = Math.max(...Object.values(catCounts), 1);
+    const chartHeight = 220;
+    const barHeight = 22;
+    const spacing = 10;
+    const chartWidth = 360;
+    const activeCat = document.getElementById("ana-filter-category")?.value || "";
+
+    let barsHTML = "";
+    categories.forEach((cat, index) => {
+        const val = catCounts[cat];
+        const pct = Math.round((val / totalQty) * 100);
+        const barW = (val / maxVal) * (chartWidth - 160);
+        const y = index * (barHeight + spacing) + 15;
+        const isSelected = activeCat === cat;
+        const fill = isSelected ? "var(--color-warning)" : "var(--color-primary)";
+
+        barsHTML += `
+            <g class="bar-group" onclick="handleCategoryChartClick('${cat}')" style="cursor:pointer;" title="Clic para filtrar por categoría ${cat}">
+                <text x="5" y="${y + 15}" font-size="10" font-weight="600" fill="var(--text-primary)">${cat.substring(0, 15)}</text>
+                <rect x="120" y="${y}" width="${barW}" height="${barHeight}" fill="${fill}" rx="4" opacity="${isSelected ? '1' : '0.85'}">
+                    <title>${cat}: ${val} u. (${pct}%) - Clic para filtrar</title>
+                </rect>
+                <text x="${125 + barW}" y="${y + 15}" font-size="10" font-weight="700" fill="var(--text-secondary)">${val} u. (${pct}%)</text>
+            </g>
+        `;
+    });
+
+    const totalCalculatedHeight = Math.max(chartHeight, categories.length * (barHeight + spacing) + 30);
+
+    container.innerHTML = `
+        <svg width="100%" height="100%" viewBox="0 0 ${chartWidth} ${totalCalculatedHeight}" preserveAspectRatio="xMidYMid meet" style="background:transparent; max-width:100%; overflow:hidden;">
+            ${barsHTML}
+        </svg>
+    `;
+}
+
+function renderWeekdayChart(filteredDeliveries) {
+    const container = document.getElementById("analytics-weekday-chart-container");
+    if (!container) return;
+
+    const days = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
+    const dayCounts = [0, 0, 0, 0, 0, 0, 0];
+
+    filteredDeliveries.forEach(del => {
+        const d = new Date(del.fecha);
+        const dayIdx = d.getDay();
+        let qty = 0;
+        del.items.forEach(it => qty += Number(it.cantidad));
+        dayCounts[dayIdx] += qty;
+    });
+
+    const maxVal = Math.max(...dayCounts, 1);
+    const chartHeight = 220;
+    const chartWidth = 360;
+    const barWidth = 34;
+    const spacing = 12;
+
+    let barsHTML = "";
+    const orderedIndices = [1, 2, 3, 4, 5, 6, 0];
+
+    orderedIndices.forEach((dayIdx, posIndex) => {
+        const val = dayCounts[dayIdx];
+        const barHeight = (val / maxVal) * (chartHeight - 60);
+        const x = posIndex * (barWidth + spacing) + 20;
+        const y = chartHeight - barHeight - 35;
+        const dayLabel = days[dayIdx];
+
+        barsHTML += `
+            <g class="bar-group" style="cursor:pointer;">
+                <rect x="${x}" y="${y}" width="${barWidth}" height="${barHeight}" fill="var(--color-primary)" rx="4" opacity="0.85">
+                    <title>${dayLabel}: ${val} EPPs despachados</title>
+                </rect>
+                <text x="${x + barWidth / 2}" y="${chartHeight - 12}" font-size="10" font-weight="700" fill="var(--text-secondary)" text-anchor="middle">${dayLabel}</text>
+                <text x="${x + barWidth / 2}" y="${y - 6}" font-size="10" font-weight="700" fill="var(--text-primary)" text-anchor="middle">${val}</text>
+            </g>
+        `;
+    });
+
+    container.innerHTML = `
+        <svg width="100%" height="100%" viewBox="0 0 ${chartWidth} ${chartHeight}" preserveAspectRatio="xMidYMid meet" style="background:transparent; max-width:100%; overflow:hidden;">
+            ${barsHTML}
+            <line x1="10" y1="${chartHeight - 28}" x2="${chartWidth - 10}" y2="${chartHeight - 28}" stroke="var(--border-color)" stroke-width="1"/>
+        </svg>
+    `;
+}
 
 function renderAreaChart(filteredDeliveries) {
     const container = document.getElementById("analytics-area-chart-container");
@@ -267,6 +491,8 @@ function renderAreaChart(filteredDeliveries) {
     const spacing = 14;
     const chartWidth = Math.max(360, areas.length * (barWidth + spacing) + 40);
 
+    const activeArea = document.getElementById("ana-filter-area")?.value || "";
+
     areas.forEach((area, index) => {
         const value = areaCounts[area];
         const workersCount = areaWorkers[area] ? areaWorkers[area].size : 1;
@@ -276,10 +502,13 @@ function renderAreaChart(filteredDeliveries) {
         const x = index * (barWidth + spacing) + 25;
         const y = chartHeight - barHeight - 35;
 
+        const isSelected = activeArea === area;
+        const barFill = isSelected ? "var(--color-warning)" : "var(--color-primary)";
+
         barsHTML += `
-            <g class="bar-group" style="cursor:pointer;">
-                <rect x="${x}" y="${y}" width="${barWidth}" height="${barHeight}" fill="var(--color-primary)" rx="4" opacity="0.8">
-                    <title>${area}: ${value} EPPs entregados a ${workersCount} trabajador(es) (~${perCapita} EPP/persona)</title>
+            <g class="bar-group" onclick="handleAreaChartClick('${area}')" style="cursor:pointer;" title="Clic para filtrar por ${area}">
+                <rect x="${x}" y="${y}" width="${barWidth}" height="${barHeight}" fill="${barFill}" rx="4" opacity="${isSelected ? '1' : '0.8'}">
+                    <title>${area}: ${value} EPPs entregados a ${workersCount} trabajador(es) (~${perCapita} EPP/persona) - Clic para filtrar</title>
                 </rect>
                 <text x="${x + barWidth / 2}" y="${chartHeight - 15}" font-size="9" fill="var(--text-secondary)" text-anchor="middle">${area.substring(0, 7)}..</text>
                 <text x="${x + barWidth / 2}" y="${chartHeight - 2}" font-size="8" font-weight="700" fill="var(--color-primary)" text-anchor="middle">${perCapita}/p</text>
@@ -315,24 +544,28 @@ function renderAlertsDonutChart(criticalCount, totalCount) {
 
     container.innerHTML = `
         <div style="display:flex; align-items:center; justify-content:center; gap:20px; flex-wrap:wrap; max-width:100%; width:100%;">
-            <svg width="150" height="150" viewBox="0 0 150 150" style="max-width:100%;">
+            <svg width="150" height="150" viewBox="0 0 150 150" style="max-width:100%; cursor:pointer;">
                 <circle cx="75" cy="75" r="${radius}" fill="transparent" stroke="var(--border-color)" stroke-width="15" />
                 <circle cx="75" cy="75" r="${radius}" fill="transparent" stroke="var(--color-success)" stroke-width="15" 
                         stroke-dasharray="${circumference}" stroke-dashoffset="${(normalPct / 100) * circumference}"
-                        transform="rotate(-90 75 75)" style="transition: stroke-dashoffset 0.8s;"/>
+                        transform="rotate(-90 75 75)" style="transition: stroke-dashoffset 0.8s;" onclick="handleAlertChartClick('normal')">
+                    <title>Consumo Correcto: Clic para filtrar</title>
+                </circle>
                 <circle cx="75" cy="75" r="${radius}" fill="transparent" stroke="var(--color-danger)" stroke-width="15" 
                         stroke-dasharray="${circumference}" stroke-dashoffset="${criticalOffset}"
-                        transform="rotate(${(normalPct/100)*360 - 90} 75 75)" style="transition: stroke-dashoffset 0.8s;"/>
+                        transform="rotate(${(normalPct/100)*360 - 90} 75 75)" style="transition: stroke-dashoffset 0.8s;" onclick="handleAlertChartClick('critical')">
+                    <title>Desviaciones Críticas: Clic para filtrar</title>
+                </circle>
                 <text x="75" y="80" text-anchor="middle" font-size="14" font-weight="800" fill="var(--text-primary)">
                     ${criticalPct}% Alertas
                 </text>
             </svg>
             <div style="font-size:0.85rem; display:flex; flex-direction:column; gap:8px;">
-                <div style="display:flex; align-items:center; gap:8px;">
+                <div style="display:flex; align-items:center; gap:8px; cursor:pointer;" onclick="handleAlertChartClick('normal')" title="Clic para filtrar consumos normales">
                     <span style="display:inline-block; width:12px; height:12px; border-radius:3px; background:var(--color-success);"></span>
                     <span>Consumo Correcto (${normalPct}%)</span>
                 </div>
-                <div style="display:flex; align-items:center; gap:8px;">
+                <div style="display:flex; align-items:center; gap:8px; cursor:pointer;" onclick="handleAlertChartClick('critical')" title="Clic para filtrar desviaciones críticas">
                     <span style="display:inline-block; width:12px; height:12px; border-radius:3px; background:var(--color-danger);"></span>
                     <span>Desviaciones Críticas (${criticalPct}%)</span>
                 </div>
@@ -373,18 +606,22 @@ function renderTopConsumedSKUs(filteredDeliveries) {
     const maxQty = top5[0].cantidad || 1;
     const totalQty = itemsList.reduce((sum, item) => sum + item.cantidad, 0);
 
+    const activeSKU = document.getElementById("ana-filter-product")?.value || "";
+
     let html = `<div style="display:flex; flex-direction:column; gap:12px; padding:10px 0;">`;
     top5.forEach((item, index) => {
         const pctOfTotal = Math.round((item.cantidad / totalQty) * 100);
         const barPct = Math.round((item.cantidad / maxQty) * 100);
+        const isSelected = activeSKU === item.id;
+
         html += `
-            <div>
+            <div onclick="handleTopSKUClick('${item.id}')" style="cursor:pointer; padding:4px; border-radius:6px; background:${isSelected ? 'rgba(255, 122, 0, 0.1)' : 'transparent'};" title="Clic para filtrar por este EPP SKU">
                 <div style="display:flex; justify-content:space-between; font-size:0.85rem; font-weight:600; margin-bottom:4px;">
                     <span>${index + 1}. <strong>${item.nombre}</strong> <span style="color:var(--text-muted); font-size:0.75rem;">(${item.codigo})</span></span>
                     <span><strong>${item.cantidad} u.</strong> <span style="font-size:0.75rem; color:var(--text-secondary);">(${pctOfTotal}%)</span></span>
                 </div>
                 <div style="background:var(--bg-tertiary); height:8px; border-radius:4px; overflow:hidden;">
-                    <div style="width:${barPct}%; background:var(--color-primary); height:100%; border-radius:4px; transition:width 0.5s;"></div>
+                    <div style="width:${barPct}%; background:${isSelected ? 'var(--color-warning)' : 'var(--color-primary)'}; height:100%; border-radius:4px; transition:width 0.5s;"></div>
                 </div>
             </div>
         `;
@@ -452,12 +689,12 @@ function renderSeasonalityLineChart(filteredDeliveries) {
     let labelsHTML = "";
     points.forEach(pt => {
         pointsHTML += `
-            <circle cx="${pt.x}" cy="${pt.y}" r="5" class="chart-point">
-                <title>Período: ${pt.month}\nConsumo: ${pt.val} EPPs</title>
+            <circle cx="${pt.x}" cy="${pt.y}" r="6" class="chart-point" onclick="handleSeasonalityPointClick('${pt.month}')" style="cursor:pointer;">
+                <title>Período: ${pt.month}\nConsumo: ${pt.val} EPPs\nClic para filtrar por este mes</title>
             </circle>
         `;
         labelsHTML += `
-            <text x="${pt.x}" y="${chartHeight - paddingBottom + 18}" font-size="9" fill="var(--text-secondary)" text-anchor="middle" transform="rotate(-15 ${pt.x} ${chartHeight - paddingBottom + 18})">
+            <text x="${pt.x}" y="${chartHeight - paddingBottom + 18}" font-size="9" fill="var(--text-secondary)" text-anchor="middle" transform="rotate(-15 ${pt.x} ${chartHeight - paddingBottom + 18})" onclick="handleSeasonalityPointClick('${pt.month}')" style="cursor:pointer;">
                 ${pt.month}
             </text>
         `;

@@ -696,6 +696,7 @@
                     <!-- Presets Rápidos de Rango -->
                     <div style="display: flex; gap: 8px; margin-top: 16px; align-items: center; flex-wrap: wrap;">
                         <span style="font-size: 0.8rem; font-weight: 700; color: var(--text-secondary);"><i class="fa-solid fa-clock-rotate-left"></i> Presets Rápidos:</span>
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="setAnalyticsDatePreset('last-7')"><i class="fa-solid fa-arrows-spin text-primary"></i> Ciclo 7 Días (Turno)</button>
                         <button type="button" class="btn btn-secondary btn-sm" onclick="setAnalyticsDatePreset('this-month')">Este Mes</button>
                         <button type="button" class="btn btn-secondary btn-sm" onclick="setAnalyticsDatePreset('last-30')">Últimos 30 Días</button>
                         <button type="button" class="btn btn-secondary btn-sm" onclick="setAnalyticsDatePreset('last-90')">Últimos 90 Días</button>
@@ -703,12 +704,13 @@
                     </div>
                 </div>
 
-                <!-- KPI Dashboard -->
-                <div class="dashboard-stats">
+                <!-- KPI Dashboard con Comparativa de Turno y Tendencia -->
+                <div class="dashboard-stats" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
                     <div class="card stat-card">
                         <div class="stat-content">
                             <span class="stat-num" id="ana-kpi-total">0</span>
                             <span class="stat-desc">EPPs Despachados</span>
+                            <div style="font-size:0.75rem; font-weight:600; margin-top:4px;" id="ana-kpi-total-sub">--</div>
                         </div>
                         <div class="stat-icon info"><i class="fa-solid fa-truck-ramp-box"></i></div>
                     </div>
@@ -716,19 +718,29 @@
                         <div class="stat-content">
                             <span class="stat-num text-danger" id="ana-kpi-deviation">0%</span>
                             <span class="stat-desc">Tasa Desviación Crítica</span>
+                            <div style="font-size:0.75rem; font-weight:600; margin-top:4px;" id="ana-kpi-deviation-sub">--</div>
                         </div>
                         <div class="stat-icon error"><i class="fa-solid fa-triangle-exclamation"></i></div>
                     </div>
                     <div class="card stat-card">
                         <div class="stat-content">
+                            <span class="stat-num text-warning" id="ana-kpi-shift-ratio">0% / 0%</span>
+                            <span class="stat-desc">Relación Turno A vs Turno B</span>
+                            <div style="font-size:0.75rem; font-weight:600; margin-top:4px;" id="ana-kpi-shift-sub">--</div>
+                        </div>
+                        <div class="stat-icon warning"><i class="fa-solid fa-user-clock"></i></div>
+                    </div>
+                    <div class="card stat-card">
+                        <div class="stat-content">
                             <span class="stat-num text-success" id="ana-kpi-sla">0%</span>
                             <span class="stat-desc">Requerimientos en SLA</span>
+                            <div style="font-size:0.75rem; font-weight:600; margin-top:4px;" id="ana-kpi-sla-sub">--</div>
                         </div>
                         <div class="stat-icon success"><i class="fa-solid fa-business-time"></i></div>
                     </div>
                 </div>
 
-                <!-- Gráficos -->
+                <!-- Gráficos Bloque 1: Área y Categoría de Protección -->
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px; margin-top: 24px;">
                     <div class="card" style="min-width: 0; overflow: hidden;">
                         <div class="section-title">
@@ -742,20 +754,42 @@
                     <div class="card" style="min-width: 0; overflow: hidden;">
                         <div class="section-title">
                             <span class="sec-num">02</span>
-                            <h3>Distribución de Alertas de Consumo</h3>
+                            <h3>Consumo por Familia / Categoría de Protección EPP</h3>
                         </div>
-                        <div id="analytics-deviation-chart-container" style="height: 300px; width: 100%; display: flex; align-items: center; justify-content: center; overflow: hidden;">
+                        <div id="analytics-category-chart-container" style="height: 300px; width: 100%; display: flex; align-items: center; justify-content: center; overflow: hidden;">
                             <!-- SVG Dinámico -->
                         </div>
                     </div>
                 </div>
 
-                <!-- NUEVO PANEL: Top 5 SKUs Más Consumidos (Pareto) y Tendencia Estacional -->
+                <!-- Gráficos Bloque 2: Alertas y Picos Semanales -->
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px; margin-top: 24px;">
                     <div class="card" style="min-width: 0; overflow: hidden;">
                         <div class="section-title">
                             <span class="sec-num">03</span>
-                            <h3>Top 5 Artículos EPP Más Consumidos</h3>
+                            <h3>Distribución de Alertas de Consumo (Adherencia HSEQ)</h3>
+                        </div>
+                        <div id="analytics-deviation-chart-container" style="height: 300px; width: 100%; display: flex; align-items: center; justify-content: center; overflow: hidden;">
+                            <!-- SVG Dinámico -->
+                        </div>
+                    </div>
+                    <div class="card" style="min-width: 0; overflow: hidden;">
+                        <div class="section-title">
+                            <span class="sec-num">04</span>
+                            <h3>Picos de Demanda por Día de la Semana</h3>
+                        </div>
+                        <div id="analytics-weekday-chart-container" style="height: 300px; width: 100%; display: flex; align-items: center; justify-content: center; overflow: hidden;">
+                            <!-- SVG Dinámico -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Gráficos Bloque 3: Top 5 SKUs Pareto y Tendencia Estacional -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px; margin-top: 24px;">
+                    <div class="card" style="min-width: 0; overflow: hidden;">
+                        <div class="section-title">
+                            <span class="sec-num">05</span>
+                            <h3>Top 5 Artículos EPP Más Consumidos (Pareto)</h3>
                         </div>
                         <div id="analytics-top-skus-container" style="min-height: 280px; display: flex; flex-direction: column; justify-content: center;">
                             <!-- Dinámico -->
@@ -763,7 +797,7 @@
                     </div>
                     <div class="card" style="min-width: 0; overflow: hidden;">
                         <div class="section-title">
-                            <span class="sec-num">04</span>
+                            <span class="sec-num">06</span>
                             <h3>Línea Temporal de Consumo Estacional (Despacho Mensual)</h3>
                         </div>
                         <div id="analytics-seasonality-chart-container" style="height: 280px; width: 100%; display: flex; align-items: center; justify-content: center; overflow: hidden;">
