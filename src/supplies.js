@@ -12,7 +12,7 @@ import {
     supabase
 } from './db.js';
 import { formatRut } from './auth.js';
-import { showToast } from './utils.js';
+import { showToast, debounce } from './utils.js';
 import { currentUser } from './auth.js';
 import { updateOutflowStockMax, removeOutflowRow, checkEPPConsumptionDeviation, populateTurnosDropdowns, setupSmartEPPSelector } from './outflow.js';
 
@@ -64,7 +64,7 @@ function handleEvidenceFileChange(e) {
             canvas.height = height;
             ctx.drawImage(img, 0, 0, width, height);
             
-            const dataUrl = canvas.toDataURL("image/jpeg", 0.7);
+            const dataUrl = canvas.toDataURL("image/jpeg", 0.5);
             currentEvidenceBase64 = dataUrl;
             
             const previewContainer = document.getElementById("new-supply-evidence-preview");
@@ -211,11 +211,15 @@ export function setupSmartSupplySearch() {
         dropdown.classList.add("active");
     }
 
+    const debouncedSearch = debounce((val) => {
+        renderDropdown(val);
+        filterSuppliesTable();
+    }, 150);
+
     searchInput.addEventListener("input", (e) => {
         const val = e.target.value;
         if (clearBtn) clearBtn.style.display = val ? "block" : "none";
-        renderDropdown(val);
-        filterSuppliesTable();
+        debouncedSearch(val);
     });
 
     searchInput.addEventListener("focus", () => {

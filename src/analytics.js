@@ -1095,30 +1095,36 @@ window.changeAnalyticsRunwayPageSize = changeAnalyticsRunwayPageSize;
 // EXPORTACIÓN ANALÍTICA A CSV
 // ==========================================================================
 export function exportAnalyticsCSV() {
-    let csvContent = "data:text/csv;charset=utf-8,\uFEFF";
-    csvContent += "ANALISIS DE CONSUMO DE EPP Y ADHERENCIA OPERACIONAL - PROCLEANMG\n\n";
+    const BOM = "\uFEFF";
+    let csvRows = [];
 
-    csvContent += "COLABORADORES OBSERVADOS (CAMBIOS PREMATUROS)\n";
-    csvContent += "Colaborador,RUT,Area,EPP,Entregas Registradas,Frecuencia Promedio (dias),Duracion Esperada (dias)\n";
+    csvRows.push("ANÁLISIS DE CONSUMO DE EPP Y ADHERENCIA OPERACIONAL - PROCLEANMG");
+    csvRows.push("");
+    csvRows.push("COLABORADORES OBSERVADOS (CAMBIOS PREMATUROS)");
+    csvRows.push("Colaborador;RUT;Área;EPP;Entregas Registradas;Frecuencia Promedio (días);Duración Esperada (días)");
 
     filteredObservedList.forEach(obs => {
-        csvContent += `"${obs.trabajador}","${obs.rut}","${obs.area}","${obs.eppName}",${obs.entregasCount},${obs.avgDays},${obs.lifespanDays}\n`;
+        csvRows.push(`"${(obs.trabajador || '').replace(/"/g, '""')}";"${obs.rut}";"${(obs.area || '').replace(/"/g, '""')}";"${(obs.eppName || '').replace(/"/g, '""')}";${obs.entregasCount};${obs.avgDays};${obs.lifespanDays}`);
     });
 
-    csvContent += "\nRUNWAY DE AUTONOMIA DE STOCK\n";
-    csvContent += "Codigo SKU,Nombre EPP,Stock Actual,Autonomia Estimada (dias),Nivel de Riesgo\n";
+    csvRows.push("");
+    csvRows.push("RUNWAY DE AUTONOMÍA DE STOCK");
+    csvRows.push("Código SKU;Nombre EPP;Stock Actual;Autonomía Estimada (días);Nivel de Riesgo");
 
     filteredRunwayList.forEach(r => {
-        csvContent += `"${r.codigo}","${r.nombre}",${r.stock},"${r.runwayDays}","${r.riskText}"\n`;
+        csvRows.push(`"${(r.codigo || '').replace(/"/g, '""')}";"${(r.nombre || '').replace(/"/g, '""')}";${r.stock};"${r.runwayDays}";"${r.riskText}"`);
     });
 
-    const encodedUri = encodeURI(csvContent);
+    const csvString = BOM + csvRows.join("\r\n");
+    const blob = new Blob([csvString], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
+    link.setAttribute("href", url);
     link.setAttribute("download", `Analitica_Consumo_EPP_${new Date().toISOString().slice(0,10)}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    URL.revokeObjectURL(url);
 }
 window.changeAnalyticsDeviationsPageSize = changeAnalyticsDeviationsPageSize;
 window.exportAnalyticsCSV = exportAnalyticsCSV;

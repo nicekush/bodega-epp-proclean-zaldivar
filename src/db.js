@@ -22,7 +22,36 @@ export let dbInsumoMovimientos = [];
 export let dbSolicitudesAbastecimiento = [];
 export let dbEquiposSeriales = [];
 export let dbPrestamos = [];
+export let dbAjustesStock = [];
  
+// Helper seguro para guardar en localStorage evitando QuotaExceededError
+export function safeLocalStorageSet(key, value) {
+    try {
+        localStorage.setItem(key, value);
+    } catch (e) {
+        if (e.name === 'QuotaExceededError' || e.code === 22 || e.code === 1014) {
+            console.warn(`[Storage Safety] QuotaExceededError al guardar '${key}'. Limpiando archivos pesados en Base64 para liberar espacio.`);
+            try {
+                const parsed = JSON.parse(value);
+                if (Array.isArray(parsed)) {
+                    const cleaned = parsed.map(item => {
+                        const clone = { ...item };
+                        if (clone.evidencia && clone.evidencia.length > 500) clone.evidencia = "";
+                        if (clone.firma && clone.firma.length > 1000) clone.firma = "";
+                        if (clone.firma_salida && clone.firma_salida.length > 1000) clone.firma_salida = "";
+                        return clone;
+                    });
+                    localStorage.setItem(key, JSON.stringify(cleaned));
+                    return;
+                }
+            } catch (innerErr) {
+                console.error("[Storage Safety] No se pudo depurar el Base64", innerErr);
+            }
+        }
+        console.error(`Error guardando en localStorage key=${key}`, e);
+    }
+}
+
 // Inicialización asíncrona desde Supabase
 export async function initDatabase() {
     try {
@@ -133,9 +162,67 @@ export async function initDatabase() {
             dbPrestamos = localPrest ? JSON.parse(localPrest) : [];
         }
 
+        // 11. Cargar Auditoría de Ajustes de Stock (con Fallback Local)
+        try {
+            const { data: ajst, error: errAjst } = await supabase.from('ajustes_stock').select('*').order('fecha', { ascending: false });
+            if (errAjst) throw errAjst;
+            dbAjustesStock = ajst || [];
+        } catch (e) {
+            console.warn("Tabla 'ajustes_stock' no disponible en Supabase. Usando localStorage.");
+            const localAjst = localStorage.getItem("db_ajustes_stock");
+            try {
+                dbAjustesStock = localAjst ? JSON.parse(localAjst) : [];
+            } catch (errParse) {
+                dbAjustesStock = [];
+            }
+        }
+
     } catch (error) {
         console.error("Error cargando base de datos desde Supabase:", error);
         throw error;
+    }
+}
+
+export async function dbInsertAjusteStock(ajuste) {
+    const record = {
+        id: ajuste.id || "AUD-" + Date.now(),
+        fecha: ajuste.fecha || new Date().toISOString(),
+        epp_id: ajuste.epp_id,
+        epp_codigo: ajuste.epp_codigo,
+        epp_nombre: ajuste.epp_nombre,
+        stock_anterior: ajuste.stock_anterior,
+        stock_nuevo: ajuste.stock_nuevo,
+        tipo_operacion: ajuste.tipo_operacion,
+        cantidad_ajuste: ajuste.cantidad_ajuste,
+        motivo: ajuste.motivo,
+        notas: ajuste.notas || "",
+        usuario: ajuste.usuario || "Operador"
+    };
+
+    try {
+        const { data, error } = await supabase.from('ajustes_stock').insert([{
+            epp_id: record.epp_id,
+            epp_codigo: record.epp_codigo,
+            epp_nombre: record.epp_nombre,
+            stock_anterior: record.stock_anterior,
+            stock_nuevo: record.stock_nuevo,
+            tipo_operacion: record.tipo_operacion,
+            cantidad_ajuste: record.cantidad_ajuste,
+            motivo: record.motivo,
+            notas: record.notas,
+            usuario: record.usuario,
+            fecha: record.fecha
+        }]).select();
+
+        if (error) throw error;
+        dbAjustesStock.unshift(data[0]);
+        safeLocalStorageSet("db_ajustes_stock", JSON.stringify(dbAjustesStock));
+        return data[0];
+    } catch (e) {
+        console.warn("Fallo guardado de auditoría en Supabase, guardando localmente.", e);
+        dbAjustesStock.unshift(record);
+        safeLocalStorageSet("db_ajustes_stock", JSON.stringify(dbAjustesStock));
+        return record;
     }
 }
 

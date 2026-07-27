@@ -10,9 +10,10 @@ import {
     dbUpdateEPPData,
     dbDeleteEPP,
     dbInsertCategory, 
-    dbDeleteCategory 
+    dbDeleteCategory,
+    dbInsertAjusteStock
 } from './db.js';
-import { showToast, showConfirmDialog } from './utils.js';
+import { showToast, showConfirmDialog, debounce } from './utils.js';
 import { currentUser } from './auth.js';
 
 export function updateDashboardStats() {
@@ -194,11 +195,15 @@ export function setupSmartInventorySearch() {
         dropdown.classList.add("active");
     }
 
+    const debouncedSearch = debounce((val) => {
+        renderDropdown(val);
+        filterInventoryTable();
+    }, 150);
+
     searchInput.addEventListener("input", (e) => {
         const val = e.target.value;
         if (clearBtn) clearBtn.style.display = val ? "block" : "none";
-        renderDropdown(val);
-        filterInventoryTable();
+        debouncedSearch(val);
     });
 
     searchInput.addEventListener("focus", () => {
@@ -347,20 +352,60 @@ export function closeAdjustStockModal() {
 export async function saveAdjustStock(event) {
     event.preventDefault();
     const id = document.getElementById("adjust-stock-id").value;
-    const stockVal = Number(document.getElementById("adjust-stock-value").value);
+    const type = document.getElementById("adjust-stock-type")?.value || "Set";
+    const amountVal = Number(document.getElementById("adjust-stock-value").value);
+    const reason = document.getElementById("adjust-stock-reason")?.value || "Conteo de Inventario Físico";
+    const notes = document.getElementById("adjust-stock-notes")?.value.trim() || "";
 
-    if (isNaN(stockVal) || stockVal < 0) {
+    const item = dbInventario.find(i => i.id === id);
+    if (!item) {
+        showToast("No se encontró el EPP a ajustar.", "danger");
+        return;
+    }
+
+    if (isNaN(amountVal) || amountVal < 0) {
         showToast("Cantidad ingresada no válida.", "danger");
         return;
     }
 
+    const previousStock = Number(item.stock) || 0;
+    let newStock = previousStock;
+    let tipoOperacion = "Fijación (=)";
+
+    if (type === "Set") {
+        newStock = amountVal;
+        tipoOperacion = "Fijación (=)";
+    } else if (type === "Add") {
+        newStock = previousStock + amountVal;
+        tipoOperacion = "Agregar (+)";
+    } else if (type === "Subtract") {
+        newStock = Math.max(0, previousStock - amountVal);
+        tipoOperacion = "Descontar (-)";
+    }
+
     try {
-        showToast("Actualizando stock en Supabase...", "info");
-        await dbUpdateEPPStock(id, stockVal);
+        showToast("Actualizando stock y guardando auditoría...", "info");
+        await dbUpdateEPPStock(id, newStock);
+
+        // Guardar registro de auditoría de ajuste
+        await dbInsertAjusteStock({
+            epp_id: item.id,
+            epp_codigo: item.codigo,
+            epp_nombre: item.nombre,
+            stock_anterior: previousStock,
+            stock_nuevo: newStock,
+            tipo_operacion: tipoOperacion,
+            cantidad_ajuste: amountVal,
+            motivo: reason,
+            notas: notes,
+            usuario: currentUser ? currentUser.nombre : "Operador"
+        });
+
         closeAdjustStockModal();
         renderInventoryTable();
         updateDashboardStats();
-        showToast("Stock ajustado correctamente.", "success");
+        if (window.renderStockAuditTable) window.renderStockAuditTable();
+        showToast(`Stock ajustado correctamente de ${previousStock} a ${newStock} ${item.unidad || 'u.'}.`, "success");
     } catch (error) {
         showToast("Error al actualizar el stock: " + error.message, "danger");
     }
@@ -716,37 +761,40 @@ export function exportStockCSV() {
         return;
     }
 
-    let csvContent = "data:text/csv;charset=utf-8,";
-    csvContent += "Codigo,Nombre EPP,Categoria,Stock Actual,Unidad,Stock Minimo,Estado\r\n";
+    const BOM = "\uFEFF";
+    let csvRows = ["Código;Nombre EPP;Categoría;Stock Actual;Unidad;Stock Mínimo;Estado"];
 
     dbInventario.forEach(item => {
         let estado = "Disponible";
         if (item.stock === 0) {
             estado = "SIN STOCK";
         } else if (item.stock <= item.stock_minimo) {
-            estado = "CRITICO";
+            estado = "CRÍTICO";
         }
         
         const row = [
-            item.codigo,
-            `"${item.nombre.replace(/"/g, '""')}"`,
-            item.categoria,
+            `"${(item.codigo || '').replace(/"/g, '""')}"`,
+            `"${(item.nombre || '').replace(/"/g, '""')}"`,
+            `"${(item.categoria || '').replace(/"/g, '""')}"`,
             item.stock,
-            item.unidad || "Unidades",
+            `"${item.unidad || "Unidades"}"`,
             item.stock_minimo,
-            estado
+            `"${estado}"`
         ];
-        csvContent += row.join(",") + "\r\n";
+        csvRows.push(row.join(";"));
     });
 
-    const encodedUri = encodeURI(csvContent);
+    const csvString = BOM + csvRows.join("\r\n");
+    const blob = new Blob([csvString], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `reporte_inventario_bodega_${Date.now()}.csv`);
+    link.setAttribute("href", url);
+    link.setAttribute("download", `reporte_inventario_bodega_${new Date().toISOString().slice(0,10)}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    showToast("Reporte de stock actual exportado en formato CSV.", "success");
+    URL.revokeObjectURL(url);
+    showToast("Reporte de stock actual exportado correctamente a Excel (CSV UTF-8).", "success");
 }
 
 export function printStockReport() {

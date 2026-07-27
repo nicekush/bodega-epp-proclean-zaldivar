@@ -15,7 +15,7 @@ import {
     dbDeleteTurno
 } from './db.js';
 import { showToast } from './utils.js';
-import { currentUser, formatRut } from './auth.js';
+import { currentUser, formatRut, validateRutModulo11 } from './auth.js';
 
 let isDrawing = false;
 let lastX = 0;
@@ -444,6 +444,20 @@ export async function saveOutflowAndPrint(event, callbackAfterSave) {
     const workerArea = document.getElementById("outflow-worker-area").value;
     const workerTurno = document.getElementById("outflow-worker-turno")?.value || "";
     
+    // Validación Módulo 11 de RUT
+    if (workerRut && !validateRutModulo11(workerRut)) {
+        showToast(`El RUT ingresado (${workerRut}) no es un RUT chileno válido. Verifique el dígito verificador.`, "danger");
+        const rutEl = document.getElementById("outflow-worker-rut");
+        if (rutEl) {
+            rutEl.style.borderColor = "var(--color-danger)";
+            rutEl.focus();
+        }
+        return;
+    } else {
+        const rutEl = document.getElementById("outflow-worker-rut");
+        if (rutEl) rutEl.style.borderColor = "var(--border-color)";
+    }
+
     const now = new Date();
     const dateStr = now.toISOString();
 
@@ -469,8 +483,13 @@ export async function saveOutflowAndPrint(event, callbackAfterSave) {
         }
 
         const eppDef = dbInventario.find(i => i.id === eppId);
-        if (eppDef && cantidad > eppDef.stock) {
-            validationError = `La cantidad solicitada para ${eppDef.nombre} supera el stock disponible (${eppDef.stock}).`;
+        if (!eppDef) {
+            validationError = "El EPP seleccionado ya no se encuentra en el catálogo.";
+            return;
+        }
+        if (cantidad > eppDef.stock) {
+            validationError = `Stock insuficiente para ${eppDef.nombre}. Stock real disponible: ${eppDef.stock} ${eppDef.unidad || 'u.'}.`;
+            updateOutflowStockMax();
             return;
         }
 

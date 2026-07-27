@@ -9,7 +9,7 @@ import {
     dbUpdateReplenishmentStatus,
     dbDeleteReplenishment
 } from './db.js';
-import { showToast, showConfirmDialog } from './utils.js';
+import { showToast, showConfirmDialog, debounce } from './utils.js';
 import { currentUser } from './auth.js';
 import { renderInventoryTable, updateDashboardStats } from './inventory.js';
 
@@ -501,11 +501,15 @@ export function setupSmartReplenishSearch() {
         dropdown.classList.add("active");
     }
 
+    const debouncedSearch = debounce((val) => {
+        renderDropdown(val);
+        filterReplenishmentsTable();
+    }, 150);
+
     searchInput.addEventListener("input", (e) => {
         const val = e.target.value;
         if (clearBtn) clearBtn.style.display = val ? "block" : "none";
-        renderDropdown(val);
-        filterReplenishmentsTable();
+        debouncedSearch(val);
     });
 
     searchInput.addEventListener("focus", () => {

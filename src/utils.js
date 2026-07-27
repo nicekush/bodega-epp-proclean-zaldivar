@@ -74,3 +74,14 @@ export function showConfirmDialog(title, message) {
     });
 }
 
+export function debounce(func, delay = 200) {
+    let timeoutId;
+    return function (...args) {
+        clearTimeout(timeoutId);
+        timeoutId = setTimeout(() => {
+            func.apply(this, args);
+        }, delay);
+    };
+}
+window.debounce = debounce;
+

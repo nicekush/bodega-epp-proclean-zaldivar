@@ -2,8 +2,8 @@
 // Módulo de Historial, Logs de Auditoría y Reportes Generales
 // ==========================================================================
 
-import { dbIngresos, dbSalidas, dbInsumoMovimientos, dbInventario } from './db.js';
-import { showToast } from './utils.js';
+import { dbIngresos, dbSalidas, dbInsumoMovimientos, dbInventario, dbAjustesStock } from './db.js';
+import { showToast, debounce } from './utils.js';
 import { showVoucherDetailsById } from './outflow.js';
 
 let historyCurrentPage = 1;
@@ -644,3 +644,300 @@ export function generateCorporatePDFReport() {
     printWindow.document.close();
 }
 window.generateCorporatePDFReport = generateCorporatePDFReport;
+
+// ==========================================================================
+// SECCIÓN: AUDITORÍA DE AJUSTES MANUALES DE STOCK
+// ==========================================================================
+let auditCurrentPage = 1;
+let auditPageSize = 15;
+let filteredAuditList = [];
+let auditSortField = "fecha";
+let auditSortDirection = "desc";
+let smartAuditSearchInitialized = false;
+
+export function handleAuditSort(field) {
+    if (auditSortField === field) {
+        auditSortDirection = auditSortDirection === "asc" ? "desc" : "asc";
+    } else {
+        auditSortField = field;
+        auditSortDirection = "asc";
+    }
+
+    const headers = document.querySelectorAll("#table-stock-audit th.sortable");
+    headers.forEach(h => {
+        h.classList.remove("active");
+        const icon = h.querySelector("i");
+        if (icon) icon.className = "fa-solid fa-sort";
+        if (h.getAttribute("data-sort") === auditSortField) {
+            h.classList.add("active");
+            if (icon) {
+                icon.className = auditSortDirection === "asc" ? "fa-solid fa-sort-up" : "fa-solid fa-sort-down";
+            }
+        }
+    });
+
+    renderStockAuditTable();
+}
+window.handleAuditSort = handleAuditSort;
+
+export function setupSmartAuditSearch() {
+    const container = document.getElementById("audit-search-container");
+    if (!container || smartAuditSearchInitialized) return;
+
+    const searchInput = document.getElementById("audit-search");
+    const dropdown = document.getElementById("audit-search-dropdown");
+    const clearBtn = document.getElementById("audit-clear-icon");
+
+    if (!searchInput || !dropdown) return;
+
+    smartAuditSearchInitialized = true;
+
+    function renderDropdown(filterText = "") {
+        const query = removeAccents(filterText.toLowerCase().trim());
+        if (!query) {
+            dropdown.innerHTML = "";
+            dropdown.classList.remove("active");
+            return;
+        }
+
+        const matches = dbAjustesStock.filter(aj => {
+            const code = removeAccents((aj.epp_codigo || "").toLowerCase());
+            const name = removeAccents((aj.epp_nombre || "").toLowerCase());
+            const reason = removeAccents((aj.motivo || "").toLowerCase());
+            const user = removeAccents((aj.usuario || "").toLowerCase());
+            return code.includes(query) || name.includes(query) || reason.includes(query) || user.includes(query);
+        }).slice(0, 8);
+
+        if (matches.length === 0) {
+            dropdown.innerHTML = `<div style="padding: 12px; text-align: center; color: var(--text-muted); font-size: 0.85rem;">No se encontraron registros de auditoría.</div>`;
+        } else {
+            dropdown.innerHTML = matches.map(aj => `
+                <div class="epp-search-option" data-code="${aj.epp_codigo}">
+                    <div class="epp-search-option-info">
+                        <span class="epp-search-option-code">${aj.epp_codigo || 'S/C'}</span>
+                        <span class="epp-search-option-title">${aj.epp_nombre || 'EPP'}</span>
+                        <span class="epp-search-option-category"><i class="fa-solid fa-clipboard-check"></i> ${aj.motivo} (${aj.usuario})</span>
+                    </div>
+                    <span class="epp-search-option-stock stock-badge-ok">${aj.tipo_operacion || 'Ajuste'}</span>
+                </div>
+            `).join("");
+
+            dropdown.querySelectorAll(".epp-search-option").forEach(opt => {
+                opt.addEventListener("click", (e) => {
+                    e.stopPropagation();
+                    searchInput.value = opt.dataset.code;
+                    if (clearBtn) clearBtn.style.display = "block";
+                    dropdown.classList.remove("active");
+                    filterStockAuditTable();
+                });
+            });
+        }
+
+        dropdown.classList.add("active");
+    }
+
+    const debouncedSearch = debounce((val) => {
+        renderDropdown(val);
+        filterStockAuditTable();
+    }, 150);
+
+    searchInput.addEventListener("input", (e) => {
+        const val = e.target.value;
+        if (clearBtn) clearBtn.style.display = val ? "block" : "none";
+        debouncedSearch(val);
+    });
+
+    searchInput.addEventListener("focus", () => {
+        if (searchInput.value.trim().length > 0) {
+            renderDropdown(searchInput.value);
+        }
+    });
+
+    if (clearBtn) {
+        clearBtn.addEventListener("click", () => {
+            searchInput.value = "";
+            clearBtn.style.display = "none";
+            dropdown.innerHTML = "";
+            dropdown.classList.remove("active");
+            filterStockAuditTable();
+            searchInput.focus();
+        });
+    }
+
+    document.addEventListener("click", (e) => {
+        if (!container.contains(e.target)) {
+            dropdown.classList.remove("active");
+        }
+    });
+}
+window.setupSmartAuditSearch = setupSmartAuditSearch;
+
+export function filterStockAuditTable() {
+    renderStockAuditTable();
+}
+window.filterStockAuditTable = filterStockAuditTable;
+
+export function renderStockAuditTable() {
+    setupSmartAuditSearch();
+
+    const tbody = document.getElementById("stock-audit-tbody");
+    if (!tbody) return;
+    tbody.innerHTML = "";
+
+    const searchInput = document.getElementById("audit-search");
+    const reasonSelect = document.getElementById("audit-filter-reason");
+
+    const searchQuery = searchInput ? removeAccents(searchInput.value.toLowerCase().trim()) : "";
+    const filterReason = reasonSelect ? reasonSelect.value : "";
+
+    filteredAuditList = dbAjustesStock.filter(aj => {
+        const code = removeAccents((aj.epp_codigo || "").toLowerCase());
+        const name = removeAccents((aj.epp_nombre || "").toLowerCase());
+        const reason = (aj.motivo || "");
+        const user = removeAccents((aj.usuario || "").toLowerCase());
+        const notes = removeAccents((aj.notas || "").toLowerCase());
+
+        const matchesSearch = !searchQuery || code.includes(searchQuery) || name.includes(searchQuery) || reason.toLowerCase().includes(searchQuery) || user.includes(searchQuery) || notes.includes(searchQuery);
+        const matchesReason = !filterReason || reason === filterReason;
+
+        return matchesSearch && matchesReason;
+    });
+
+    if (filteredAuditList.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 20px;">No hay registros de auditoría que coincidan con los filtros.</td></tr>`;
+        renderStockAuditPagination();
+        return;
+    }
+
+    filteredAuditList.sort((a, b) => {
+        let valA = a[auditSortField] || "";
+        let valB = b[auditSortField] || "";
+
+        if (typeof valA === "string") valA = removeAccents(valA.toLowerCase());
+        if (typeof valB === "string") valB = removeAccents(valB.toLowerCase());
+
+        if (valA < valB) return auditSortDirection === "asc" ? -1 : 1;
+        if (valA > valB) return auditSortDirection === "asc" ? 1 : -1;
+        return 0;
+    });
+
+    const totalItems = filteredAuditList.length;
+    const totalPages = Math.ceil(totalItems / auditPageSize) || 1;
+    if (auditCurrentPage > totalPages) auditCurrentPage = totalPages;
+
+    const startIndex = (auditCurrentPage - 1) * auditPageSize;
+    const endIndex = Math.min(startIndex + auditPageSize, totalItems);
+    const pageItems = filteredAuditList.slice(startIndex, endIndex);
+
+    pageItems.forEach(aj => {
+        const dateFormatted = new Date(aj.fecha).toLocaleString("es-CL", { dateStyle: "short", timeStyle: "short" });
+        const delta = Number(aj.stock_nuevo) - Number(aj.stock_anterior);
+        const deltaText = delta > 0 ? `+${delta}` : `${delta}`;
+        
+        let opBadge = `<span class="badge badge-info"><i class="fa-solid fa-equals"></i> Fijación</span>`;
+        if (aj.tipo_operacion && aj.tipo_operacion.includes("+")) {
+            opBadge = `<span class="badge badge-success"><i class="fa-solid fa-plus"></i> Ingreso</span>`;
+        } else if (aj.tipo_operacion && aj.tipo_operacion.includes("-")) {
+            opBadge = `<span class="badge badge-danger"><i class="fa-solid fa-minus"></i> Descuento</span>`;
+        }
+
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+            <td><strong>${dateFormatted}</strong></td>
+            <td><code>${aj.epp_codigo || 'S/C'}</code></td>
+            <td><strong>${aj.epp_nombre || 'EPP'}</strong></td>
+            <td>${opBadge}</td>
+            <td>
+                <div style="font-weight:700;">${aj.stock_anterior} → ${aj.stock_nuevo}</div>
+                <div style="font-size:0.75rem; color:${delta >= 0 ? 'var(--emerald)' : 'var(--color-danger)'}; font-weight:700;">Delta: ${deltaText} u.</div>
+            </td>
+            <td>
+                <div style="font-weight:600; font-size:0.85rem;">${aj.motivo || 'Sin motivo registrado'}</div>
+                <div style="font-size:0.75rem; color:var(--text-muted); font-style:italic;">${aj.notas ? '"' + aj.notas + '"' : ''}</div>
+            </td>
+            <td><span class="badge badge-secondary"><i class="fa-solid fa-user-gear"></i> ${aj.usuario || 'Operador'}</span></td>
+        `;
+        tbody.appendChild(tr);
+    });
+
+    renderStockAuditPagination();
+}
+window.renderStockAuditTable = renderStockAuditTable;
+
+function renderStockAuditPagination() {
+    const container = document.getElementById("stock-audit-pagination");
+    if (!container) return;
+
+    const totalItems = filteredAuditList.length;
+    const totalPages = Math.ceil(totalItems / auditPageSize) || 1;
+
+    if (totalItems === 0) {
+        container.innerHTML = "";
+        return;
+    }
+
+    const startItem = (auditCurrentPage - 1) * auditPageSize + 1;
+    const endItem = Math.min(auditCurrentPage * auditPageSize, totalItems);
+
+    container.innerHTML = `
+        <div style="display: flex; align-items: center; justify-content: space-between; width: 100%; font-size: 0.85rem; color: var(--text-secondary); flex-wrap: wrap; gap: 12px;">
+            <div>Mostrando <strong>${startItem} - ${endItem}</strong> de <strong>${totalItems}</strong> registros de auditoría</div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <button type="button" class="btn btn-secondary btn-sm" ${auditCurrentPage === 1 ? 'disabled' : ''} onclick="window.changeStockAuditPage(${auditCurrentPage - 1})">
+                    <i class="fa-solid fa-chevron-left"></i>
+                </button>
+                <span>Pág. <strong>${auditCurrentPage}</strong> de <strong>${totalPages}</strong></span>
+                <button type="button" class="btn btn-secondary btn-sm" ${auditCurrentPage === totalPages ? 'disabled' : ''} onclick="window.changeStockAuditPage(${auditCurrentPage + 1})">
+                    <i class="fa-solid fa-chevron-right"></i>
+                </button>
+            </div>
+        </div>
+    `;
+}
+
+export function changeStockAuditPage(newPage) {
+    auditCurrentPage = newPage;
+    renderStockAuditTable();
+}
+window.changeStockAuditPage = changeStockAuditPage;
+
+export function exportStockAuditCSV() {
+    if (dbAjustesStock.length === 0) {
+        showToast("No hay registros de auditoría para exportar.", "warning");
+        return;
+    }
+
+    const BOM = "\uFEFF";
+    let csvRows = ["Fecha y Hora;Código SKU;Nombre EPP;Tipo Operación;Stock Anterior;Stock Nuevo;Delta;Motivo;Notas;Usuario"];
+
+    filteredAuditList.forEach(aj => {
+        const dateFormatted = new Date(aj.fecha).toLocaleString("es-CL");
+        const delta = Number(aj.stock_nuevo) - Number(aj.stock_anterior);
+        const row = [
+            `"${dateFormatted}"`,
+            `"${(aj.epp_codigo || '').replace(/"/g, '""')}"`,
+            `"${(aj.epp_nombre || '').replace(/"/g, '""')}"`,
+            `"${(aj.tipo_operacion || '').replace(/"/g, '""')}"`,
+            aj.stock_anterior,
+            aj.stock_nuevo,
+            delta,
+            `"${(aj.motivo || '').replace(/"/g, '""')}"`,
+            `"${(aj.notas || '').replace(/"/g, '""')}"`,
+            `"${(aj.usuario || '').replace(/"/g, '""')}"`
+        ];
+        csvRows.push(row.join(";"));
+    });
+
+    const csvString = BOM + csvRows.join("\r\n");
+    const blob = new Blob([csvString], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `auditoria_ajustes_stock_${new Date().toISOString().slice(0,10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    showToast("Auditoría de ajustes de stock exportada a Excel (CSV UTF-8).", "success");
+}
+window.exportStockAuditCSV = exportStockAuditCSV;

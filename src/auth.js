@@ -66,6 +66,35 @@ export function formatRut(rut) {
     return `${formattedBody}-${dv}`;
 }
 
+export function validateRutModulo11(rut) {
+    if (!rut || typeof rut !== 'string') return false;
+    
+    const clean = rut.replace(/[^0-9kK]/g, '').toUpperCase();
+    if (clean.length < 8) return false;
+
+    const body = clean.slice(0, -1);
+    const dv = clean.slice(-1);
+
+    if (!/^\d+$/.test(body)) return false;
+
+    let sum = 0;
+    let multiplier = 2;
+
+    for (let i = body.length - 1; i >= 0; i--) {
+        sum += parseInt(body.charAt(i), 10) * multiplier;
+        multiplier = multiplier === 7 ? 2 : multiplier + 1;
+    }
+
+    const expectedRemainder = 11 - (sum % 11);
+    let expectedDv = '0';
+    if (expectedRemainder === 11) expectedDv = '0';
+    else if (expectedRemainder === 10) expectedDv = 'K';
+    else expectedDv = expectedRemainder.toString();
+
+    return dv === expectedDv;
+}
+window.validateRutModulo11 = validateRutModulo11;
+
 export function showLoginOverlay() {
     const overlay = document.getElementById("login-overlay");
     if (overlay) overlay.classList.add("active");

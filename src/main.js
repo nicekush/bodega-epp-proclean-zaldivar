@@ -91,7 +91,8 @@ import {
     filterHistoryTable, 
     exportHistoryCSV,
     changeHistoryPage,
-    changeHistoryPageSize
+    changeHistoryPageSize,
+    renderStockAuditTable
 } from './reports.js';
 
 import { searchWorkerProfile } from './workers.js';
@@ -222,8 +223,9 @@ function switchView(viewId, targetParam = null) {
             break;
         case "view-reports":
             viewTitle.textContent = "Historial y Reportes";
-            viewSubtitle.textContent = "Consulte y exporte el historial de transacciones de bodega.";
+            viewSubtitle.textContent = "Consulte y exporte el historial de transacciones y auditoría de ajustes.";
             renderHistoryTable();
+            renderStockAuditTable();
             break;
         case "view-replenishments":
             viewTitle.textContent = "Solicitudes de Compra y Abastecimiento";
