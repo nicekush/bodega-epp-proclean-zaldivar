@@ -622,18 +622,25 @@
 
             <!-- VIEW: ANALÍTICAS Y KPIS -->
             <div id="view-analytics" class="view-panel">
-                <!-- Segmentadores de Datos (Filtros en Caliente) -->
+                <!-- Segmentadores de Datos (Filtros Específicos en Caliente) -->
                 <div class="card" style="margin-bottom: 24px;">
                     <div class="section-title" style="margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center;">
                         <div>
                             <span class="sec-num"><i class="fa-solid fa-filter" style="font-size:0.8rem;"></i></span>
-                            <h3 style="display:inline-block;">Filtros y Segmentadores de Datos</h3>
+                            <h3 style="display:inline-block;">Filtros y Segmentadores de Datos Especificos</h3>
                         </div>
-                        <button class="btn btn-secondary btn-sm" onclick="exportAnalyticsCSV()" title="Exportar reporte analítico a CSV">
-                            <i class="fa-solid fa-file-csv text-success"></i> Exportar Analítica CSV
-                        </button>
+                        <div style="display:flex; gap:8px;">
+                            <button class="btn btn-secondary btn-sm" onclick="setAnalyticsDatePreset('reset')" title="Restablecer todos los filtros">
+                                <i class="fa-solid fa-rotate-left"></i> Limpiar Filtros
+                            </button>
+                            <button class="btn btn-secondary btn-sm" onclick="exportAnalyticsCSV()" title="Exportar reporte analítico a CSV">
+                                <i class="fa-solid fa-file-csv text-success"></i> Exportar Analítica CSV
+                            </button>
+                        </div>
                     </div>
-                    <div class="form-grid cols-4" style="gap: 16px;">
+
+                    <!-- Fila 1: Filtros de Clasificación -->
+                    <div class="form-grid cols-4" style="gap: 16px; margin-bottom: 16px;">
                         <div class="form-group">
                             <label for="ana-filter-area"><i class="fa-solid fa-briefcase"></i> Área de Trabajo</label>
                             <select id="ana-filter-area" class="filter-select" style="width: 100%;" onchange="renderAnalyticsDashboard()">
@@ -647,6 +654,36 @@
                             </select>
                         </div>
                         <div class="form-group">
+                            <label for="ana-filter-product"><i class="fa-solid fa-boxes-stacked"></i> Artículo SKU Específico</label>
+                            <select id="ana-filter-product" class="filter-select" style="width: 100%;" onchange="renderAnalyticsDashboard()">
+                                <option value="">Todos los Productos (SKU)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="ana-filter-shift"><i class="fa-solid fa-user-clock"></i> Turno</label>
+                            <select id="ana-filter-shift" class="filter-select" style="width: 100%;" onchange="renderAnalyticsDashboard()">
+                                <option value="">Todos los Turnos</option>
+                                <option value="Turno A">Turno A</option>
+                                <option value="Turno B">Turno B</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Fila 2: Filtros de Búsqueda y Alerta -->
+                    <div class="form-grid cols-4" style="gap: 16px;">
+                        <div class="form-group">
+                            <label for="ana-filter-worker"><i class="fa-solid fa-user-check"></i> Colaborador / RUT</label>
+                            <input type="text" id="ana-filter-worker" class="filter-select" style="width: 100%; padding: 10px 12px; height: 46px;" placeholder="Buscar por RUT o Nombre..." oninput="renderAnalyticsDashboard()">
+                        </div>
+                        <div class="form-group">
+                            <label for="ana-filter-alert"><i class="fa-solid fa-triangle-exclamation"></i> Estado de Alerta</label>
+                            <select id="ana-filter-alert" class="filter-select" style="width: 100%;" onchange="renderAnalyticsDashboard()">
+                                <option value="">Todos los Movimientos</option>
+                                <option value="critical">Solo Alertas Críticas (Prematuro)</option>
+                                <option value="normal">Solo Consumo Normal</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
                             <label for="ana-filter-start-date"><i class="fa-solid fa-calendar"></i> Desde</label>
                             <input type="date" id="ana-filter-start-date" class="filter-select" style="width: 100%; padding: 10px 12px; height: 46px;" onchange="renderAnalyticsDashboard()">
                         </div>
@@ -654,6 +691,15 @@
                             <label for="ana-filter-end-date"><i class="fa-solid fa-calendar"></i> Hasta</label>
                             <input type="date" id="ana-filter-end-date" class="filter-select" style="width: 100%; padding: 10px 12px; height: 46px;" onchange="renderAnalyticsDashboard()">
                         </div>
+                    </div>
+
+                    <!-- Presets Rápidos de Rango -->
+                    <div style="display: flex; gap: 8px; margin-top: 16px; align-items: center; flex-wrap: wrap;">
+                        <span style="font-size: 0.8rem; font-weight: 700; color: var(--text-secondary);"><i class="fa-solid fa-clock-rotate-left"></i> Presets Rápidos:</span>
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="setAnalyticsDatePreset('this-month')">Este Mes</button>
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="setAnalyticsDatePreset('last-30')">Últimos 30 Días</button>
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="setAnalyticsDatePreset('last-90')">Últimos 90 Días</button>
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="setAnalyticsDatePreset('all')">Todo el Historial</button>
                     </div>
                 </div>
 

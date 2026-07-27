@@ -25,29 +25,83 @@ let filteredRunwayList = [];
 function populateFiltersDropdowns() {
     const areaSelect = document.getElementById("ana-filter-area");
     const categorySelect = document.getElementById("ana-filter-category");
+    const productSelect = document.getElementById("ana-filter-product");
 
-    if (!areaSelect || !categorySelect) return;
+    if (areaSelect && areaSelect.options.length <= 1) {
+        areaSelect.innerHTML = `<option value="">Todas las Áreas</option>`;
+        dbAreas.forEach(area => {
+            const opt = document.createElement("option");
+            opt.value = area;
+            opt.textContent = area;
+            areaSelect.appendChild(opt);
+        });
+    }
 
-    // Poblar Áreas
-    areaSelect.innerHTML = `<option value="">Todas las Áreas</option>`;
-    dbAreas.forEach(area => {
-        const opt = document.createElement("option");
-        opt.value = area;
-        opt.textContent = area;
-        areaSelect.appendChild(opt);
-    });
+    if (categorySelect && categorySelect.options.length <= 1) {
+        categorySelect.innerHTML = `<option value="">Todas las Categorías</option>`;
+        dbCategorias.forEach(cat => {
+            const opt = document.createElement("option");
+            opt.value = cat;
+            opt.textContent = cat;
+            categorySelect.appendChild(opt);
+        });
+    }
 
-    // Poblar Categorías
-    categorySelect.innerHTML = `<option value="">Todas las Categorías</option>`;
-    dbCategorias.forEach(cat => {
-        const opt = document.createElement("option");
-        opt.value = cat;
-        opt.textContent = cat;
-        categorySelect.appendChild(opt);
-    });
+    if (productSelect && productSelect.options.length <= 1) {
+        productSelect.innerHTML = `<option value="">Todos los Productos (SKU)</option>`;
+        dbInventario.forEach(item => {
+            const opt = document.createElement("option");
+            opt.value = item.id;
+            opt.textContent = `${item.codigo} - ${item.nombre}`;
+            productSelect.appendChild(opt);
+        });
+    }
 
     initializedFilters = true;
 }
+
+export function setAnalyticsDatePreset(preset) {
+    const startInput = document.getElementById("ana-filter-start-date");
+    const endInput = document.getElementById("ana-filter-end-date");
+    const today = new Date();
+    const endStr = today.toISOString().slice(0, 10);
+
+    if (preset === "this-month" && startInput && endInput) {
+        const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+        startInput.value = firstDay.toISOString().slice(0, 10);
+        endInput.value = endStr;
+    } else if (preset === "last-30" && startInput && endInput) {
+        const past = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+        startInput.value = past.toISOString().slice(0, 10);
+        endInput.value = endStr;
+    } else if (preset === "last-90" && startInput && endInput) {
+        const past = new Date(today.getTime() - 90 * 24 * 60 * 60 * 1000);
+        startInput.value = past.toISOString().slice(0, 10);
+        endInput.value = endStr;
+    } else if (preset === "all" && startInput && endInput) {
+        startInput.value = "";
+        endInput.value = "";
+    } else if (preset === "reset") {
+        const areaSel = document.getElementById("ana-filter-area");
+        const catSel = document.getElementById("ana-filter-category");
+        const prodSel = document.getElementById("ana-filter-product");
+        const shiftSel = document.getElementById("ana-filter-shift");
+        const workerInp = document.getElementById("ana-filter-worker");
+        const alertSel = document.getElementById("ana-filter-alert");
+
+        if (areaSel) areaSel.value = "";
+        if (catSel) catSel.value = "";
+        if (prodSel) prodSel.value = "";
+        if (shiftSel) shiftSel.value = "";
+        if (workerInp) workerInp.value = "";
+        if (alertSel) alertSel.value = "";
+        if (startInput) startInput.value = "";
+        if (endInput) endInput.value = "";
+    }
+
+    renderAnalyticsDashboard();
+}
+window.setAnalyticsDatePreset = setAnalyticsDatePreset;
 
 export function renderAnalyticsDashboard() {
     // 1. Inicializar selectores de filtros si no se ha hecho
@@ -58,6 +112,10 @@ export function renderAnalyticsDashboard() {
     // 2. Obtener valores de los segmentadores activos
     const selectedArea = document.getElementById("ana-filter-area")?.value || "";
     const selectedCategory = document.getElementById("ana-filter-category")?.value || "";
+    const selectedProduct = document.getElementById("ana-filter-product")?.value || "";
+    const selectedShift = document.getElementById("ana-filter-shift")?.value || "";
+    const workerQuery = document.getElementById("ana-filter-worker")?.value.toLowerCase().trim() || "";
+    const alertFilter = document.getElementById("ana-filter-alert")?.value || "";
     const startDateVal = document.getElementById("ana-filter-start-date")?.value || "";
     const endDateVal = document.getElementById("ana-filter-end-date")?.value || "";
 
@@ -74,29 +132,36 @@ export function renderAnalyticsDashboard() {
         // Filtro por Área
         if (selectedArea && del.area !== selectedArea) return;
 
+        // Filtro por Turno
+        if (selectedShift && del.turno !== selectedShift) return;
+
+        // Filtro por Colaborador / RUT
+        if (workerQuery) {
+            const workerName = (del.trabajador || "").toLowerCase();
+            const workerRUT = (del.rut || "").toLowerCase();
+            if (!workerName.includes(workerQuery) && !workerRUT.includes(workerQuery)) return;
+        }
+
         // Filtro por Fecha
         const delDate = new Date(del.fecha);
         if (startDate && delDate < startDate) return;
         if (endDate && delDate > endDate) return;
 
-        // Filtrar los items individuales de la salida por categoría si se requiere
+        // Filtrar los items individuales de la salida por categoría o SKU específico
         const matchingItems = del.items.filter(item => {
-            if (!selectedCategory) return true;
-            const eppDef = dbInventario.find(i => i.id === item.eppId);
-            return eppDef && eppDef.categoria === selectedCategory;
+            if (selectedProduct && item.eppId !== selectedProduct) return false;
+            if (selectedCategory) {
+                const eppDef = dbInventario.find(i => i.id === item.eppId);
+                if (!eppDef || eppDef.categoria !== selectedCategory) return false;
+            }
+            return true;
         });
 
         if (matchingItems.length > 0) {
-            filteredDeliveries.push({
-                ...del,
-                items: matchingItems
-            });
+            const itemsToInclude = [];
 
             matchingItems.forEach(item => {
-                filteredEPPsCount += Number(item.cantidad);
-                totalDeliveriesCount++;
-
-                // Validar desviación contra historial anterior
+                let isCritical = false;
                 const prevDeliveries = dbSalidas.filter(s => 
                     s.rut === del.rut && 
                     new Date(s.fecha) < delDate && 
@@ -112,10 +177,27 @@ export function renderAnalyticsDashboard() {
                     const lifespanDays = ((eppDef && eppDef.duracion_meses) ? Number(eppDef.duracion_meses) : 6) * 30;
 
                     if (diffDays < lifespanDays * 0.5) {
+                        isCritical = true;
                         criticalDeviations++;
                     }
                 }
+
+                totalDeliveriesCount++;
+
+                // Filtro por Estado de Alertas
+                if (alertFilter === "critical" && !isCritical) return;
+                if (alertFilter === "normal" && isCritical) return;
+
+                itemsToInclude.push(item);
+                filteredEPPsCount += Number(item.cantidad);
             });
+
+            if (itemsToInclude.length > 0) {
+                filteredDeliveries.push({
+                    ...del,
+                    items: itemsToInclude
+                });
+            }
         }
     });
 
