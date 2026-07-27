@@ -1,11 +1,25 @@
 // ==========================================================================
 // Módulo de Analítica y Gráficos de Consumo (src/analytics.js)
-// Versión Avanzada con Runway, Tendencia Temporal y Segmentadores de Datos
+// Versión Avanzada con Runway, Tendencia Temporal, Paginación, Ordenamiento y Pareto
 // ==========================================================================
 
 import { dbSalidas, dbInventario, dbInsumos, dbAreas, dbCategorias } from './db.js';
 
 let initializedFilters = false;
+
+// Estado de Paginación y Ordenamiento: Colaboradores Observados
+let deviationsCurrentPage = 1;
+let deviationsPageSize = 15;
+let deviationsSortField = "trabajador";
+let deviationsSortDirection = "asc";
+let filteredObservedList = [];
+
+// Estado de Paginación y Ordenamiento: Runway de Autonomía
+let runwayCurrentPage = 1;
+let runwayPageSize = 15;
+let runwaySortField = "runwayDays";
+let runwaySortDirection = "asc";
+let filteredRunwayList = [];
 
 // Poblar los combos de segmentación dinámicamente al abrir analíticas
 function populateFiltersDropdowns() {
@@ -107,7 +121,7 @@ export function renderAnalyticsDashboard() {
 
     const deviationRate = totalDeliveriesCount > 0 ? Math.round((criticalDeviations / totalDeliveriesCount) * 100) : 0;
 
-    // Calcular SLA de requerimientos (Filtro de área aplicado si es posible)
+    // Calcular SLA de requerimientos
     const filteredReqs = dbInsumos.filter(i => {
         if (selectedArea && i.area_trabajador !== selectedArea && i.area !== selectedArea) return false;
         const reqDate = new Date(i.fecha_solicitud || i.fechaSolicitud);
@@ -121,16 +135,21 @@ export function renderAnalyticsDashboard() {
     const slaCompliance = filteredReqs.length > 0 ? Math.round(((filteredReqs.length - overdueReqs.length) / filteredReqs.length) * 100) : 100;
 
     // Poblar KPIs en el DOM
-    document.getElementById("ana-kpi-total").textContent = filteredEPPsCount;
-    document.getElementById("ana-kpi-deviation").textContent = `${deviationRate}%`;
-    document.getElementById("ana-kpi-sla").textContent = `${slaCompliance}%`;
+    const kpiTotal = document.getElementById("ana-kpi-total");
+    const kpiDev = document.getElementById("ana-kpi-deviation");
+    const kpiSLA = document.getElementById("ana-kpi-sla");
 
-    // 4. Dibujar Gráficos Dinámicos
+    if (kpiTotal) kpiTotal.textContent = filteredEPPsCount;
+    if (kpiDev) kpiDev.textContent = `${deviationRate}%`;
+    if (kpiSLA) kpiSLA.textContent = `${slaCompliance}%`;
+
+    // 4. Dibujar Gráficos y Widgets Dinámicos
     renderAreaChart(filteredDeliveries);
     renderAlertsDonutChart(criticalDeviations, totalDeliveriesCount);
+    renderTopConsumedSKUs(filteredDeliveries);
     renderSeasonalityLineChart(filteredDeliveries);
 
-    // 5. Renderizar Tablas
+    // 5. Renderizar Tablas Paginadas
     renderObservedCollaborators(filteredDeliveries);
     renderRunwayAutonomyTable(selectedCategory);
 }
@@ -141,11 +160,16 @@ function renderAreaChart(filteredDeliveries) {
     if (!container) return;
 
     const areaCounts = {};
+    const areaWorkers = {};
+
     filteredDeliveries.forEach(del => {
         const area = del.area || "Desconocida";
         let qty = 0;
         del.items.forEach(it => qty += Number(it.cantidad));
         areaCounts[area] = (areaCounts[area] || 0) + qty;
+        
+        if (!areaWorkers[area]) areaWorkers[area] = new Set();
+        if (del.rut) areaWorkers[area].add(del.rut);
     });
 
     const areas = Object.keys(areaCounts);
@@ -156,32 +180,36 @@ function renderAreaChart(filteredDeliveries) {
 
     const maxVal = Math.max(...Object.values(areaCounts), 1);
     let barsHTML = "";
-    const chartHeight = 200;
-    const chartWidth = 360;
-    const barWidth = 35;
-    const spacing = 18;
+    const chartHeight = 220;
+    const barWidth = 32;
+    const spacing = 14;
+    const chartWidth = Math.max(360, areas.length * (barWidth + spacing) + 40);
 
     areas.forEach((area, index) => {
         const value = areaCounts[area];
-        const barHeight = (value / maxVal) * (chartHeight - 40);
-        const x = index * (barWidth + spacing) + 30;
-        const y = chartHeight - barHeight - 25;
+        const workersCount = areaWorkers[area] ? areaWorkers[area].size : 1;
+        const perCapita = (value / Math.max(1, workersCount)).toFixed(1);
+
+        const barHeight = (value / maxVal) * (chartHeight - 60);
+        const x = index * (barWidth + spacing) + 25;
+        const y = chartHeight - barHeight - 35;
 
         barsHTML += `
             <g class="bar-group" style="cursor:pointer;">
                 <rect x="${x}" y="${y}" width="${barWidth}" height="${barHeight}" fill="var(--color-primary)" rx="4" opacity="0.8">
-                    <title>${area}: ${value} EPPs</title>
+                    <title>${area}: ${value} EPPs entregados a ${workersCount} trabajador(es) (~${perCapita} EPP/persona)</title>
                 </rect>
-                <text x="${x + barWidth / 2}" y="${chartHeight - 5}" font-size="9" fill="var(--text-secondary)" text-anchor="middle">${area.substring(0, 7)}..</text>
+                <text x="${x + barWidth / 2}" y="${chartHeight - 15}" font-size="9" fill="var(--text-secondary)" text-anchor="middle">${area.substring(0, 7)}..</text>
+                <text x="${x + barWidth / 2}" y="${chartHeight - 2}" font-size="8" font-weight="700" fill="var(--color-primary)" text-anchor="middle">${perCapita}/p</text>
                 <text x="${x + barWidth / 2}" y="${y - 6}" font-size="10" font-weight="700" fill="var(--text-primary)" text-anchor="middle">${value}</text>
             </g>
         `;
     });
 
     container.innerHTML = `
-        <svg width="${chartWidth}" height="${chartHeight}" style="background:transparent; overflow:visible;">
+        <svg width="100%" height="100%" viewBox="0 0 ${chartWidth} ${chartHeight}" preserveAspectRatio="xMidYMid meet" style="background:transparent; max-width:100%; overflow:hidden;">
             ${barsHTML}
-            <line x1="10" y1="${chartHeight - 20}" x2="${chartWidth}" y2="${chartHeight - 20}" stroke="var(--border-color)" stroke-width="1"/>
+            <line x1="10" y1="${chartHeight - 30}" x2="${chartWidth - 10}" y2="${chartHeight - 30}" stroke="var(--border-color)" stroke-width="1"/>
         </svg>
     `;
 }
@@ -204,8 +232,8 @@ function renderAlertsDonutChart(criticalCount, totalCount) {
     const criticalOffset = circumference - (criticalPct / 100) * circumference;
 
     container.innerHTML = `
-        <div style="display:flex; align-items:center; gap:20px;">
-            <svg width="150" height="150" viewBox="0 0 150 150">
+        <div style="display:flex; align-items:center; justify-content:center; gap:20px; flex-wrap:wrap; max-width:100%; width:100%;">
+            <svg width="150" height="150" viewBox="0 0 150 150" style="max-width:100%;">
                 <circle cx="75" cy="75" r="${radius}" fill="transparent" stroke="var(--border-color)" stroke-width="15" />
                 <circle cx="75" cy="75" r="${radius}" fill="transparent" stroke="var(--color-success)" stroke-width="15" 
                         stroke-dasharray="${circumference}" stroke-dashoffset="${(normalPct / 100) * circumference}"
@@ -231,11 +259,63 @@ function renderAlertsDonutChart(criticalCount, totalCount) {
     `;
 }
 
+function renderTopConsumedSKUs(filteredDeliveries) {
+    const container = document.getElementById("analytics-top-skus-container");
+    if (!container) return;
+
+    const skuCounts = {};
+    filteredDeliveries.forEach(del => {
+        del.items.forEach(it => {
+            skuCounts[it.eppId] = (skuCounts[it.eppId] || 0) + Number(it.cantidad);
+        });
+    });
+
+    const itemsList = Object.keys(skuCounts).map(eppId => {
+        const catalogEPP = dbInventario.find(i => i.id === eppId);
+        return {
+            id: eppId,
+            codigo: catalogEPP ? catalogEPP.codigo : "???",
+            nombre: catalogEPP ? catalogEPP.nombre : "EPP Desconocido",
+            cantidad: skuCounts[eppId]
+        };
+    });
+
+    itemsList.sort((a, b) => b.cantidad - a.cantidad);
+
+    if (itemsList.length === 0) {
+        container.innerHTML = `<span style="font-size:0.9rem; color:var(--text-muted); text-align:center;">No hay consumos de EPP registrados para los filtros actuales.</span>`;
+        return;
+    }
+
+    const top5 = itemsList.slice(0, 5);
+    const maxQty = top5[0].cantidad || 1;
+    const totalQty = itemsList.reduce((sum, item) => sum + item.cantidad, 0);
+
+    let html = `<div style="display:flex; flex-direction:column; gap:12px; padding:10px 0;">`;
+    top5.forEach((item, index) => {
+        const pctOfTotal = Math.round((item.cantidad / totalQty) * 100);
+        const barPct = Math.round((item.cantidad / maxQty) * 100);
+        html += `
+            <div>
+                <div style="display:flex; justify-content:space-between; font-size:0.85rem; font-weight:600; margin-bottom:4px;">
+                    <span>${index + 1}. <strong>${item.nombre}</strong> <span style="color:var(--text-muted); font-size:0.75rem;">(${item.codigo})</span></span>
+                    <span><strong>${item.cantidad} u.</strong> <span style="font-size:0.75rem; color:var(--text-secondary);">(${pctOfTotal}%)</span></span>
+                </div>
+                <div style="background:var(--bg-tertiary); height:8px; border-radius:4px; overflow:hidden;">
+                    <div style="width:${barPct}%; background:var(--color-primary); height:100%; border-radius:4px; transition:width 0.5s;"></div>
+                </div>
+            </div>
+        `;
+    });
+    html += `</div>`;
+
+    container.innerHTML = html;
+}
+
 function renderSeasonalityLineChart(filteredDeliveries) {
     const container = document.getElementById("analytics-seasonality-chart-container");
     if (!container) return;
 
-    // Agrupar cantidades por año-mes
     const monthlyCounts = {};
     filteredDeliveries.forEach(del => {
         const dateObj = new Date(del.fecha);
@@ -260,12 +340,10 @@ function renderSeasonalityLineChart(filteredDeliveries) {
 
     const values = Object.values(monthlyCounts);
     const maxVal = Math.max(...values, 1);
-    const minVal = 0;
 
     const graphWidth = chartWidth - paddingLeft - paddingRight;
     const graphHeight = chartHeight - paddingTop - paddingBottom;
 
-    // Trazar puntos de coordenadas
     const points = months.map((month, index) => {
         const val = monthlyCounts[month];
         const x = paddingLeft + (index / Math.max(months.length - 1, 1)) * graphWidth;
@@ -279,7 +357,6 @@ function renderSeasonalityLineChart(filteredDeliveries) {
     }
 
     let gridLinesHTML = "";
-    // Líneas de cuadrícula horizontal
     for (let i = 0; i <= 4; i++) {
         const gridY = paddingTop + (i / 4) * graphHeight;
         const gridVal = Math.round(maxVal - (i / 4) * maxVal);
@@ -305,22 +382,45 @@ function renderSeasonalityLineChart(filteredDeliveries) {
     });
 
     container.innerHTML = `
-        <svg width="100%" height="${chartHeight}" viewBox="0 0 ${chartWidth} ${chartHeight}" style="background:transparent; overflow:visible;">
+        <svg width="100%" height="100%" viewBox="0 0 ${chartWidth} ${chartHeight}" preserveAspectRatio="xMidYMid meet" style="background:transparent; max-width:100%; overflow:hidden;">
             ${gridLinesHTML}
             <path d="${pathD}" class="chart-line"/>
             ${pointsHTML}
             ${labelsHTML}
-            <!-- Eje base -->
             <line x1="${paddingLeft}" y1="${chartHeight - paddingBottom}" x2="${chartWidth - paddingRight}" y2="${chartHeight - paddingBottom}" stroke="var(--border-color)" stroke-width="1.5"/>
         </svg>
     `;
 }
 
-function renderObservedCollaborators(filteredDeliveries) {
-    const tbody = document.getElementById("analytics-deviations-tbody");
-    if (!tbody) return;
+// ==========================================================================
+// COLABORADORES OBSERVADOS: Ordenamiento y Paginación
+// ==========================================================================
+export function handleAnalyticsDeviationsSort(field) {
+    if (deviationsSortField === field) {
+        deviationsSortDirection = deviationsSortDirection === "asc" ? "desc" : "asc";
+    } else {
+        deviationsSortField = field;
+        deviationsSortDirection = "asc";
+    }
 
-    tbody.innerHTML = "";
+    const headers = document.querySelectorAll("#analytics-deviations-table th.sortable");
+    headers.forEach(h => {
+        h.classList.remove("active");
+        const icon = h.querySelector("i");
+        if (icon) icon.className = "fa-solid fa-sort";
+        if (h.getAttribute("data-sort") === deviationsSortField) {
+            h.classList.add("active");
+            if (icon) {
+                icon.className = deviationsSortDirection === "asc" ? "fa-solid fa-sort-up" : "fa-solid fa-sort-down";
+            }
+        }
+    });
+
+    renderObservedCollaboratorsTableOnly();
+}
+window.handleAnalyticsDeviationsSort = handleAnalyticsDeviationsSort;
+
+function renderObservedCollaborators(filteredDeliveries) {
     const userEPPMetrics = {};
 
     filteredDeliveries.forEach(del => {
@@ -343,7 +443,7 @@ function renderObservedCollaborators(filteredDeliveries) {
         });
     });
 
-    const observedList = [];
+    filteredObservedList = [];
     Object.keys(userEPPMetrics).forEach(key => {
         const metric = userEPPMetrics[key];
         if (metric.entregas.length < 2) return;
@@ -359,7 +459,7 @@ function renderObservedCollaborators(filteredDeliveries) {
         const lifespanDays = ((epp && epp.duracion_meses) ? Number(epp.duracion_meses) : 6) * 30;
 
         if (avgDays < lifespanDays * 0.55) {
-            observedList.push({
+            filteredObservedList.push({
                 trabajador: metric.trabajador,
                 rut: metric.rut,
                 area: metric.area,
@@ -371,19 +471,45 @@ function renderObservedCollaborators(filteredDeliveries) {
         }
     });
 
-    if (observedList.length === 0) {
+    renderObservedCollaboratorsTableOnly();
+}
+
+function renderObservedCollaboratorsTableOnly() {
+    const tbody = document.getElementById("analytics-deviations-tbody");
+    if (!tbody) return;
+    tbody.innerHTML = "";
+
+    if (filteredObservedList.length === 0) {
         tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 20px;">No se detectan colaboradores con desgaste prematuro para los filtros actuales.</td></tr>`;
+        renderObservedPagination();
         return;
     }
 
-    observedList.sort((a, b) => a.avgDays - b.avgDays);
+    filteredObservedList.sort((a, b) => {
+        let valA = a[deviationsSortField];
+        let valB = b[deviationsSortField];
 
-    observedList.forEach(obs => {
+        if (typeof valA === "string") valA = valA.toLowerCase();
+        if (typeof valB === "string") valB = valB.toLowerCase();
+
+        if (valA < valB) return deviationsSortDirection === "asc" ? -1 : 1;
+        if (valA > valB) return deviationsSortDirection === "asc" ? 1 : -1;
+        return 0;
+    });
+
+    const totalItems = filteredObservedList.length;
+    const totalPages = Math.ceil(totalItems / deviationsPageSize) || 1;
+    if (deviationsCurrentPage > totalPages) deviationsCurrentPage = totalPages;
+
+    const startIndex = (deviationsCurrentPage - 1) * deviationsPageSize;
+    const endIndex = Math.min(startIndex + deviationsPageSize, totalItems);
+    const pageItems = filteredObservedList.slice(startIndex, endIndex);
+
+    pageItems.forEach(obs => {
         const tr = document.createElement("tr");
         tr.className = "observed-row-clickable";
         tr.title = "Haga clic para auditar la ficha de este colaborador";
         
-        // Redirección directa fluida enviando el RUT
         tr.addEventListener("click", () => {
             if (window.switchView) {
                 window.switchView("view-workers", obs.rut);
@@ -402,16 +528,86 @@ function renderObservedCollaborators(filteredDeliveries) {
         `;
         tbody.appendChild(tr);
     });
+
+    renderObservedPagination();
 }
 
+function renderObservedPagination() {
+    const container = document.getElementById("analytics-deviations-pagination");
+    if (!container) return;
+
+    const totalItems = filteredObservedList.length;
+    const totalPages = Math.ceil(totalItems / deviationsPageSize) || 1;
+    const startItemIndex = totalItems === 0 ? 0 : (deviationsCurrentPage - 1) * deviationsPageSize + 1;
+    const endItemIndex = Math.min(deviationsCurrentPage * deviationsPageSize, totalItems);
+
+    container.innerHTML = `
+        <div class="pagination-info">
+            Mostrando <strong>${startItemIndex}</strong> - <strong>${endItemIndex}</strong> de <strong>${totalItems}</strong> colaboradores observados
+        </div>
+        <div class="pagination-controls">
+            <button type="button" class="btn btn-secondary btn-sm" onclick="changeAnalyticsDeviationsPage(${deviationsCurrentPage - 1})" ${deviationsCurrentPage === 1 ? 'disabled' : ''}>
+                <i class="fa-solid fa-chevron-left"></i>
+            </button>
+            <span style="font-size:0.85rem; font-weight:600; margin:0 8px;">Pág. ${deviationsCurrentPage} de ${totalPages}</span>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="changeAnalyticsDeviationsPage(${deviationsCurrentPage + 1})" ${deviationsCurrentPage === totalPages ? 'disabled' : ''}>
+                <i class="fa-solid fa-chevron-right"></i>
+            </button>
+        </div>
+        <div class="pagination-page-size">
+            <span>Mostrar</span>
+            <select onchange="changeAnalyticsDeviationsPageSize(this.value)">
+                <option value="10" ${deviationsPageSize === 10 ? 'selected' : ''}>10</option>
+                <option value="15" ${deviationsPageSize === 15 ? 'selected' : ''}>15</option>
+                <option value="25" ${deviationsPageSize === 25 ? 'selected' : ''}>25</option>
+                <option value="50" ${deviationsPageSize === 50 ? 'selected' : ''}>50</option>
+            </select>
+        </div>
+    `;
+}
+
+export function changeAnalyticsDeviationsPage(newPage) {
+    deviationsCurrentPage = newPage;
+    renderObservedCollaboratorsTableOnly();
+}
+window.changeAnalyticsDeviationsPage = changeAnalyticsDeviationsPage;
+
+export function changeAnalyticsDeviationsPageSize(newSize) {
+    deviationsPageSize = Number(newSize);
+    deviationsCurrentPage = 1;
+    renderObservedCollaboratorsTableOnly();
+}
+window.changeAnalyticsDeviationsPageSize = changeAnalyticsDeviationsPageSize;
+
+// ==========================================================================
+// RUNWAY DE AUTONOMÍA: Ordenamiento y Paginación
+// ==========================================================================
+export function handleAnalyticsRunwaySort(field) {
+    if (runwaySortField === field) {
+        runwaySortDirection = runwaySortDirection === "asc" ? "desc" : "asc";
+    } else {
+        runwaySortField = field;
+        runwaySortDirection = "asc";
+    }
+
+    const headers = document.querySelectorAll("#analytics-runway-table th.sortable");
+    headers.forEach(h => {
+        h.classList.remove("active");
+        const icon = h.querySelector("i");
+        if (icon) icon.className = "fa-solid fa-sort";
+        if (h.getAttribute("data-sort") === runwaySortField) {
+            h.classList.add("active");
+            if (icon) {
+                icon.className = runwaySortDirection === "asc" ? "fa-solid fa-sort-up" : "fa-solid fa-sort-down";
+            }
+        }
+    });
+
+    renderRunwayTableOnly();
+}
+window.handleAnalyticsRunwaySort = handleAnalyticsRunwaySort;
+
 function renderRunwayAutonomyTable(selectedCategory) {
-    const tbody = document.getElementById("analytics-runway-tbody");
-    if (!tbody) return;
-
-    tbody.innerHTML = "";
-
-    // 1. Calcular el ritmo de consumo histórico por SKU
-    // Mapeo SKU -> total entregados
     const consumedSKU = {};
     dbSalidas.forEach(del => {
         del.items.forEach(it => {
@@ -419,7 +615,6 @@ function renderRunwayAutonomyTable(selectedCategory) {
         });
     });
 
-    // Encontrar el período completo de transacciones en días para sacar promedio
     let minDate = new Date();
     let maxDate = new Date(0);
     dbSalidas.forEach(del => {
@@ -430,18 +625,15 @@ function renderRunwayAutonomyTable(selectedCategory) {
 
     const elapsedDays = Math.max(1, Math.ceil((maxDate - minDate) / (1000 * 60 * 60 * 24)));
 
-    const runwayList = [];
+    filteredRunwayList = [];
 
     dbInventario.forEach(item => {
-        // Filtrar por categoría seleccionada si aplica
         if (selectedCategory && item.categoria !== selectedCategory) return;
 
         const totalUsed = consumedSKU[item.id] || 0;
-        // Consumo promedio diario de este SKU
         const dailyConsumption = totalUsed / elapsedDays;
-
         const currentStock = Number(item.stock || 0);
-        let runwayDays = 999; // Por defecto asumimos autonomía ilimitada si no hay consumo
+        let runwayDays = 999;
         
         if (dailyConsumption > 0) {
             runwayDays = Math.round(currentStock / dailyConsumption);
@@ -471,7 +663,7 @@ function renderRunwayAutonomyTable(selectedCategory) {
             riskText = "Bajo";
         }
 
-        runwayList.push({
+        filteredRunwayList.push({
             nombre: item.nombre,
             codigo: item.codigo,
             stock: currentStock,
@@ -482,11 +674,41 @@ function renderRunwayAutonomyTable(selectedCategory) {
         });
     });
 
-    // Ordenar de mayor a menor urgencia de abastecimiento
-    runwayList.sort((a, b) => a.runwayDays - b.runwayDays);
+    renderRunwayTableOnly();
+}
 
-    // Renderizar los SKUs
-    runwayList.slice(0, 7).forEach(r => {
+function renderRunwayTableOnly() {
+    const tbody = document.getElementById("analytics-runway-tbody");
+    if (!tbody) return;
+    tbody.innerHTML = "";
+
+    if (filteredRunwayList.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--text-muted); padding:20px;">Sin inventario cargado.</td></tr>`;
+        renderRunwayPagination();
+        return;
+    }
+
+    filteredRunwayList.sort((a, b) => {
+        let valA = a[runwaySortField];
+        let valB = b[runwaySortField];
+
+        if (typeof valA === "string") valA = valA.toLowerCase();
+        if (typeof valB === "string") valB = valB.toLowerCase();
+
+        if (valA < valB) return runwaySortDirection === "asc" ? -1 : 1;
+        if (valA > valB) return runwaySortDirection === "asc" ? 1 : -1;
+        return 0;
+    });
+
+    const totalItems = filteredRunwayList.length;
+    const totalPages = Math.ceil(totalItems / runwayPageSize) || 1;
+    if (runwayCurrentPage > totalPages) runwayCurrentPage = totalPages;
+
+    const startIndex = (runwayCurrentPage - 1) * runwayPageSize;
+    const endIndex = Math.min(startIndex + runwayPageSize, totalItems);
+    const pageItems = filteredRunwayList.slice(startIndex, endIndex);
+
+    pageItems.forEach(r => {
         const tr = document.createElement("tr");
         tr.innerHTML = `
             <td>
@@ -500,7 +722,84 @@ function renderRunwayAutonomyTable(selectedCategory) {
         tbody.appendChild(tr);
     });
 
-    if (runwayList.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--text-muted); padding:20px;">Sin inventario cargado.</td></tr>`;
-    }
+    renderRunwayPagination();
 }
+
+function renderRunwayPagination() {
+    const container = document.getElementById("analytics-runway-pagination");
+    if (!container) return;
+
+    const totalItems = filteredRunwayList.length;
+    const totalPages = Math.ceil(totalItems / runwayPageSize) || 1;
+    const startItemIndex = totalItems === 0 ? 0 : (runwayCurrentPage - 1) * runwayPageSize + 1;
+    const endItemIndex = Math.min(runwayCurrentPage * runwayPageSize, totalItems);
+
+    container.innerHTML = `
+        <div class="pagination-info">
+            Mostrando <strong>${startItemIndex}</strong> - <strong>${endItemIndex}</strong> de <strong>${totalItems}</strong> SKUs
+        </div>
+        <div class="pagination-controls">
+            <button type="button" class="btn btn-secondary btn-sm" onclick="changeAnalyticsRunwayPage(${runwayCurrentPage - 1})" ${runwayCurrentPage === 1 ? 'disabled' : ''}>
+                <i class="fa-solid fa-chevron-left"></i>
+            </button>
+            <span style="font-size:0.85rem; font-weight:600; margin:0 8px;">Pág. ${runwayCurrentPage} de ${totalPages}</span>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="changeAnalyticsRunwayPage(${runwayCurrentPage + 1})" ${runwayCurrentPage === totalPages ? 'disabled' : ''}>
+                <i class="fa-solid fa-chevron-right"></i>
+            </button>
+        </div>
+        <div class="pagination-page-size">
+            <span>Mostrar</span>
+            <select onchange="changeAnalyticsRunwayPageSize(this.value)">
+                <option value="10" ${runwayPageSize === 10 ? 'selected' : ''}>10</option>
+                <option value="15" ${runwayPageSize === 15 ? 'selected' : ''}>15</option>
+                <option value="25" ${runwayPageSize === 25 ? 'selected' : ''}>25</option>
+                <option value="50" ${runwayPageSize === 50 ? 'selected' : ''}>50</option>
+            </select>
+        </div>
+    `;
+}
+
+export function changeAnalyticsRunwayPage(newPage) {
+    runwayCurrentPage = newPage;
+    renderRunwayTableOnly();
+}
+window.changeAnalyticsRunwayPage = changeAnalyticsRunwayPage;
+
+export function changeAnalyticsRunwayPageSize(newSize) {
+    runwayPageSize = Number(newSize);
+    runwayCurrentPage = 1;
+    renderRunwayTableOnly();
+}
+window.changeAnalyticsRunwayPageSize = changeAnalyticsRunwayPageSize;
+
+// ==========================================================================
+// EXPORTACIÓN ANALÍTICA A CSV
+// ==========================================================================
+export function exportAnalyticsCSV() {
+    let csvContent = "data:text/csv;charset=utf-8,\uFEFF";
+    csvContent += "ANALISIS DE CONSUMO DE EPP Y ADHERENCIA OPERACIONAL - PROCLEANMG\n\n";
+
+    csvContent += "COLABORADORES OBSERVADOS (CAMBIOS PREMATUROS)\n";
+    csvContent += "Colaborador,RUT,Area,EPP,Entregas Registradas,Frecuencia Promedio (dias),Duracion Esperada (dias)\n";
+
+    filteredObservedList.forEach(obs => {
+        csvContent += `"${obs.trabajador}","${obs.rut}","${obs.area}","${obs.eppName}",${obs.entregasCount},${obs.avgDays},${obs.lifespanDays}\n`;
+    });
+
+    csvContent += "\nRUNWAY DE AUTONOMIA DE STOCK\n";
+    csvContent += "Codigo SKU,Nombre EPP,Stock Actual,Autonomia Estimada (dias),Nivel de Riesgo\n";
+
+    filteredRunwayList.forEach(r => {
+        csvContent += `"${r.codigo}","${r.nombre}",${r.stock},"${r.runwayDays}","${r.riskText}"\n`;
+    });
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `Analitica_Consumo_EPP_${new Date().toISOString().slice(0,10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+window.changeAnalyticsDeviationsPageSize = changeAnalyticsDeviationsPageSize;
+window.exportAnalyticsCSV = exportAnalyticsCSV;

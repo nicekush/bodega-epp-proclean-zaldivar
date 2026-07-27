@@ -446,20 +446,108 @@ export function openReturnDialog(loanId) {
 }
 window.openReturnDialog = openReturnDialog;
 
+let loansCurrentPage = 1;
+let loansPageSize = 15;
+let loansSortField = "trabajador";
+let loansSortDirection = "asc";
+let filteredLoansList = [];
+
+export function handleLoansSort(field) {
+    if (loansSortField === field) {
+        loansSortDirection = loansSortDirection === "asc" ? "desc" : "asc";
+    } else {
+        loansSortField = field;
+        loansSortDirection = "asc";
+    }
+
+    const headers = document.querySelectorAll("#table-loans th.sortable");
+    headers.forEach(h => {
+        h.classList.remove("active");
+        const icon = h.querySelector("i");
+        if (icon) icon.className = "fa-solid fa-sort";
+        if (h.getAttribute("data-sort") === loansSortField) {
+            h.classList.add("active");
+            if (icon) {
+                icon.className = loansSortDirection === "asc" ? "fa-solid fa-sort-up" : "fa-solid fa-sort-down";
+            }
+        }
+    });
+
+    renderLoansTable();
+}
+window.handleLoansSort = handleLoansSort;
+
 // Renderizar tabla
 export function renderLoansTable() {
     const tbody = document.getElementById("loans-tbody");
     if (!tbody) return;
 
     tbody.innerHTML = "";
-    const activeLoans = dbPrestamos.filter(p => p.fecha_retorno === null);
     
-    if (activeLoans.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-muted);">No hay préstamos activos en faena.</td></tr>`;
+    const searchQuery = document.getElementById("loan-search")?.value.toLowerCase().trim() || "";
+    const filterNight = document.getElementById("loan-filter-night")?.checked || false;
+
+    const activeLoans = dbPrestamos.filter(p => p.fecha_retorno === null);
+
+    filteredLoansList = activeLoans.filter(p => {
+        const matchText = !searchQuery || 
+            p.trabajador_nombre.toLowerCase().includes(searchQuery) || 
+            p.trabajador_rut.toLowerCase().includes(searchQuery) ||
+            p.items.some(it => it.numero_serie && it.numero_serie.toLowerCase().includes(searchQuery)) ||
+            p.items.some(it => it.nombre && it.nombre.toLowerCase().includes(searchQuery));
+        
+        let matchNight = true;
+        if (filterNight) {
+            matchNight = p.turno.toLowerCase().includes("noche") || p.turno === "Turno B";
+        }
+
+        return matchText && matchNight;
+    });
+
+    if (filteredLoansList.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding:20px;">No hay préstamos activos en faena que coincidan con los filtros.</td></tr>`;
+        renderLoansPagination();
         return;
     }
 
-    activeLoans.forEach(p => {
+    filteredLoansList.sort((a, b) => {
+        let valA = "";
+        let valB = "";
+
+        if (loansSortField === "trabajador") {
+            valA = a.trabajador_nombre || "";
+            valB = b.trabajador_nombre || "";
+        } else if (loansSortField === "area") {
+            valA = a.area || "";
+            valB = b.area || "";
+        } else if (loansSortField === "equipo") {
+            valA = (a.items && a.items[0]) ? a.items[0].nombre : "";
+            valB = (b.items && b.items[0]) ? b.items[0].nombre : "";
+        } else if (loansSortField === "fechaSalida" || loansSortField === "diasTranscurridos") {
+            valA = new Date(a.fecha_salida || 0).getTime();
+            valB = new Date(b.fecha_salida || 0).getTime();
+        } else {
+            valA = a[loansSortField] || "";
+            valB = b[loansSortField] || "";
+        }
+
+        if (typeof valA === "string") valA = valA.toLowerCase();
+        if (typeof valB === "string") valB = valB.toLowerCase();
+
+        if (valA < valB) return loansSortDirection === "asc" ? -1 : 1;
+        if (valA > valB) return loansSortDirection === "asc" ? 1 : -1;
+        return 0;
+    });
+
+    const totalItems = filteredLoansList.length;
+    const totalPages = Math.ceil(totalItems / loansPageSize) || 1;
+    if (loansCurrentPage > totalPages) loansCurrentPage = totalPages;
+
+    const startIndex = (loansCurrentPage - 1) * loansPageSize;
+    const endIndex = Math.min(startIndex + loansPageSize, totalItems);
+    const pageItems = filteredLoansList.slice(startIndex, endIndex);
+
+    pageItems.forEach(p => {
         const itemText = p.items.map(it => `${it.nombre} ${it.numero_serie ? `[${it.numero_serie}]` : ""}`).join("<br>");
         const fSalida = new Date(p.fecha_salida);
         const diffHrs = Math.floor((new Date() - fSalida) / (1000 * 60 * 60));
@@ -517,36 +605,60 @@ export function renderLoansTable() {
         `;
         tbody.appendChild(tr);
     });
+
+    renderLoansPagination();
 }
 
-// Filtrar tabla
-export function filterLoansTable() {
-    const q = document.getElementById("loan-search").value.toLowerCase();
-    const filterNight = document.getElementById("loan-filter-night").checked;
-    const rows = document.querySelectorAll("#loans-tbody tr");
-    
-    rows.forEach(tr => {
-        const loanId = tr.dataset.loanId;
-        if (!loanId) return;
-        const p = dbPrestamos.find(l => l.id === loanId);
-        if (!p) return;
-        
-        let matchText = p.trabajador_nombre.toLowerCase().includes(q) || 
-                        p.trabajador_rut.toLowerCase().includes(q) ||
-                        p.items.some(it => it.numero_serie && it.numero_serie.toLowerCase().includes(q));
-        
-        let matchNight = true;
-        if (filterNight) {
-            // El turno noche puede ser literal por el campo 'turno'
-            matchNight = p.turno.toLowerCase().includes("noche") || p.turno === "Turno B"; // Asumiendo B como noche o noche explícito
-        }
+function renderLoansPagination() {
+    const container = document.getElementById("loans-pagination");
+    if (!container) return;
 
-        if (matchText && matchNight) {
-            tr.style.display = "";
-        } else {
-            tr.style.display = "none";
-        }
-    });
+    const totalItems = filteredLoansList.length;
+    const totalPages = Math.ceil(totalItems / loansPageSize) || 1;
+    const startItemIndex = totalItems === 0 ? 0 : (loansCurrentPage - 1) * loansPageSize + 1;
+    const endItemIndex = Math.min(loansCurrentPage * loansPageSize, totalItems);
+
+    container.innerHTML = `
+        <div class="pagination-info">
+            Mostrando <strong>${startItemIndex}</strong> - <strong>${endItemIndex}</strong> de <strong>${totalItems}</strong> préstamos
+        </div>
+        <div class="pagination-controls">
+            <button type="button" class="btn btn-secondary btn-sm" onclick="changeLoansPage(${loansCurrentPage - 1})" ${loansCurrentPage === 1 ? 'disabled' : ''}>
+                <i class="fa-solid fa-chevron-left"></i>
+            </button>
+            <span style="font-size:0.85rem; font-weight:600; margin:0 8px;">Pág. ${loansCurrentPage} de ${totalPages}</span>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="changeLoansPage(${loansCurrentPage + 1})" ${loansCurrentPage === totalPages ? 'disabled' : ''}>
+                <i class="fa-solid fa-chevron-right"></i>
+            </button>
+        </div>
+        <div class="pagination-page-size">
+            <span>Mostrar</span>
+            <select onchange="changeLoansPageSize(this.value)">
+                <option value="10" ${loansPageSize === 10 ? 'selected' : ''}>10</option>
+                <option value="15" ${loansPageSize === 15 ? 'selected' : ''}>15</option>
+                <option value="25" ${loansPageSize === 25 ? 'selected' : ''}>25</option>
+                <option value="50" ${loansPageSize === 50 ? 'selected' : ''}>50</option>
+            </select>
+        </div>
+    `;
+}
+
+export function changeLoansPage(page) {
+    loansCurrentPage = page;
+    renderLoansTable();
+}
+window.changeLoansPage = changeLoansPage;
+
+export function changeLoansPageSize(size) {
+    loansPageSize = Number(size);
+    loansCurrentPage = 1;
+    renderLoansTable();
+}
+window.changeLoansPageSize = changeLoansPageSize;
+
+export function filterLoansTable() {
+    loansCurrentPage = 1;
+    renderLoansTable();
 }
 window.filterLoansTable = filterLoansTable;
 

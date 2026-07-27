@@ -412,6 +412,37 @@ export function updateReplenishmentStats() {
     if (repStatReceived) repStatReceived.textContent = receivedCount;
 }
 
+let replenishmentsCurrentPage = 1;
+let replenishmentsPageSize = 15;
+let replenishmentsSortField = "codigo";
+let replenishmentsSortDirection = "asc";
+let filteredReplenishmentsList = [];
+
+export function handleReplenishmentsSort(field) {
+    if (replenishmentsSortField === field) {
+        replenishmentsSortDirection = replenishmentsSortDirection === "asc" ? "desc" : "asc";
+    } else {
+        replenishmentsSortField = field;
+        replenishmentsSortDirection = "asc";
+    }
+
+    const headers = document.querySelectorAll("#table-replenishments th.sortable");
+    headers.forEach(h => {
+        h.classList.remove("active");
+        const icon = h.querySelector("i");
+        if (icon) icon.className = "fa-solid fa-sort";
+        if (h.getAttribute("data-sort") === replenishmentsSortField) {
+            h.classList.add("active");
+            if (icon) {
+                icon.className = replenishmentsSortDirection === "asc" ? "fa-solid fa-sort-up" : "fa-solid fa-sort-down";
+            }
+        }
+    });
+
+    renderReplenishmentsTable();
+}
+window.handleReplenishmentsSort = handleReplenishmentsSort;
+
 export function renderReplenishmentsTable() {
     const tbody = document.getElementById("replenishments-tbody");
     if (!tbody) return;
@@ -424,7 +455,7 @@ export function renderReplenishmentsTable() {
     const searchQuery = searchInput ? searchInput.value.toLowerCase().trim() : "";
     const filterStatus = statusSelect ? statusSelect.value : "";
 
-    const filtered = dbSolicitudesAbastecimiento.filter(req => {
+    filteredReplenishmentsList = dbSolicitudesAbastecimiento.filter(req => {
         const matchesStatus = filterStatus === "" || req.estado === filterStatus;
         const matchesSearch = searchQuery === "" || 
             (req.codigo && req.codigo.toLowerCase().includes(searchQuery)) ||
@@ -434,18 +465,55 @@ export function renderReplenishmentsTable() {
         return matchesStatus && matchesSearch;
     });
 
-    if (filtered.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--text-muted);">No hay pedidos que coincidan con los filtros.</td></tr>`;
+    if (filteredReplenishmentsList.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--text-muted); padding:20px;">No hay pedidos que coincidan con los filtros.</td></tr>`;
+        renderReplenishmentsPagination();
         return;
     }
 
-    filtered.forEach(req => {
+    filteredReplenishmentsList.sort((a, b) => {
+        let valA = "";
+        let valB = "";
+
+        if (replenishmentsSortField === "eppNombre") {
+            valA = (a.items && a.items[0]) ? a.items[0].nombre : (a.nombre_epp || "");
+            valB = (b.items && b.items[0]) ? b.items[0].nombre : (b.nombre_epp || "");
+        } else if (replenishmentsSortField === "cantidadSolicitada") {
+            valA = Number(a.cantidad_solicitada || 0);
+            valB = Number(b.cantidad_solicitada || 0);
+        } else if (replenishmentsSortField === "cantidadRecibida") {
+            valA = Number(a.cantidad_recibida || 0);
+            valB = Number(b.cantidad_recibida || 0);
+        } else if (replenishmentsSortField === "fecha") {
+            valA = new Date(a.fecha || 0).getTime();
+            valB = new Date(b.fecha || 0).getTime();
+        } else {
+            valA = a[replenishmentsSortField] || "";
+            valB = b[replenishmentsSortField] || "";
+        }
+
+        if (typeof valA === "string") valA = valA.toLowerCase();
+        if (typeof valB === "string") valB = valB.toLowerCase();
+
+        if (valA < valB) return replenishmentsSortDirection === "asc" ? -1 : 1;
+        if (valA > valB) return replenishmentsSortDirection === "asc" ? 1 : -1;
+        return 0;
+    });
+
+    const totalItems = filteredReplenishmentsList.length;
+    const totalPages = Math.ceil(totalItems / replenishmentsPageSize) || 1;
+    if (replenishmentsCurrentPage > totalPages) replenishmentsCurrentPage = totalPages;
+
+    const startIndex = (replenishmentsCurrentPage - 1) * replenishmentsPageSize;
+    const endIndex = Math.min(startIndex + replenishmentsPageSize, totalItems);
+    const pageItems = filteredReplenishmentsList.slice(startIndex, endIndex);
+
+    pageItems.forEach(req => {
         let statusBadge = "";
         let actionBtn = "";
 
         const canManage = currentUser && (currentUser.rol === "Administrador" || currentUser.rol === "Supervisor");
         
-        // Items resumen
         let itemsSummary = "";
         if (req.items && Array.isArray(req.items)) {
             itemsSummary = req.items.map(it => `${it.nombre} (x${it.cantidad})`).join(", ");
@@ -482,7 +550,6 @@ export function renderReplenishmentsTable() {
             actionBtn = `<span style="font-size: 0.8rem; color: var(--color-success); font-weight:600;"><i class="fa-solid fa-check-double"></i> Stock Ingresado</span>`;
         }
 
-        // Agregar botón de PDF y opción de borrado para administradores/supervisores
         const printBtn = `
             <button class="btn btn-secondary btn-sm" onclick="window.openReplenishmentVoucherModal('${req.id}')" title="Imprimir Solicitud PDF" style="margin-left:6px; padding: 4px 8px;">
                 <i class="fa-solid fa-file-pdf" style="color: #e63946;"></i> PDF
@@ -517,11 +584,62 @@ export function renderReplenishmentsTable() {
         `;
         tbody.appendChild(tr);
     });
+
+    renderReplenishmentsPagination();
 }
 
-export function filterReplenishmentsTable() {
+function renderReplenishmentsPagination() {
+    const container = document.getElementById("replenishments-pagination");
+    if (!container) return;
+
+    const totalItems = filteredReplenishmentsList.length;
+    const totalPages = Math.ceil(totalItems / replenishmentsPageSize) || 1;
+    const startItemIndex = totalItems === 0 ? 0 : (replenishmentsCurrentPage - 1) * replenishmentsPageSize + 1;
+    const endItemIndex = Math.min(replenishmentsCurrentPage * replenishmentsPageSize, totalItems);
+
+    container.innerHTML = `
+        <div class="pagination-info">
+            Mostrando <strong>${startItemIndex}</strong> - <strong>${endItemIndex}</strong> de <strong>${totalItems}</strong> órdenes
+        </div>
+        <div class="pagination-controls">
+            <button type="button" class="btn btn-secondary btn-sm" onclick="changeReplenishmentsPage(${replenishmentsCurrentPage - 1})" ${replenishmentsCurrentPage === 1 ? 'disabled' : ''}>
+                <i class="fa-solid fa-chevron-left"></i>
+            </button>
+            <span style="font-size:0.85rem; font-weight:600; margin:0 8px;">Pág. ${replenishmentsCurrentPage} de ${totalPages}</span>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="changeReplenishmentsPage(${replenishmentsCurrentPage + 1})" ${replenishmentsCurrentPage === totalPages ? 'disabled' : ''}>
+                <i class="fa-solid fa-chevron-right"></i>
+            </button>
+        </div>
+        <div class="pagination-page-size">
+            <span>Mostrar</span>
+            <select onchange="changeReplenishmentsPageSize(this.value)">
+                <option value="10" ${replenishmentsPageSize === 10 ? 'selected' : ''}>10</option>
+                <option value="15" ${replenishmentsPageSize === 15 ? 'selected' : ''}>15</option>
+                <option value="25" ${replenishmentsPageSize === 25 ? 'selected' : ''}>25</option>
+                <option value="50" ${replenishmentsPageSize === 50 ? 'selected' : ''}>50</option>
+            </select>
+        </div>
+    `;
+}
+
+export function changeReplenishmentsPage(page) {
+    replenishmentsCurrentPage = page;
     renderReplenishmentsTable();
 }
+window.changeReplenishmentsPage = changeReplenishmentsPage;
+
+export function changeReplenishmentsPageSize(size) {
+    replenishmentsPageSize = Number(size);
+    replenishmentsCurrentPage = 1;
+    renderReplenishmentsTable();
+}
+window.changeReplenishmentsPageSize = changeReplenishmentsPageSize;
+
+export function filterReplenishmentsTable() {
+    replenishmentsCurrentPage = 1;
+    renderReplenishmentsTable();
+}
+window.filterReplenishmentsTable = filterReplenishmentsTable;
 
 export async function handleDeleteReplenishment(id) {
     if (!currentUser || (currentUser.rol !== "Administrador" && currentUser.rol !== "Supervisor")) {

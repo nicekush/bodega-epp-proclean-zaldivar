@@ -10,10 +10,37 @@ let historyCurrentPage = 1;
 let historyPageSize = 15;
 let consolidatedHistory = [];
 let filteredHistory = [];
+let historySortField = "fecha";
+let historySortDirection = "desc";
 
 function removeAccents(str) {
     return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 }
+
+export function handleHistorySort(field) {
+    if (historySortField === field) {
+        historySortDirection = historySortDirection === "asc" ? "desc" : "asc";
+    } else {
+        historySortField = field;
+        historySortDirection = "asc";
+    }
+
+    const headers = document.querySelectorAll("#table-history th.sortable");
+    headers.forEach(h => {
+        h.classList.remove("active");
+        const icon = h.querySelector("i");
+        if (icon) icon.className = "fa-solid fa-sort";
+        if (h.getAttribute("data-sort") === historySortField) {
+            h.classList.add("active");
+            if (icon) {
+                icon.className = historySortDirection === "asc" ? "fa-solid fa-sort-up" : "fa-solid fa-sort-down";
+            }
+        }
+    });
+
+    renderHistoryTable();
+}
+window.handleHistorySort = handleHistorySort;
 
 function applyHistoryFilters() {
     const searchInput = document.getElementById("history-search");
@@ -117,9 +144,22 @@ export function renderHistoryTable() {
         });
     });
 
-    consolidatedHistory.sort((a, b) => b.fecha - a.fecha);
-
     applyHistoryFilters();
+
+    filteredHistory.sort((a, b) => {
+        let valA = a[historySortField];
+        let valB = b[historySortField];
+
+        if (valA instanceof Date) valA = valA.getTime();
+        if (valB instanceof Date) valB = valB.getTime();
+
+        if (typeof valA === "string") valA = valA.toLowerCase();
+        if (typeof valB === "string") valB = valB.toLowerCase();
+
+        if (valA < valB) return historySortDirection === "asc" ? -1 : 1;
+        if (valA > valB) return historySortDirection === "asc" ? 1 : -1;
+        return 0;
+    });
 
     if (filteredHistory.length === 0) {
         tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-muted);">No se registran movimientos en el historial.</td></tr>`;
@@ -236,17 +276,20 @@ export function changeHistoryPage(page) {
     historyCurrentPage = page;
     renderHistoryTable();
 }
+window.changeHistoryPage = changeHistoryPage;
 
 export function changeHistoryPageSize(size) {
     historyPageSize = Number(size);
     historyCurrentPage = 1;
     renderHistoryTable();
 }
+window.changeHistoryPageSize = changeHistoryPageSize;
 
 export function filterHistoryTable() {
     historyCurrentPage = 1;
     renderHistoryTable();
 }
+window.filterHistoryTable = filterHistoryTable;
 
 export function exportHistoryCSV() {
     const listToExport = (filteredHistory && filteredHistory.length > 0) ? filteredHistory : consolidatedHistory;

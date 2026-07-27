@@ -121,24 +121,90 @@ export function updateSuppliesStats() {
     if (statReceivedSupplies) statReceivedSupplies.textContent = received;
 }
 
+let suppliesCurrentPage = 1;
+let suppliesPageSize = 15;
+let suppliesSortField = "codigo";
+let suppliesSortDirection = "asc";
+let filteredSuppliesList = [];
+
+export function handleSuppliesSort(field) {
+    if (suppliesSortField === field) {
+        suppliesSortDirection = suppliesSortDirection === "asc" ? "desc" : "asc";
+    } else {
+        suppliesSortField = field;
+        suppliesSortDirection = "asc";
+    }
+
+    const headers = document.querySelectorAll("#table-supplies th.sortable");
+    headers.forEach(h => {
+        h.classList.remove("active");
+        const icon = h.querySelector("i");
+        if (icon) icon.className = "fa-solid fa-sort";
+        if (h.getAttribute("data-sort") === suppliesSortField) {
+            h.classList.add("active");
+            if (icon) {
+                icon.className = suppliesSortDirection === "asc" ? "fa-solid fa-sort-up" : "fa-solid fa-sort-down";
+            }
+        }
+    });
+
+    renderSuppliesTable();
+}
+window.handleSuppliesSort = handleSuppliesSort;
+
 export function renderSuppliesTable() {
+    updateSuppliesDashboardStats();
+
     const tbody = document.getElementById("supplies-tbody");
     if (!tbody) return;
-
     tbody.innerHTML = "";
-    if (dbInsumos.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; color: var(--text-muted);">No hay requerimientos registrados.</td></tr>`;
+
+    const searchQuery = document.getElementById("supplies-search")?.value.toLowerCase().trim() || "";
+    const filterStatus = document.getElementById("supplies-filter-status")?.value || "";
+
+    filteredSuppliesList = dbInsumos.filter(ins => {
+        const code = (ins.codigo || "").toLowerCase();
+        const workerInfo = `${ins.trabajador || ''} ${ins.rut || ''}`.toLowerCase();
+        const projectInfo = `${ins.mejora || ''} ${ins.proveedor || ''}`.toLowerCase();
+        const statusText = (ins.estado || "").toLowerCase();
+
+        const matchesSearch = !searchQuery || code.includes(searchQuery) || workerInfo.includes(searchQuery) || projectInfo.includes(searchQuery);
+        
+        let matchesStatus = true;
+        if (filterStatus === "Pendiente") matchesStatus = statusText.includes("pendiente");
+        if (filterStatus === "Parcial") matchesStatus = statusText.includes("parcial");
+        if (filterStatus === "Recibido") matchesStatus = statusText.includes("recibido") || statusText.includes("entregado");
+
+        return matchesSearch && matchesStatus;
+    });
+
+    if (filteredSuppliesList.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; color: var(--text-muted); padding:20px;">No hay requerimientos registrados.</td></tr>`;
+        renderSuppliesPagination();
         return;
     }
 
-    dbInsumos.forEach(ins => {
-        let totalSolicitado = 0;
-        let totalRecibido = 0;
-        ins.items.forEach(it => {
-            totalSolicitado += Number(it.solicitado);
-            totalRecibido += Number(it.recibido);
-        });
+    filteredSuppliesList.sort((a, b) => {
+        let valA = a[suppliesSortField] || "";
+        let valB = b[suppliesSortField] || "";
 
+        if (typeof valA === "string") valA = valA.toLowerCase();
+        if (typeof valB === "string") valB = valB.toLowerCase();
+
+        if (valA < valB) return suppliesSortDirection === "asc" ? -1 : 1;
+        if (valA > valB) return suppliesSortDirection === "asc" ? 1 : -1;
+        return 0;
+    });
+
+    const totalItems = filteredSuppliesList.length;
+    const totalPages = Math.ceil(totalItems / suppliesPageSize) || 1;
+    if (suppliesCurrentPage > totalPages) suppliesCurrentPage = totalPages;
+
+    const startIndex = (suppliesCurrentPage - 1) * suppliesPageSize;
+    const endIndex = Math.min(startIndex + suppliesPageSize, totalItems);
+    const pageItems = filteredSuppliesList.slice(startIndex, endIndex);
+
+    pageItems.forEach(ins => {
         let statusBadge = `<span class="badge badge-danger"><i class="fa-solid fa-clock"></i> Pendiente</span>`;
         if (ins.estado === "Recibido" || ins.estado === "Entregado") {
             statusBadge = `<span class="badge badge-success"><i class="fa-solid fa-circle-check"></i> Entregado</span>`;
@@ -148,7 +214,6 @@ export function renderSuppliesTable() {
 
         const itemsSummary = ins.items.map(it => `${it.nombre} (${it.recibido}/${it.solicitado})`).join("<br>");
 
-        // Prioridad
         const prio = ins.prioridad || "Media";
         let prioBadge = `<span class="badge-priority-media">Media</span>`;
         if (prio === "Alta") {
@@ -157,7 +222,6 @@ export function renderSuppliesTable() {
             prioBadge = `<span class="badge-priority-baja">Baja</span>`;
         }
 
-        // SLA (Antigüedad)
         let slaBadge = "";
         if (ins.estado === "Recibido" || ins.estado === "Entregado") {
             slaBadge = `<span class="sla-badge sla-normal"><i class="fa-solid fa-check-double"></i> Resuelto</span>`;
@@ -177,7 +241,6 @@ export function renderSuppliesTable() {
             }
         }
 
-        // Evidencia
         let evidenceHtml = `<span style="font-size:0.75rem; color:var(--text-muted);">Sin foto</span>`;
         if (ins.evidencia) {
             evidenceHtml = `<img class="evidence-thumbnail" src="${ins.evidencia}" onclick="openEvidenceModal('${ins.evidencia}')" title="Ver Evidencia">`;
@@ -226,36 +289,62 @@ export function renderSuppliesTable() {
             printSupplyReport(button.dataset.id);
         });
     });
+
+    renderSuppliesPagination();
 }
+
+function renderSuppliesPagination() {
+    const container = document.getElementById("supplies-pagination");
+    if (!container) return;
+
+    const totalItems = filteredSuppliesList.length;
+    const totalPages = Math.ceil(totalItems / suppliesPageSize) || 1;
+    const startItemIndex = totalItems === 0 ? 0 : (suppliesCurrentPage - 1) * suppliesPageSize + 1;
+    const endItemIndex = Math.min(suppliesCurrentPage * suppliesPageSize, totalItems);
+
+    container.innerHTML = `
+        <div class="pagination-info">
+            Mostrando <strong>${startItemIndex}</strong> - <strong>${endItemIndex}</strong> de <strong>${totalItems}</strong> requerimientos
+        </div>
+        <div class="pagination-controls">
+            <button type="button" class="btn btn-secondary btn-sm" onclick="changeSuppliesPage(${suppliesCurrentPage - 1})" ${suppliesCurrentPage === 1 ? 'disabled' : ''}>
+                <i class="fa-solid fa-chevron-left"></i>
+            </button>
+            <span style="font-size:0.85rem; font-weight:600; margin:0 8px;">Pág. ${suppliesCurrentPage} de ${totalPages}</span>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="changeSuppliesPage(${suppliesCurrentPage + 1})" ${suppliesCurrentPage === totalPages ? 'disabled' : ''}>
+                <i class="fa-solid fa-chevron-right"></i>
+            </button>
+        </div>
+        <div class="pagination-page-size">
+            <span>Mostrar</span>
+            <select onchange="changeSuppliesPageSize(this.value)">
+                <option value="10" ${suppliesPageSize === 10 ? 'selected' : ''}>10</option>
+                <option value="15" ${suppliesPageSize === 15 ? 'selected' : ''}>15</option>
+                <option value="25" ${suppliesPageSize === 25 ? 'selected' : ''}>25</option>
+                <option value="50" ${suppliesPageSize === 50 ? 'selected' : ''}>50</option>
+            </select>
+        </div>
+    `;
+}
+
+export function changeSuppliesPage(page) {
+    suppliesCurrentPage = page;
+    renderSuppliesTable();
+}
+window.changeSuppliesPage = changeSuppliesPage;
+
+export function changeSuppliesPageSize(size) {
+    suppliesPageSize = Number(size);
+    suppliesCurrentPage = 1;
+    renderSuppliesTable();
+}
+window.changeSuppliesPageSize = changeSuppliesPageSize;
 
 export function filterSuppliesTable() {
-    const searchQuery = document.getElementById("supplies-search").value.toLowerCase();
-    const filterStatus = document.getElementById("supplies-filter-status").value;
-    const rows = document.querySelectorAll("#supplies-tbody tr");
-
-    rows.forEach(row => {
-        const cells = row.getElementsByTagName("td");
-        if (cells.length < 8) return; 
-
-        const code = cells[0].textContent.toLowerCase();
-        const workerInfo = cells[1].textContent.toLowerCase();
-        const projectInfo = cells[2].textContent.toLowerCase();
-        const statusText = cells[7].textContent.toLowerCase(); 
-
-        const matchesSearch = code.includes(searchQuery) || workerInfo.includes(searchQuery) || projectInfo.includes(searchQuery);
-        
-        let matchesStatus = true;
-        if (filterStatus === "Pendiente") matchesStatus = statusText.includes("pendiente");
-        if (filterStatus === "Parcial") matchesStatus = statusText.includes("parcial");
-        if (filterStatus === "Recibido") matchesStatus = statusText.includes("recibido") || statusText.includes("entregado");
-
-        if (matchesSearch && matchesStatus) {
-            row.style.display = "";
-        } else {
-            row.style.display = "none";
-        }
-    });
+    suppliesCurrentPage = 1;
+    renderSuppliesTable();
 }
+window.filterSuppliesTable = filterSuppliesTable;
 
 export function openNewSupplyModal() {
     const modal = document.getElementById("new-supply-modal");

@@ -429,11 +429,11 @@
                         <table id="table-history">
                             <thead>
                                 <tr>
-                                    <th>Fecha y Hora</th>
-                                    <th>Tipo</th>
-                                    <th>Documento / Receptor</th>
-                                    <th>Detalle del Movimiento</th>
-                                    <th>Usuario</th>
+                                    <th class="sortable active" data-sort="fecha" onclick="handleHistorySort('fecha')">Fecha y Hora <i class="fa-solid fa-sort-down sort-icon"></i></th>
+                                    <th class="sortable" data-sort="tipo" onclick="handleHistorySort('tipo')">Tipo <i class="fa-solid fa-sort sort-icon"></i></th>
+                                    <th class="sortable" data-sort="documento" onclick="handleHistorySort('documento')">Documento / Receptor <i class="fa-solid fa-sort sort-icon"></i></th>
+                                    <th class="sortable" data-sort="detalles" onclick="handleHistorySort('detalles')">Detalle del Movimiento <i class="fa-solid fa-sort sort-icon"></i></th>
+                                    <th class="sortable" data-sort="usuario" onclick="handleHistorySort('usuario')">Usuario <i class="fa-solid fa-sort sort-icon"></i></th>
                                     <th>Acción</th>
                                 </tr>
                             </thead>
@@ -503,14 +503,14 @@
                         <table id="table-supplies">
                             <thead>
                                 <tr>
-                                    <th>Código</th>
-                                    <th>Trabajador</th>
-                                    <th>Requerimiento / Motivo</th>
+                                    <th class="sortable active" data-sort="codigo" onclick="handleSuppliesSort('codigo')">Código <i class="fa-solid fa-sort-up sort-icon"></i></th>
+                                    <th class="sortable" data-sort="trabajador" onclick="handleSuppliesSort('trabajador')">Trabajador <i class="fa-solid fa-sort sort-icon"></i></th>
+                                    <th class="sortable" data-sort="mejora" onclick="handleSuppliesSort('mejora')">Requerimiento / Motivo <i class="fa-solid fa-sort sort-icon"></i></th>
                                     <th>Items Solicitados</th>
-                                    <th>Prioridad</th>
+                                    <th class="sortable" data-sort="prioridad" onclick="handleSuppliesSort('prioridad')">Prioridad <i class="fa-solid fa-sort sort-icon"></i></th>
                                     <th>SLA (Antigüedad)</th>
                                     <th>Evidencia</th>
-                                    <th>Estado</th>
+                                    <th class="sortable" data-sort="estado" onclick="handleSuppliesSort('estado')">Estado <i class="fa-solid fa-sort sort-icon"></i></th>
                                     <th>Acciones</th>
                                 </tr>
                             </thead>
@@ -522,6 +522,7 @@
                             </tbody>
                         </table>
                     </div>
+                    <div id="supplies-pagination" class="pagination-container"></div>
                 </div>
             </div>
 
@@ -623,9 +624,14 @@
             <div id="view-analytics" class="view-panel">
                 <!-- Segmentadores de Datos (Filtros en Caliente) -->
                 <div class="card" style="margin-bottom: 24px;">
-                    <div class="section-title" style="margin-bottom: 16px;">
-                        <span class="sec-num"><i class="fa-solid fa-filter" style="font-size:0.8rem;"></i></span>
-                        <h3>Filtros y Segmentadores de Datos</h3>
+                    <div class="section-title" style="margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <span class="sec-num"><i class="fa-solid fa-filter" style="font-size:0.8rem;"></i></span>
+                            <h3 style="display:inline-block;">Filtros y Segmentadores de Datos</h3>
+                        </div>
+                        <button class="btn btn-secondary btn-sm" onclick="exportAnalyticsCSV()" title="Exportar reporte analítico a CSV">
+                            <i class="fa-solid fa-file-csv text-success"></i> Exportar Analítica CSV
+                        </button>
                     </div>
                     <div class="form-grid cols-4" style="gap: 16px;">
                         <div class="form-group">
@@ -677,35 +683,46 @@
                 </div>
 
                 <!-- Gráficos -->
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 24px;">
-                    <div class="card">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px; margin-top: 24px;">
+                    <div class="card" style="min-width: 0; overflow: hidden;">
                         <div class="section-title">
                             <span class="sec-num">01</span>
-                            <h3>Consumo de EPP por Área</h3>
+                            <h3>Consumo de EPP por Área (y Tasa Per Cápita)</h3>
                         </div>
-                        <div id="analytics-area-chart-container" style="height: 300px; display: flex; align-items: center; justify-content: center;">
+                        <div id="analytics-area-chart-container" style="height: 300px; width: 100%; display: flex; align-items: center; justify-content: center; overflow: hidden;">
                             <!-- SVG Dinámico -->
                         </div>
                     </div>
-                    <div class="card">
+                    <div class="card" style="min-width: 0; overflow: hidden;">
                         <div class="section-title">
                             <span class="sec-num">02</span>
                             <h3>Distribución de Alertas de Consumo</h3>
                         </div>
-                        <div id="analytics-deviation-chart-container" style="height: 300px; display: flex; align-items: center; justify-content: center;">
+                        <div id="analytics-deviation-chart-container" style="height: 300px; width: 100%; display: flex; align-items: center; justify-content: center; overflow: hidden;">
                             <!-- SVG Dinámico -->
                         </div>
                     </div>
                 </div>
 
-                <!-- NUEVO GRÁFICO: Tendencia Estacional de Consumo -->
-                <div class="card" style="margin-top: 24px;">
-                    <div class="section-title">
-                        <span class="sec-num">03</span>
-                        <h3>Línea Temporal de Consumo Estacional (Despacho Mensual)</h3>
+                <!-- NUEVO PANEL: Top 5 SKUs Más Consumidos (Pareto) y Tendencia Estacional -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px; margin-top: 24px;">
+                    <div class="card" style="min-width: 0; overflow: hidden;">
+                        <div class="section-title">
+                            <span class="sec-num">03</span>
+                            <h3>Top 5 Artículos EPP Más Consumidos</h3>
+                        </div>
+                        <div id="analytics-top-skus-container" style="min-height: 280px; display: flex; flex-direction: column; justify-content: center;">
+                            <!-- Dinámico -->
+                        </div>
                     </div>
-                    <div id="analytics-seasonality-chart-container" style="height: 280px; display: flex; align-items: center; justify-content: center; overflow: visible;">
-                        <!-- SVG Dinámico -->
+                    <div class="card" style="min-width: 0; overflow: hidden;">
+                        <div class="section-title">
+                            <span class="sec-num">04</span>
+                            <h3>Línea Temporal de Consumo Estacional (Despacho Mensual)</h3>
+                        </div>
+                        <div id="analytics-seasonality-chart-container" style="height: 280px; width: 100%; display: flex; align-items: center; justify-content: center; overflow: hidden;">
+                            <!-- SVG Dinámico -->
+                        </div>
                     </div>
                 </div>
 
@@ -713,19 +730,19 @@
                     <!-- Trabajadores con Desviación Acelerada -->
                     <div class="card">
                         <div class="section-title">
-                            <span class="sec-num">04</span>
+                            <span class="sec-num">05</span>
                             <h3>Colaboradores Observados (Cambios Prematuros)</h3>
                         </div>
                         <p style="font-size:0.8rem; color:var(--text-secondary); margin-bottom: 12px;">Haga clic en un colaborador para auditar su ficha completa.</p>
                         <div class="table-container">
-                            <table>
+                            <table id="analytics-deviations-table">
                                 <thead>
                                     <tr>
-                                        <th>Colaborador</th>
-                                        <th>Artículo EPP</th>
-                                        <th style="text-align: center;">Entregas</th>
-                                        <th>Frecuencia Promedio</th>
-                                        <th>Estado</th>
+                                        <th class="sortable active" data-sort="trabajador" onclick="handleAnalyticsDeviationsSort('trabajador')">Colaborador <i class="fa-solid fa-sort-up sort-icon"></i></th>
+                                        <th class="sortable" data-sort="eppName" onclick="handleAnalyticsDeviationsSort('eppName')">Artículo EPP <i class="fa-solid fa-sort sort-icon"></i></th>
+                                        <th class="sortable" data-sort="entregasCount" onclick="handleAnalyticsDeviationsSort('entregasCount')" style="text-align: center;">Entregas <i class="fa-solid fa-sort sort-icon"></i></th>
+                                        <th class="sortable" data-sort="avgDays" onclick="handleAnalyticsDeviationsSort('avgDays')">Frecuencia Promedio <i class="fa-solid fa-sort sort-icon"></i></th>
+                                        <th class="sortable" data-sort="lifespanDays" onclick="handleAnalyticsDeviationsSort('lifespanDays')">Estado <i class="fa-solid fa-sort sort-icon"></i></th>
                                     </tr>
                                 </thead>
                                 <tbody id="analytics-deviations-tbody">
@@ -733,23 +750,24 @@
                                 </tbody>
                             </table>
                         </div>
+                        <div id="analytics-deviations-pagination" class="pagination-container"></div>
                     </div>
 
                     <!-- NUEVO PANEL: Runway de Autonomía de Abastecimiento -->
                     <div class="card">
                         <div class="section-title">
-                            <span class="sec-num">05</span>
+                            <span class="sec-num">06</span>
                             <h3>Runway de Autonomía de Bodega</h3>
                         </div>
                         <p style="font-size:0.8rem; color:var(--text-secondary); margin-bottom: 12px;">Días estimados de stock según ritmo de consumo operacional.</p>
                         <div class="table-container">
-                            <table>
+                            <table id="analytics-runway-table">
                                 <thead>
                                     <tr>
-                                        <th>Artículo SKU</th>
-                                        <th style="text-align: center;">Stock</th>
-                                        <th>Autonomía</th>
-                                        <th>Riesgo</th>
+                                        <th class="sortable" data-sort="nombre" onclick="handleAnalyticsRunwaySort('nombre')">Artículo SKU <i class="fa-solid fa-sort sort-icon"></i></th>
+                                        <th class="sortable" data-sort="stock" onclick="handleAnalyticsRunwaySort('stock')" style="text-align: center;">Stock <i class="fa-solid fa-sort sort-icon"></i></th>
+                                        <th class="sortable active" data-sort="runwayDays" onclick="handleAnalyticsRunwaySort('runwayDays')">Autonomía <i class="fa-solid fa-sort-up sort-icon"></i></th>
+                                        <th class="sortable" data-sort="riskText" onclick="handleAnalyticsRunwaySort('riskText')">Riesgo <i class="fa-solid fa-sort sort-icon"></i></th>
                                     </tr>
                                 </thead>
                                 <tbody id="analytics-runway-tbody">
@@ -757,6 +775,7 @@
                                 </tbody>
                             </table>
                         </div>
+                        <div id="analytics-runway-pagination" class="pagination-container"></div>
                     </div>
                 </div>
             </div>
@@ -885,11 +904,11 @@
                             <table id="table-loans">
                                 <thead>
                                     <tr>
-                                        <th>Colaborador</th>
-                                        <th>Área/Turno</th>
-                                        <th>Equipo Entregado</th>
-                                        <th>Salida</th>
-                                        <th>Antigüedad</th>
+                                        <th class="sortable active" data-sort="trabajador" onclick="handleLoansSort('trabajador')">Colaborador <i class="fa-solid fa-sort-up sort-icon"></i></th>
+                                        <th class="sortable" data-sort="area" onclick="handleLoansSort('area')">Área/Turno <i class="fa-solid fa-sort sort-icon"></i></th>
+                                        <th class="sortable" data-sort="equipo" onclick="handleLoansSort('equipo')">Equipo Entregado <i class="fa-solid fa-sort sort-icon"></i></th>
+                                        <th class="sortable" data-sort="fechaSalida" onclick="handleLoansSort('fechaSalida')">Salida <i class="fa-solid fa-sort sort-icon"></i></th>
+                                        <th class="sortable" data-sort="diasTranscurridos" onclick="handleLoansSort('diasTranscurridos')">Antigüedad <i class="fa-solid fa-sort sort-icon"></i></th>
                                         <th style="text-align: center; width: 120px;">Retorno</th>
                                     </tr>
                                 </thead>
@@ -898,6 +917,7 @@
                                 </tbody>
                             </table>
                         </div>
+                        <div id="loans-pagination" class="pagination-container"></div>
                     </div>
                 </div>
             </div>
@@ -956,12 +976,12 @@
                         <table id="table-replenishments">
                             <thead>
                                 <tr>
-                                    <th>Código</th>
-                                    <th>Fecha</th>
-                                    <th>Artículo EPP (SKU)</th>
-                                    <th style="text-align: center;">Cantidad Solicitada</th>
-                                    <th style="text-align: center;">Cantidad Recibida</th>
-                                    <th>Estado</th>
+                                    <th class="sortable active" data-sort="codigo" onclick="handleReplenishmentsSort('codigo')">Código <i class="fa-solid fa-sort-up sort-icon"></i></th>
+                                    <th class="sortable" data-sort="fecha" onclick="handleReplenishmentsSort('fecha')">Fecha <i class="fa-solid fa-sort sort-icon"></i></th>
+                                    <th class="sortable" data-sort="eppNombre" onclick="handleReplenishmentsSort('eppNombre')">Artículo EPP (SKU) <i class="fa-solid fa-sort sort-icon"></i></th>
+                                    <th class="sortable" data-sort="cantidadSolicitada" onclick="handleReplenishmentsSort('cantidadSolicitada')" style="text-align: center;">Cantidad Solicitada <i class="fa-solid fa-sort sort-icon"></i></th>
+                                    <th class="sortable" data-sort="cantidadRecibida" onclick="handleReplenishmentsSort('cantidadRecibida')" style="text-align: center;">Cantidad Recibida <i class="fa-solid fa-sort sort-icon"></i></th>
+                                    <th class="sortable" data-sort="estado" onclick="handleReplenishmentsSort('estado')">Estado <i class="fa-solid fa-sort sort-icon"></i></th>
                                     <th>Notas / Comentarios</th>
                                     <th>Acción</th>
                                 </tr>
@@ -974,6 +994,7 @@
                             </tbody>
                         </table>
                     </div>
+                    <div id="replenishments-pagination" class="pagination-container"></div>
                 </div>
             </div>
 
