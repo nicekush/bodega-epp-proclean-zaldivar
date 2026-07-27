@@ -152,7 +152,99 @@ export function handleSuppliesSort(field) {
 }
 window.handleSuppliesSort = handleSuppliesSort;
 
+let smartSupplySearchInitialized = false;
+
+export function setupSmartSupplySearch() {
+    const container = document.getElementById("supplies-search-container");
+    if (!container || smartSupplySearchInitialized) return;
+
+    const searchInput = document.getElementById("supplies-search");
+    const dropdown = document.getElementById("supplies-search-dropdown");
+    const clearBtn = document.getElementById("supplies-clear-icon");
+
+    if (!searchInput || !dropdown) return;
+
+    smartSupplySearchInitialized = true;
+
+    function renderDropdown(filterText = "") {
+        const query = filterText.toLowerCase().trim();
+        if (!query) {
+            dropdown.innerHTML = "";
+            dropdown.classList.remove("active");
+            return;
+        }
+
+        const matches = dbInsumos.filter(ins => {
+            const code = (ins.codigo || "").toLowerCase();
+            const worker = (ins.trabajador || "").toLowerCase();
+            const rut = (ins.rut || "").toLowerCase();
+            const motivo = (ins.mejora || "").toLowerCase();
+            const area = (ins.proveedor || "").toLowerCase();
+            return code.includes(query) || worker.includes(query) || rut.includes(query) || motivo.includes(query) || area.includes(query);
+        }).slice(0, 8);
+
+        if (matches.length === 0) {
+            dropdown.innerHTML = `<div style="padding: 12px; text-align: center; color: var(--text-muted); font-size: 0.85rem;">No hay requerimientos coincidentes.</div>`;
+        } else {
+            dropdown.innerHTML = matches.map(ins => `
+                <div class="epp-search-option" data-code="${ins.codigo}">
+                    <div class="epp-search-option-info">
+                        <span class="epp-search-option-code">${ins.codigo || 'S/C'}</span>
+                        <span class="epp-search-option-title">${ins.trabajador || 'N/A'} - ${ins.mejora || ''}</span>
+                        <span class="epp-search-option-category"><i class="fa-solid fa-briefcase"></i> RUT: ${ins.rut || 'N/A'} (${ins.proveedor || 'S/A'})</span>
+                    </div>
+                    <span class="epp-search-option-stock stock-badge-ok">${ins.estado || 'Pendiente'}</span>
+                </div>
+            `).join("");
+
+            dropdown.querySelectorAll(".epp-search-option").forEach(opt => {
+                opt.addEventListener("click", (e) => {
+                    e.stopPropagation();
+                    searchInput.value = opt.dataset.code;
+                    if (clearBtn) clearBtn.style.display = "block";
+                    dropdown.classList.remove("active");
+                    filterSuppliesTable();
+                });
+            });
+        }
+
+        dropdown.classList.add("active");
+    }
+
+    searchInput.addEventListener("input", (e) => {
+        const val = e.target.value;
+        if (clearBtn) clearBtn.style.display = val ? "block" : "none";
+        renderDropdown(val);
+        filterSuppliesTable();
+    });
+
+    searchInput.addEventListener("focus", () => {
+        if (searchInput.value.trim().length > 0) {
+            renderDropdown(searchInput.value);
+        }
+    });
+
+    if (clearBtn) {
+        clearBtn.addEventListener("click", () => {
+            searchInput.value = "";
+            clearBtn.style.display = "none";
+            dropdown.innerHTML = "";
+            dropdown.classList.remove("active");
+            filterSuppliesTable();
+            searchInput.focus();
+        });
+    }
+
+    document.addEventListener("click", (e) => {
+        if (!container.contains(e.target)) {
+            dropdown.classList.remove("active");
+        }
+    });
+}
+window.setupSmartSupplySearch = setupSmartSupplySearch;
+
 export function renderSuppliesTable() {
+    setupSmartSupplySearch();
     updateSuppliesDashboardStats();
 
     const tbody = document.getElementById("supplies-tbody");

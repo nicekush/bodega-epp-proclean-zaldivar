@@ -443,7 +443,98 @@ export function handleReplenishmentsSort(field) {
 }
 window.handleReplenishmentsSort = handleReplenishmentsSort;
 
+let smartReplenishSearchInitialized = false;
+
+export function setupSmartReplenishSearch() {
+    const container = document.getElementById("replenish-search-container");
+    if (!container || smartReplenishSearchInitialized) return;
+
+    const searchInput = document.getElementById("replenish-search");
+    const dropdown = document.getElementById("replenish-search-dropdown");
+    const clearBtn = document.getElementById("replenish-clear-icon");
+
+    if (!searchInput || !dropdown) return;
+
+    smartReplenishSearchInitialized = true;
+
+    function renderDropdown(filterText = "") {
+        const query = filterText.toLowerCase().trim();
+        if (!query) {
+            dropdown.innerHTML = "";
+            dropdown.classList.remove("active");
+            return;
+        }
+
+        const matches = dbSolicitudesAbastecimiento.filter(req => {
+            const code = (req.codigo || "").toLowerCase();
+            const sku = (req.sku || "").toLowerCase();
+            const name = (req.nombre_epp || "").toLowerCase();
+            const comments = (req.comentarios || "").toLowerCase();
+            return code.includes(query) || sku.includes(query) || name.includes(query) || comments.includes(query);
+        }).slice(0, 8);
+
+        if (matches.length === 0) {
+            dropdown.innerHTML = `<div style="padding: 12px; text-align: center; color: var(--text-muted); font-size: 0.85rem;">No hay órdenes coincidentes.</div>`;
+        } else {
+            dropdown.innerHTML = matches.map(req => `
+                <div class="epp-search-option" data-code="${req.codigo}">
+                    <div class="epp-search-option-info">
+                        <span class="epp-search-option-code">${req.codigo || 'S/C'}</span>
+                        <span class="epp-search-option-title">${req.nombre_epp || 'Orden de Compras'}</span>
+                        <span class="epp-search-option-category"><i class="fa-solid fa-box"></i> Solicitado: ${req.cantidad_solicitada || 0} u.</span>
+                    </div>
+                    <span class="epp-search-option-stock stock-badge-ok">${req.estado || 'Solicitado'}</span>
+                </div>
+            `).join("");
+
+            dropdown.querySelectorAll(".epp-search-option").forEach(opt => {
+                opt.addEventListener("click", (e) => {
+                    e.stopPropagation();
+                    searchInput.value = opt.dataset.code;
+                    if (clearBtn) clearBtn.style.display = "block";
+                    dropdown.classList.remove("active");
+                    filterReplenishmentsTable();
+                });
+            });
+        }
+
+        dropdown.classList.add("active");
+    }
+
+    searchInput.addEventListener("input", (e) => {
+        const val = e.target.value;
+        if (clearBtn) clearBtn.style.display = val ? "block" : "none";
+        renderDropdown(val);
+        filterReplenishmentsTable();
+    });
+
+    searchInput.addEventListener("focus", () => {
+        if (searchInput.value.trim().length > 0) {
+            renderDropdown(searchInput.value);
+        }
+    });
+
+    if (clearBtn) {
+        clearBtn.addEventListener("click", () => {
+            searchInput.value = "";
+            clearBtn.style.display = "none";
+            dropdown.innerHTML = "";
+            dropdown.classList.remove("active");
+            filterReplenishmentsTable();
+            searchInput.focus();
+        });
+    }
+
+    document.addEventListener("click", (e) => {
+        if (!container.contains(e.target)) {
+            dropdown.classList.remove("active");
+        }
+    });
+}
+window.setupSmartReplenishSearch = setupSmartReplenishSearch;
+
 export function renderReplenishmentsTable() {
+    setupSmartReplenishSearch();
     const tbody = document.getElementById("replenishments-tbody");
     if (!tbody) return;
 

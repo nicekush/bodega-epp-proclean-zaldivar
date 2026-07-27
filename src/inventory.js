@@ -118,7 +118,116 @@ function applyInventoryFilters() {
     });
 }
 
+let smartInventorySearchInitialized = false;
+
+export function setupSmartInventorySearch() {
+    const container = document.getElementById("inventory-search-container");
+    if (!container || smartInventorySearchInitialized) return;
+
+    const searchInput = document.getElementById("inventory-search");
+    const dropdown = document.getElementById("inventory-search-dropdown");
+    const clearBtn = document.getElementById("inventory-clear-icon");
+
+    if (!searchInput || !dropdown) return;
+
+    smartInventorySearchInitialized = true;
+
+    function renderDropdown(filterText = "") {
+        const query = removeAccents(filterText.toLowerCase().trim());
+        const searchWords = query.split(/\s+/).filter(w => w.length > 0);
+
+        if (searchWords.length === 0) {
+            dropdown.innerHTML = "";
+            dropdown.classList.remove("active");
+            return;
+        }
+
+        const matches = dbInventario.filter(item => {
+            const code = removeAccents((item.codigo || "").toLowerCase());
+            const name = removeAccents((item.nombre || "").toLowerCase());
+            const cat = removeAccents((item.categoria || "").toLowerCase());
+            return searchWords.every(w => code.includes(w) || name.includes(w) || cat.includes(w));
+        }).slice(0, 8);
+
+        if (matches.length === 0) {
+            dropdown.innerHTML = `<div style="padding: 12px; text-align: center; color: var(--text-muted); font-size: 0.85rem;">No se encontraron EPPs coincidentes.</div>`;
+        } else {
+            dropdown.innerHTML = matches.map(item => {
+                const isZero = item.stock <= 0;
+                const isLow = item.stock <= item.stock_minimo;
+                let badgeClass = "stock-badge-ok";
+                let badgeText = `Stock: ${item.stock} ${item.unidad}`;
+
+                if (isZero) {
+                    badgeClass = "stock-badge-zero";
+                    badgeText = "Sin Stock";
+                } else if (isLow) {
+                    badgeClass = "stock-badge-warning";
+                    badgeText = `Crítico: ${item.stock}`;
+                }
+
+                return `
+                    <div class="epp-search-option" data-id="${item.id}" data-code="${item.codigo}" data-name="${item.nombre}">
+                        <div class="epp-search-option-info">
+                            <span class="epp-search-option-code">${item.codigo || 'S/C'}</span>
+                            <span class="epp-search-option-title">${item.nombre}</span>
+                            <span class="epp-search-option-category"><i class="fa-solid fa-tag"></i> ${item.categoria || 'Sin categoría'}</span>
+                        </div>
+                        <span class="epp-search-option-stock ${badgeClass}">${badgeText}</span>
+                    </div>
+                `;
+            }).join("");
+
+            dropdown.querySelectorAll(".epp-search-option").forEach(opt => {
+                opt.addEventListener("click", (e) => {
+                    e.stopPropagation();
+                    const code = opt.dataset.code;
+                    const name = opt.dataset.name;
+                    searchInput.value = code ? `${code} - ${name}` : name;
+                    if (clearBtn) clearBtn.style.display = "block";
+                    dropdown.classList.remove("active");
+                    filterInventoryTable();
+                });
+            });
+        }
+
+        dropdown.classList.add("active");
+    }
+
+    searchInput.addEventListener("input", (e) => {
+        const val = e.target.value;
+        if (clearBtn) clearBtn.style.display = val ? "block" : "none";
+        renderDropdown(val);
+        filterInventoryTable();
+    });
+
+    searchInput.addEventListener("focus", () => {
+        if (searchInput.value.trim().length > 0) {
+            renderDropdown(searchInput.value);
+        }
+    });
+
+    if (clearBtn) {
+        clearBtn.addEventListener("click", () => {
+            searchInput.value = "";
+            clearBtn.style.display = "none";
+            dropdown.innerHTML = "";
+            dropdown.classList.remove("active");
+            filterInventoryTable();
+            searchInput.focus();
+        });
+    }
+
+    document.addEventListener("click", (e) => {
+        if (!container.contains(e.target)) {
+            dropdown.classList.remove("active");
+        }
+    });
+}
+window.setupSmartInventorySearch = setupSmartInventorySearch;
+
 export function renderInventoryTable() {
+    setupSmartInventorySearch();
     applyInventoryFilters();
     
     const tbody = document.getElementById("inventory-tbody");
@@ -157,15 +266,9 @@ export function renderInventoryTable() {
         }
 
         const canEditEPP = currentUser && (currentUser.rol === "Administrador" || currentUser.rol === "Supervisor");
-        const replenishmentBtn = (item.stock <= item.stock_minimo)
-            ? `<button class="btn btn-warning btn-sm request-replenish-btn" data-id="${item.id}" title="Solicitar Compra">
-                <i class="fa-solid fa-cart-plus"></i>
-               </button>`
-            : "";
 
         const actionBtn = canEditEPP 
             ? `<div style="display: flex; gap: 8px; align-items: center;">
-                ${replenishmentBtn}
                 <button class="btn btn-secondary btn-sm edit-stock-btn" data-id="${item.id}" title="Ajuste Rápido de Stock">
                     <i class="fa-solid fa-pen-to-square"></i> Stock
                 </button>
@@ -174,7 +277,6 @@ export function renderInventoryTable() {
                 </button>
                </div>`
             : `<div style="display: flex; gap: 8px; align-items: center;">
-                ${replenishmentBtn}
                 <button class="btn btn-secondary btn-sm edit-stock-btn" data-id="${item.id}" title="Ajuste Rápido de Stock">
                     <i class="fa-solid fa-pen-to-square"></i> Stock
                 </button>
@@ -201,14 +303,6 @@ export function renderInventoryTable() {
             <td>${actionBtn}</td>
         `;
         tbody.appendChild(tr);
-    });
-
-    tbody.querySelectorAll(".request-replenish-btn").forEach(button => {
-        button.addEventListener("click", () => {
-            if (window.openNewReplenishmentModal) {
-                window.openNewReplenishmentModal(button.dataset.id);
-            }
-        });
     });
 
     tbody.querySelectorAll(".edit-stock-btn").forEach(button => {

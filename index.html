@@ -140,9 +140,13 @@
                     </div>
                     
                     <div class="filters-bar" style="margin-bottom: 20px;">
-                        <div class="search-input-wrapper">
-                            <i class="fa-solid fa-magnifying-glass"></i>
-                            <input type="text" id="inventory-search" placeholder="Buscar por código o nombre de EPP..." oninput="filterInventoryTable()">
+                        <div class="epp-search-container" id="inventory-search-container" style="flex: 1; max-width: 380px;">
+                            <div class="epp-search-input-wrapper">
+                                <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                                <input type="text" id="inventory-search" class="epp-search-input" placeholder="Buscar por código, nombre o categoría..." autocomplete="off">
+                                <i class="fa-solid fa-xmark clear-icon" id="inventory-clear-icon"></i>
+                            </div>
+                            <div class="epp-search-dropdown" id="inventory-search-dropdown"></div>
                         </div>
                         <select id="inventory-filter-category" class="filter-select" onchange="filterInventoryTable()">
                             <option value="">Todas las Categorías</option>
@@ -484,9 +488,13 @@
                     </div>
 
                     <div class="filters-bar" style="margin-bottom: 20px;">
-                        <div class="search-input-wrapper">
-                            <i class="fa-solid fa-magnifying-glass"></i>
-                            <input type="text" id="supplies-search" placeholder="Buscar por código, trabajador, RUT o motivo..." oninput="filterSuppliesTable()">
+                        <div class="epp-search-container" id="supplies-search-container" style="flex: 1; max-width: 420px;">
+                            <div class="epp-search-input-wrapper">
+                                <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                                <input type="text" id="supplies-search" class="epp-search-input" placeholder="Buscar por código, trabajador, RUT o motivo..." autocomplete="off">
+                                <i class="fa-solid fa-xmark clear-icon" id="supplies-clear-icon"></i>
+                            </div>
+                            <div class="epp-search-dropdown" id="supplies-search-dropdown"></div>
                         </div>
                         <select id="supplies-filter-status" class="filter-select" onchange="filterSuppliesTable()">
                             <option value="">Todos los Estados</option>
@@ -533,12 +541,16 @@
                         <span class="sec-num">01</span>
                         <h3>Buscador de Colaborador por RUT</h3>
                     </div>
-                    <form onsubmit="event.preventDefault(); window.searchWorkerProfile();" class="filters-bar" style="margin-bottom: 20px; display:flex; max-width:600px; width:100%;">
-                        <div class="search-input-wrapper" style="flex: 1;">
-                            <i class="fa-solid fa-id-card"></i>
-                            <input type="text" id="worker-search-rut" placeholder="Ingrese el RUT del trabajador..." oninput="this.value = window.formatRut ? window.formatRut(this.value) : this.value">
+                    <form onsubmit="event.preventDefault(); window.searchWorkerProfile();" class="filters-bar" style="margin-bottom: 20px; display:flex; max-width:650px; width:100%; gap:8px;">
+                        <div class="epp-search-container" id="worker-search-container" style="flex: 1;">
+                            <div class="epp-search-input-wrapper">
+                                <i class="fa-solid fa-id-card search-icon"></i>
+                                <input type="text" id="worker-search-rut" class="epp-search-input" placeholder="Ingrese el RUT o nombre del trabajador..." autocomplete="off">
+                                <i class="fa-solid fa-xmark clear-icon" id="worker-clear-icon"></i>
+                            </div>
+                            <div class="epp-search-dropdown" id="worker-search-dropdown"></div>
                         </div>
-                        <button type="submit" class="btn btn-primary" style="margin-left: 8px; height: 46px;">
+                        <button type="submit" class="btn btn-primary" style="height: 46px;">
                             <i class="fa-solid fa-magnifying-glass"></i> Buscar
                         </button>
                     </form>
@@ -1037,9 +1049,13 @@
                     </div>
 
                     <div class="filters-bar" style="margin-bottom: 20px;">
-                        <div class="search-input-wrapper">
-                            <i class="fa-solid fa-magnifying-glass"></i>
-                            <input type="text" id="replenish-search" placeholder="Buscar por código, SKU o artículo..." oninput="window.filterReplenishmentsTable()">
+                        <div class="epp-search-container" id="replenish-search-container" style="flex: 1; max-width: 420px;">
+                            <div class="epp-search-input-wrapper">
+                                <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                                <input type="text" id="replenish-search" class="epp-search-input" placeholder="Buscar por código, SKU o artículo..." autocomplete="off">
+                                <i class="fa-solid fa-xmark clear-icon" id="replenish-clear-icon"></i>
+                            </div>
+                            <div class="epp-search-dropdown" id="replenish-search-dropdown"></div>
                         </div>
                         <select id="replenish-filter-status" class="filter-select" onchange="window.filterReplenishmentsTable()">
                             <option value="">Todos los Estados</option>

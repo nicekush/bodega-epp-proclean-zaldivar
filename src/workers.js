@@ -6,7 +6,113 @@ import { dbSalidas, dbInventario, dbAreas, dbTurnos, dbUpdateWorkerProfile } fro
 import { formatRut, currentUser } from './auth.js';
 import { showToast } from './utils.js';
 
+let smartWorkerSearchInitialized = false;
+
+export function setupSmartWorkerSearch() {
+    const container = document.getElementById("worker-search-container");
+    if (!container || smartWorkerSearchInitialized) return;
+
+    const searchInput = document.getElementById("worker-search-rut");
+    const dropdown = document.getElementById("worker-search-dropdown");
+    const clearBtn = document.getElementById("worker-clear-icon");
+
+    if (!searchInput || !dropdown) return;
+
+    smartWorkerSearchInitialized = true;
+
+    function renderDropdown(filterText = "") {
+        const query = filterText.toLowerCase().trim();
+        if (!query) {
+            dropdown.innerHTML = "";
+            dropdown.classList.remove("active");
+            return;
+        }
+
+        const workersMap = {};
+        dbSalidas.forEach(s => {
+            if (s.rut && !workersMap[s.rut]) {
+                workersMap[s.rut] = {
+                    rut: s.rut,
+                    nombre: s.trabajador || "Nombre no registrado",
+                    area: s.area || "Sin Área",
+                    turno: s.turno || "Turno A"
+                };
+            }
+        });
+
+        const workers = Object.values(workersMap);
+        const matches = workers.filter(w => {
+            const r = (w.rut || "").toLowerCase();
+            const n = (w.nombre || "").toLowerCase();
+            return r.includes(query) || n.includes(query);
+        }).slice(0, 8);
+
+        if (matches.length === 0) {
+            dropdown.innerHTML = `<div style="padding: 12px; text-align: center; color: var(--text-muted); font-size: 0.85rem;">No se encontraron colaboradores registrados.</div>`;
+        } else {
+            dropdown.innerHTML = matches.map(w => `
+                <div class="epp-search-option" data-rut="${w.rut}">
+                    <div class="epp-search-option-info">
+                        <span class="epp-search-option-code">RUT: ${w.rut}</span>
+                        <span class="epp-search-option-title">${w.nombre}</span>
+                        <span class="epp-search-option-category"><i class="fa-solid fa-briefcase"></i> ${w.area} (${w.turno})</span>
+                    </div>
+                </div>
+            `).join("");
+
+            dropdown.querySelectorAll(".epp-search-option").forEach(opt => {
+                opt.addEventListener("click", (e) => {
+                    e.stopPropagation();
+                    const rut = opt.dataset.rut;
+                    searchInput.value = rut;
+                    if (clearBtn) clearBtn.style.display = "block";
+                    dropdown.classList.remove("active");
+                    searchWorkerProfile();
+                });
+            });
+        }
+
+        dropdown.classList.add("active");
+    }
+
+    searchInput.addEventListener("input", (e) => {
+        let val = e.target.value;
+        if (formatRut) {
+            val = formatRut(val);
+            e.target.value = val;
+        }
+        if (clearBtn) clearBtn.style.display = val ? "block" : "none";
+        renderDropdown(val);
+    });
+
+    searchInput.addEventListener("focus", () => {
+        if (searchInput.value.trim().length > 0) {
+            renderDropdown(searchInput.value);
+        }
+    });
+
+    if (clearBtn) {
+        clearBtn.addEventListener("click", () => {
+            searchInput.value = "";
+            clearBtn.style.display = "none";
+            dropdown.innerHTML = "";
+            dropdown.classList.remove("active");
+            const profileContainer = document.getElementById("worker-profile-container");
+            if (profileContainer) profileContainer.style.display = "none";
+            searchInput.focus();
+        });
+    }
+
+    document.addEventListener("click", (e) => {
+        if (!container.contains(e.target)) {
+            dropdown.classList.remove("active");
+        }
+    });
+}
+window.setupSmartWorkerSearch = setupSmartWorkerSearch;
+
 export function searchWorkerProfile() {
+    setupSmartWorkerSearch();
     const rutInput = document.getElementById("worker-search-rut");
     if (!rutInput) return;
     const rut = rutInput.value.trim();
