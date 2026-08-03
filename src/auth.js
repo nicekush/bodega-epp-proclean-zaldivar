@@ -45,6 +45,23 @@ export function initAuth() {
     }
 }
 
+// Limpiar caracteres no numéricos ni 'K' del RUT (normalización pura)
+export function cleanRut(rut) {
+    if (!rut) return "";
+    return String(rut).replace(/[^0-9kK]/g, '').toUpperCase();
+}
+window.cleanRut = cleanRut;
+
+// Comparar dos RUTs ignorando formato de puntos, guiones y mayúsculas/minúsculas
+export function matchesRut(rutA, rutB) {
+    if (!rutA || !rutB) return false;
+    const cleanA = cleanRut(rutA);
+    const cleanB = cleanRut(rutB);
+    if (!cleanA || !cleanB) return false;
+    return cleanA.includes(cleanB) || cleanB.includes(cleanA);
+}
+window.matchesRut = matchesRut;
+
 // Formatear RUT Chileno dinámicamente (ej: 12.345.678-9 o 12345678-9)
 export function formatRut(rut) {
     // Limpiar caracteres no permitidos

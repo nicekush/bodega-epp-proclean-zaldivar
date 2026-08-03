@@ -5,6 +5,7 @@
 import { dbIngresos, dbSalidas, dbInsumoMovimientos, dbInventario, dbAjustesStock } from './db.js';
 import { showToast, debounce } from './utils.js';
 import { showVoucherDetailsById } from './outflow.js';
+import { cleanRut, matchesRut } from './auth.js';
 
 let historyCurrentPage = 1;
 let historyPageSize = 15;
@@ -42,14 +43,141 @@ export function handleHistorySort(field) {
 }
 window.handleHistorySort = handleHistorySort;
 
+let selectedHistoryProductIds = [];
+let smartHistoryMultiSKUInitialized = false;
+
+export function setupHistoryMultiSKUFilter() {
+    const container = document.getElementById("history-sku-multi-container");
+    if (!container || smartHistoryMultiSKUInitialized) return;
+
+    const searchInput = document.getElementById("history-sku-search-input");
+    const dropdown = document.getElementById("history-sku-search-dropdown");
+    const chipsContainer = document.getElementById("history-sku-chips-container");
+    const clearAllBtn = document.getElementById("history-sku-clear-all");
+
+    if (!searchInput || !dropdown || !chipsContainer) return;
+
+    smartHistoryMultiSKUInitialized = true;
+
+    function renderChips() {
+        chipsContainer.innerHTML = selectedHistoryProductIds.map(productId => {
+            const item = dbInventario.find(i => i.id === productId);
+            const code = item ? (item.codigo || 'S/C') : productId;
+            const name = item ? item.nombre : productId;
+            const shortTitle = code ? `${code}` : name.substring(0, 12);
+            const fullTitle = `${code} - ${name}`;
+
+            return `
+                <span class="sku-chip" title="${fullTitle}">
+                    <span class="sku-chip-code">${shortTitle}</span>
+                    <span class="sku-chip-remove" onclick="window.removeHistorySKUChip('${productId}')" title="Quitar SKU">
+                        <i class="fa-solid fa-xmark"></i>
+                    </span>
+                </span>
+            `;
+        }).join("");
+
+        if (clearAllBtn) {
+            clearAllBtn.style.display = selectedHistoryProductIds.length > 0 ? "block" : "none";
+        }
+
+        renderHistoryTable();
+    }
+
+    window.removeHistorySKUChip = function(productId) {
+        selectedHistoryProductIds = selectedHistoryProductIds.filter(id => id !== productId);
+        renderChips();
+    };
+
+    window.clearAllHistorySKUChips = function() {
+        selectedHistoryProductIds = [];
+        if (searchInput) searchInput.value = "";
+        renderChips();
+    };
+
+    if (clearAllBtn) {
+        clearAllBtn.onclick = (e) => {
+            e.stopPropagation();
+            window.clearAllHistorySKUChips();
+        };
+    }
+
+    function renderDropdown(filterText = "") {
+        const query = removeAccents(filterText.toLowerCase().trim());
+        const searchWords = query.split(/\s+/).filter(w => w.length > 0);
+
+        const matches = dbInventario.filter(item => {
+            const code = removeAccents((item.codigo || "").toLowerCase());
+            const name = removeAccents((item.nombre || "").toLowerCase());
+            const cat = removeAccents((item.categoria || "").toLowerCase());
+            return searchWords.every(w => code.includes(w) || name.includes(w) || cat.includes(w));
+        }).slice(0, 10);
+
+        if (matches.length === 0) {
+            dropdown.innerHTML = `<div style="padding: 12px; text-align: center; color: var(--text-muted); font-size: 0.85rem;">No hay SKUs coincidentes.</div>`;
+        } else {
+            dropdown.innerHTML = matches.map(item => {
+                const isSelected = selectedHistoryProductIds.includes(item.id);
+                const badgeHtml = isSelected
+                    ? `<span class="badge badge-success"><i class="fa-solid fa-check"></i> Seleccionado</span>`
+                    : `<span class="badge badge-primary"><i class="fa-solid fa-plus"></i> Agregar</span>`;
+
+                return `
+                    <div class="epp-search-option ${isSelected ? 'selected' : ''}" data-id="${item.id}">
+                        <div class="epp-search-option-info">
+                            <span class="epp-search-option-code">${item.codigo || 'S/C'}</span>
+                            <span class="epp-search-option-title">${item.nombre}</span>
+                            <span class="epp-search-option-category"><i class="fa-solid fa-tag"></i> ${item.categoria || 'Sin Categoría'}</span>
+                        </div>
+                        ${badgeHtml}
+                    </div>
+                `;
+            }).join("");
+
+            dropdown.querySelectorAll(".epp-search-option").forEach(opt => {
+                opt.addEventListener("click", (e) => {
+                    e.stopPropagation();
+                    const id = opt.dataset.id;
+                    if (selectedHistoryProductIds.includes(id)) {
+                        selectedHistoryProductIds = selectedHistoryProductIds.filter(i => i !== id);
+                    } else {
+                        selectedHistoryProductIds.push(id);
+                    }
+                    renderChips();
+                    renderDropdown(searchInput.value);
+                });
+            });
+        }
+
+        dropdown.classList.add("active");
+    }
+
+    const debouncedSearch = debounce((val) => {
+        renderDropdown(val);
+    }, 150);
+
+    searchInput.addEventListener("input", (e) => {
+        debouncedSearch(e.target.value);
+    });
+
+    searchInput.addEventListener("focus", () => {
+        renderDropdown(searchInput.value);
+    });
+
+    document.addEventListener("click", (e) => {
+        if (!container.contains(e.target)) {
+            dropdown.classList.remove("active");
+        }
+    });
+}
+window.setupHistoryMultiSKUFilter = setupHistoryMultiSKUFilter;
+
 function applyHistoryFilters() {
     const searchInput = document.getElementById("history-search");
     const typeSelect = document.getElementById("history-filter-type");
-    const productSelect = document.getElementById("history-filter-product");
  
     const searchQuery = searchInput ? removeAccents(searchInput.value.toLowerCase().trim()) : "";
     const filterType = typeSelect ? typeSelect.value : "";
-    const filterProduct = productSelect ? productSelect.value : "";
  
     const searchWords = searchQuery.split(/\s+/).filter(w => w.length > 0);
  
@@ -58,7 +186,6 @@ function applyHistoryFilters() {
         const detText = removeAccents((mov.detalles || "").toLowerCase());
         const userText = removeAccents((mov.usuario || "").toLowerCase());
         
-        // Build a text of all items code & name
         const itemsText = removeAccents(mov.items.map(it => {
             if (mov.tipo === "insumo_recepcion") {
                 return "insumo " + it.nombre;
@@ -75,29 +202,22 @@ function applyHistoryFilters() {
         }
  
         let matchesProduct = true;
-        if (filterProduct) {
-            matchesProduct = mov.items.some(it => it.eppId === filterProduct);
+        if (selectedHistoryProductIds.length > 0) {
+            matchesProduct = mov.items.some(it => selectedHistoryProductIds.includes(it.eppId));
         }
  
+        const itemRut = mov.original?.rut || mov.rut || "";
+
         const matchesSearch = searchWords.every(word => {
-            return docText.includes(word) || detText.includes(word) || userText.includes(word) || itemsText.includes(word);
+            return docText.includes(word) || detText.includes(word) || userText.includes(word) || itemsText.includes(word) || matchesRut(itemRut, word);
         });
- 
+
         return matchesType && matchesSearch && matchesProduct;
     });
 }
  
-export function populateHistoryProductSelect() {
-    const select = document.getElementById("history-filter-product");
-    if (!select) return;
-    
-    const currentVal = select.value;
-    select.innerHTML = `<option value="">Todos los Productos (SKU)</option>` + 
-        dbInventario.map(p => `<option value="${p.id}" ${p.id === currentVal ? "selected" : ""}>${p.nombre}</option>`).join("");
-}
- 
 export function renderHistoryTable() {
-    populateHistoryProductSelect();
+    setupHistoryMultiSKUFilter();
     
     const tbody = document.getElementById("history-tbody");
     if (!tbody) return;
@@ -337,6 +457,10 @@ export function exportHistoryCSV() {
         const comentarios = (orig.comentarios || orig.motivo_entrega || "").replace(/"/g, '""');
 
         (mov.items || []).forEach(it => {
+            if (selectedHistoryProductIds.length > 0 && it.eppId && !selectedHistoryProductIds.includes(it.eppId)) {
+                return; // Omitir items que no corresponden a los SKUs seleccionados
+            }
+
             let sku = "S/C";
             let nombreEpp = it.nombre || "Artículo Desconocido";
             let categoria = "Sin categoría";
@@ -416,7 +540,12 @@ export function generateCorporatePDFReport() {
         const localDate = new Date(mov.fechaStr || mov.fecha);
         const dateFormatted = isNaN(localDate) ? String(mov.fechaStr) : localDate.toLocaleString('es-CL', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
 
-        const itemsSummary = (mov.items || []).map(it => {
+        const itemsSummary = (mov.items || []).filter(it => {
+            if (selectedHistoryProductIds.length > 0 && it.eppId && !selectedHistoryProductIds.includes(it.eppId)) {
+                return false;
+            }
+            return true;
+        }).map(it => {
             if (mov.tipo === "insumo_recepcion") {
                 return `<strong>${it.cantidad}x</strong> INSUMO: ${it.nombre}`;
             }

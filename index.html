@@ -383,12 +383,12 @@
                         </div>
                         <div style="display: flex; flex-direction: column; gap: 16px;">
                             <p style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5;">
-                                Al registrar la entrega, se descontará el stock de bodega, se guardará la firma digitalizada y se generará el acta correspondiente.
+                                Al registrar la entrega, se descontará el stock de bodega, se actualizará el historial del colaborador y se guardará el acta digitalizada en el sistema.
                             </p>
                             <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 8px;">
                                 <button type="button" class="btn btn-secondary" onclick="resetOutflowForm()">Limpiar</button>
                                 <button type="submit" class="btn btn-primary">
-                                    <i class="fa-solid fa-print"></i> Registrar e Imprimir Acta
+                                    <i class="fa-solid fa-check"></i> Registrar Entrega
                                 </button>
                             </div>
                         </div>
@@ -415,9 +415,17 @@
                             <option value="ingreso">Solo Ingresos (Entradas)</option>
                             <option value="salida">Solo Salidas (Entregas)</option>
                         </select>
-                        <select id="history-filter-product" class="filter-select" onchange="filterHistoryTable()">
-                            <option value="">Todos los Productos (SKU)</option>
-                        </select>
+                        <div class="multi-sku-container" id="history-sku-multi-container">
+                            <div class="multi-sku-input-box" id="history-sku-input-box" onclick="document.getElementById('history-sku-search-input').focus()">
+                                <i class="fa-solid fa-boxes-stacked search-icon"></i>
+                                <div class="sku-chips-container" id="history-sku-chips-container" style="display: flex; flex-wrap: wrap; gap: 4px;"></div>
+                                <input type="text" id="history-sku-search-input" class="multi-sku-input" placeholder="Buscar y agregar SKUs..." autocomplete="off">
+                                <button type="button" class="btn-clear-all-chips" id="history-sku-clear-all" title="Limpiar todos los SKUs seleccionados" style="display: none;">
+                                    <i class="fa-solid fa-xmark"></i>
+                                </button>
+                            </div>
+                            <div class="epp-search-dropdown multi-sku-dropdown" id="history-sku-search-dropdown"></div>
+                        </div>
                         <button class="btn btn-secondary" onclick="exportHistoryCSV()">
                             <i class="fa-solid fa-file-excel text-success"></i> Excel
                         </button>

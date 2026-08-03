@@ -3,7 +3,7 @@
 // ==========================================================================
 
 import { dbSalidas, dbInventario, dbAreas, dbTurnos, dbUpdateWorkerProfile } from './db.js';
-import { formatRut, currentUser } from './auth.js';
+import { formatRut, cleanRut, matchesRut, currentUser } from './auth.js';
 import { showToast } from './utils.js';
 
 let smartWorkerSearchInitialized = false;
@@ -30,21 +30,25 @@ export function setupSmartWorkerSearch() {
 
         const workersMap = {};
         dbSalidas.forEach(s => {
-            if (s.rut && !workersMap[s.rut]) {
-                workersMap[s.rut] = {
-                    rut: s.rut,
-                    nombre: s.trabajador || "Nombre no registrado",
-                    area: s.area || "Sin Área",
-                    turno: s.turno || "Turno A"
-                };
+            if (s.rut) {
+                const cRut = cleanRut(s.rut);
+                if (!workersMap[cRut]) {
+                    workersMap[cRut] = {
+                        rut: s.rut,
+                        cleanRut: cRut,
+                        nombre: s.trabajador || "Nombre no registrado",
+                        area: s.area || "Sin Área",
+                        turno: s.turno || "Turno A"
+                    };
+                }
             }
         });
 
         const workers = Object.values(workersMap);
         const matches = workers.filter(w => {
-            const r = (w.rut || "").toLowerCase();
             const n = (w.nombre || "").toLowerCase();
-            return r.includes(query) || n.includes(query);
+            const q = query.toLowerCase();
+            return matchesRut(w.rut, query) || n.includes(q);
         }).slice(0, 8);
 
         if (matches.length === 0) {
@@ -53,7 +57,7 @@ export function setupSmartWorkerSearch() {
             dropdown.innerHTML = matches.map(w => `
                 <div class="epp-search-option" data-rut="${w.rut}">
                     <div class="epp-search-option-info">
-                        <span class="epp-search-option-code">RUT: ${w.rut}</span>
+                        <span class="epp-search-option-code">RUT: ${formatRut(w.rut)}</span>
                         <span class="epp-search-option-title">${w.nombre}</span>
                         <span class="epp-search-option-category"><i class="fa-solid fa-briefcase"></i> ${w.area} (${w.turno})</span>
                     </div>
@@ -64,7 +68,7 @@ export function setupSmartWorkerSearch() {
                 opt.addEventListener("click", (e) => {
                     e.stopPropagation();
                     const rut = opt.dataset.rut;
-                    searchInput.value = rut;
+                    searchInput.value = formatRut(rut);
                     if (clearBtn) clearBtn.style.display = "block";
                     dropdown.classList.remove("active");
                     searchWorkerProfile();
@@ -99,7 +103,6 @@ export function setupSmartWorkerSearch() {
             dropdown.classList.remove("active");
             const profileContainer = document.getElementById("worker-profile-container");
             if (profileContainer) profileContainer.style.display = "none";
-            searchInput.focus();
         });
     }
 
@@ -115,19 +118,21 @@ export function searchWorkerProfile() {
     setupSmartWorkerSearch();
     const rutInput = document.getElementById("worker-search-rut");
     if (!rutInput) return;
-    const rut = rutInput.value.trim();
+    const rawRut = rutInput.value.trim();
 
-    if (!rut || rut.length < 5) {
+    if (!rawRut || rawRut.length < 5) {
         showToast("Por favor, ingrese un RUT válido para buscar.", "warning");
         return;
     }
 
-    // Filtrar entregas del trabajador
-    const workerDeliveries = dbSalidas.filter(s => s.rut === rut);
+    const targetCleanRut = cleanRut(rawRut);
+
+    // Filtrar entregas del trabajador comparando RUT normalizado (sin puntos ni guion)
+    const workerDeliveries = dbSalidas.filter(s => cleanRut(s.rut) === targetCleanRut || s.rut === rawRut);
     const container = document.getElementById("worker-profile-container");
 
     if (workerDeliveries.length === 0) {
-        showToast(`No se encontraron registros de entregas para el RUT ${rut}.`, "warning");
+        showToast(`No se encontraron registros de entregas para el RUT ${rawRut}.`, "warning");
         if (container) container.style.display = "none";
         return;
     }
@@ -309,7 +314,8 @@ export function openEditWorkerModal() {
         return;
     }
 
-    const workerDeliveries = dbSalidas.filter(s => s.rut === rut);
+    const targetCleanRut = cleanRut(rut);
+    const workerDeliveries = dbSalidas.filter(s => cleanRut(s.rut) === targetCleanRut || s.rut === rut);
     if (workerDeliveries.length === 0) {
         showToast("No se encontraron registros de entregas para este RUT.", "warning");
         return;

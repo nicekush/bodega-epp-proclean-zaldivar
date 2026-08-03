@@ -1918,6 +1918,117 @@ body.dark-mode .epp-search-option {
     background-color: var(--bg-tertiary, #f8fafc);
 }
 
+/* Buscador Inteligente Multi-SKU (Chips / Etiquetas) */
+.multi-sku-container {
+    position: relative;
+    flex: 1;
+    min-width: 280px;
+    z-index: 100;
+}
+
+.multi-sku-input-box {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    min-height: 46px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-color);
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    transition: border-color 0.2s, box-shadow 0.2s;
+    cursor: text;
+}
+
+.multi-sku-input-box:focus-within {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(255, 122, 0, 0.15);
+}
+
+.multi-sku-input-box i.search-icon {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    margin-right: 2px;
+}
+
+.sku-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 8px;
+    background: rgba(255, 122, 0, 0.12);
+    color: var(--color-primary);
+    border: 1px solid rgba(255, 122, 0, 0.3);
+    border-radius: 6px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    line-height: 1.2;
+    white-space: nowrap;
+    animation: fadeIn 0.15s ease-out;
+}
+
+body.dark-mode .sku-chip {
+    background: rgba(255, 122, 0, 0.2);
+    color: #ff9d42;
+    border-color: rgba(255, 122, 0, 0.4);
+}
+
+.sku-chip .sku-chip-code {
+    font-family: var(--font-mono, monospace);
+    letter-spacing: 0.5px;
+}
+
+.sku-chip .sku-chip-remove {
+    cursor: pointer;
+    opacity: 0.65;
+    font-size: 0.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    transition: all 0.15s;
+}
+
+.sku-chip .sku-chip-remove:hover {
+    opacity: 1;
+    background: var(--color-danger, #ef4444);
+    color: #ffffff;
+}
+
+.multi-sku-input {
+    flex: 1;
+    min-width: 120px;
+    border: none !important;
+    background: transparent !important;
+    color: var(--text-primary) !important;
+    font-size: 0.85rem;
+    padding: 2px 0 !important;
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+.btn-clear-all-chips {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 0.85rem;
+    padding: 2px 6px;
+    border-radius: 4px;
+    transition: color 0.15s;
+}
+
+.btn-clear-all-chips:hover {
+    color: var(--color-danger, #ef4444);
+}
+
+.multi-sku-dropdown .epp-search-option.selected {
+    background-color: rgba(255, 122, 0, 0.1);
+}
+
 .epp-search-option-info {
     display: flex;
     flex-direction: column;

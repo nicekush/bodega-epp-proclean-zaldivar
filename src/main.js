@@ -312,16 +312,11 @@ window.saveOutflowAndPrint = (event) => saveOutflowAndPrint(event, (outflow) => 
     renderInventoryTable();
     renderHistoryTable();
     updateDashboardStats();
-    showVoucherDetails(outflow);
     
     // Si hay un requerimiento activo que se estaba despachando, cerrarlo
     if (window.activeDispatchRequirementId && window.resolveRequirementOnDelivery) {
         window.resolveRequirementOnDelivery(window.activeDispatchRequirementId);
     }
-
-    setTimeout(() => {
-        printVoucher();
-    }, 300);
 });
 window.closeVoucherModal = closeVoucherModal;
 window.printVoucher = printVoucher;

@@ -15,7 +15,7 @@ import {
     dbDeleteTurno
 } from './db.js';
 import { showToast } from './utils.js';
-import { currentUser, formatRut, validateRutModulo11 } from './auth.js';
+import { currentUser, formatRut, validateRutModulo11, cleanRut, matchesRut } from './auth.js';
 
 let isDrawing = false;
 let lastX = 0;
@@ -147,8 +147,9 @@ export function autofillWorkerDetails() {
         return;
     }
 
-    // Buscar entregas previas para este RUT
-    const previousSalidas = dbSalidas.filter(s => s.rut === rut);
+    // Buscar entregas previas para este RUT (normalizado)
+    const cleanR = cleanRut(rut);
+    const previousSalidas = dbSalidas.filter(s => cleanRut(s.rut) === cleanR || s.rut === rut);
     if (previousSalidas.length === 0) {
         if (nameInput) nameInput.disabled = false;
         if (areaSelect) areaSelect.disabled = false;
@@ -518,8 +519,9 @@ export async function saveOutflowAndPrint(event, callbackAfterSave) {
     
     for (const item of items) {
         const eppId = item.eppId;
+        const cleanWRut = cleanRut(workerRut);
         const matchingDeliveries = dbSalidas.filter(s => 
-            s.rut === workerRut && s.items.some(it => it.eppId === eppId)
+            (cleanRut(s.rut) === cleanWRut || s.rut === workerRut) && s.items.some(it => it.eppId === eppId)
         );
         if (matchingDeliveries.length > 0) {
             matchingDeliveries.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
@@ -583,7 +585,7 @@ export async function saveOutflowAndPrint(event, callbackAfterSave) {
 
         showToast("Registrando acta en Supabase...", "info");
         const registeredOutflow = await dbInsertOutflow(newOutflow);
-        showToast(`Entrega a ${workerName} registrada con éxito. Abriendo impresión...`, "success");
+        showToast(`Entrega a ${workerName} registrada con éxito.`, "success");
  
         resetOutflowForm();
  
@@ -875,9 +877,10 @@ export function checkEPPConsumptionDeviation(rowId) {
         return;
     }
 
-    // Buscar entregas del colaborador para este EPP específico
+    // Buscar entregas del colaborador para este EPP específico (RUT normalizado)
+    const cleanR = cleanRut(rut);
     const matchingDeliveries = dbSalidas.filter(s => 
-        s.rut === rut && s.items.some(it => it.eppId === eppId)
+        (cleanRut(s.rut) === cleanR || s.rut === rut) && s.items.some(it => it.eppId === eppId)
     );
 
     if (matchingDeliveries.length === 0) {
