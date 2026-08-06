@@ -461,15 +461,16 @@ export function loadReconciliationDraft() {
 }
 
 /**
- * Cancela el proceso actual de conciliación
+ * Cancela el proceso actual de conciliación y restablece los conteos al stock registrado
  */
 export function cancelReconciliation() {
-    const banner = document.getElementById("reconciliation-assistant-banner");
-    const wrapper = document.getElementById("reconciliation-process-wrapper");
-
-    if (banner) banner.style.display = "block";
-    if (wrapper) wrapper.style.display = "none";
-    reconciliationData = [];
+    reconciliationSearchQuery = '';
+    const searchInput = document.getElementById("reconcile-search-input");
+    if (searchInput) searchInput.value = '';
+    
+    setReconcileFilterChip('all');
+    resetReconciliationConteo();
+    showToast("Proceso de conciliación cancelado. Conteos restablecidos.", "info");
 }
 
 /**
