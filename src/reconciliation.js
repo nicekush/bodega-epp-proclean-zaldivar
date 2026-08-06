@@ -24,10 +24,15 @@ let isSigning = false;
 export function initReconciliationView() {
     checkDraftAvailability();
     loadReconciliationHistory();
+
+    // Iniciar automáticamente si no hay datos cargados en sesión
+    if (!reconciliationData || reconciliationData.length === 0) {
+        startReconciliation();
+    }
 }
 
 /**
- * Cambia entre las pestañas "Nueva Bajada" e "Historial de Bajadas"
+ * Cambia entre las pestañas "Conciliación Activa" e "Historial de Bajadas"
  */
 export function toggleReconciliationHistoryTab(tab) {
     const activePanel = document.getElementById("reconciliation-active-panel");
@@ -60,6 +65,9 @@ export function toggleReconciliationHistoryTab(tab) {
             btnHistory.classList.remove("btn-primary");
             btnHistory.classList.add("btn-secondary");
         }
+        if (!reconciliationData || reconciliationData.length === 0) {
+            startReconciliation();
+        }
     }
 }
 
@@ -82,12 +90,8 @@ export function checkDraftAvailability() {
  * Inicia el proceso de bajada de inventario (guiado)
  */
 export function startReconciliation(restoredData = null) {
-    const banner = document.getElementById("reconciliation-assistant-banner");
     const wrapper = document.getElementById("reconciliation-process-wrapper");
-    if (!wrapper) return;
-
-    if (banner) banner.style.display = "none";
-    wrapper.style.display = "block";
+    if (wrapper) wrapper.style.display = "block";
 
     if (restoredData && Array.isArray(restoredData) && restoredData.length > 0) {
         reconciliationData = restoredData;
@@ -111,6 +115,22 @@ export function startReconciliation(restoredData = null) {
     renderReconciliationDashboard();
     renderReconciliationTable();
 }
+
+/**
+ * Reinicia todos los conteos físicos de la conciliación activa
+ */
+export function resetReconciliationConteo() {
+    reconciliationData.forEach(item => {
+        item.physStock = item.stockSys;
+        item.diff = 0;
+        item.reason = 'Sin Observación';
+        item.note = '';
+    });
+    renderReconciliationDashboard();
+    renderReconciliationTable();
+    showToast("Conteos reiniciados al stock del sistema.", "info");
+}
+
 
 /**
  * Renderiza los 3 KPIs superiores del Dashboard
@@ -234,13 +254,14 @@ export function renderReconciliationTable() {
     tbody.innerHTML = dataToRender.map((item, idx) => {
         const diffColor = item.diff < 0 ? "var(--color-danger, #f43f5e)" : (item.diff > 0 ? "var(--emerald, #10b981)" : "inherit");
         const diffDisplay = item.diff > 0 ? `+${item.diff}` : item.diff;
+        const rowStyle = item.diff < 0 ? 'background-color: rgba(244, 63, 94, 0.08);' : (item.diff > 0 ? 'background-color: rgba(16, 185, 129, 0.08);' : '');
 
         const optionsHTML = reasonsList.map(r => 
             `<option value="${r}" ${item.reason === r ? 'selected' : ''}>${r}</option>`
         ).join("");
 
         return `
-            <tr data-epp-id="${item.id}">
+            <tr data-epp-id="${item.id}" style="${rowStyle}">
                 <td><strong>${item.codigo}</strong></td>
                 <td>
                     <div style="font-weight: 600;">${item.nombre}</div>
@@ -263,7 +284,7 @@ export function renderReconciliationTable() {
                     ${diffDisplay}
                 </td>
                 <td>
-                    <select class="form-select reconcile-reason-select" style="font-size: 0.8rem; padding: 4px 8px; height: 32px;" onchange="window.handleReconcileReasonChange('${item.id}', this.value)">
+                    <select class="form-select reconcile-reason-select" style="font-size: 0.8rem; padding: 4px 8px; height: 34px;" onchange="window.handleReconcileReasonChange('${item.id}', this.value)">
                         ${optionsHTML}
                     </select>
                 </td>
@@ -273,7 +294,7 @@ export function renderReconciliationTable() {
                         class="form-input reconcile-notes-input" 
                         placeholder="Nota u observación opcional..." 
                         value="${item.note || ''}" 
-                        style="font-size: 0.8rem; height: 32px;"
+                        style="font-size: 0.8rem; height: 34px; width: 100%;"
                         oninput="window.handleReconcileNoteChange('${item.id}', this.value)"
                     >
                 </td>
@@ -293,7 +314,7 @@ export function calculateDifference(eppId, sysStock, physStockVal) {
     item.physStock = physVal;
     item.diff = physVal - sysStock;
 
-    // Actualizar visualmente la celda sin re-renderizar toda la tabla
+    // Actualizar visualmente la celda y la fila sin re-renderizar toda la tabla
     const tr = document.querySelector(`tr[data-epp-id="${eppId}"]`);
     if (tr) {
         const diffLbl = tr.querySelector(".diff-stock-lbl");
@@ -301,6 +322,7 @@ export function calculateDifference(eppId, sysStock, physStockVal) {
             diffLbl.textContent = item.diff > 0 ? `+${item.diff}` : item.diff;
             diffLbl.style.color = item.diff < 0 ? "var(--color-danger, #f43f5e)" : (item.diff > 0 ? "var(--emerald, #10b981)" : "inherit");
         }
+        tr.style.backgroundColor = item.diff < 0 ? "rgba(244, 63, 94, 0.08)" : (item.diff > 0 ? "rgba(16, 185, 129, 0.08)" : "");
     }
 
     renderReconciliationDashboard();
@@ -837,3 +859,4 @@ window.clearReconcileSignatureCanvas = clearReconcileSignatureCanvas;
 window.confirmSaveReconciliationWithSignature = confirmSaveReconciliationWithSignature;
 window.loadReconciliationHistory = loadReconciliationHistory;
 window.viewReconciliationDetails = viewReconciliationDetails;
+window.resetReconciliationConteo = resetReconciliationConteo;

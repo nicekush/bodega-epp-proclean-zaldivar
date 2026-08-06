@@ -522,7 +522,7 @@
                         </div>
                         <div style="display: flex; gap: 8px;">
                             <button type="button" class="btn btn-primary btn-sm" onclick="window.toggleReconciliationHistoryTab('active')" id="tab-reconcile-active">
-                                <i class="fa-solid fa-calculator"></i> Nueva Bajada
+                                <i class="fa-solid fa-clipboard-list"></i> Conciliación Activa
                             </button>
                             <button type="button" class="btn btn-secondary btn-sm" onclick="window.toggleReconciliationHistoryTab('history')" id="tab-reconcile-history">
                                 <i class="fa-solid fa-clock-rotate-left"></i> Historial de Bajadas
@@ -533,66 +533,44 @@
                         Audite y concilie semanalmente el inventario físico contra el stock registrado en el sistema. Genere actas firmadas, registre mermas y mantenga la trazabilidad de la bodega.
                     </p>
 
-                    <!-- VISTA PRINCIPAL: ASISTENTE DE CONCILIACIÓN EN CURSO -->
+                    <!-- VISTA PRINCIPAL: CONCILIACIÓN ACTIVA -->
                     <div id="reconciliation-active-panel">
-                        <!-- Banner Inicial / Asistente -->
-                        <div id="reconciliation-assistant-banner">
-                            <div style="background-color: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.15); padding: 18px; border-radius: var(--radius-md); margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; gap: 15px; flex-wrap: wrap;">
-                                <div>
-                                    <strong style="color: var(--emerald); display: block; margin-bottom: 4px; font-size: 1rem;">
-                                        <i class="fa-solid fa-calendar-check"></i> Asistente de Conciliación Semanal
-                                    </strong>
-                                    <span style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.4; display: block;">
-                                        Inicie el proceso guiado para comparar el stock real de bodega contra el sistema. Incluye buscador, atajos de teclado, guardado en borrador y firma digital.
-                                    </span>
-                                </div>
-                                <div style="display: flex; gap: 10px;">
-                                    <button type="button" class="btn btn-secondary" id="btn-restore-draft" onclick="window.loadReconciliationDraft()" style="display: none;">
-                                        <i class="fa-solid fa-floppy-disk"></i> Restaurar Borrador
-                                    </button>
-                                    <button type="button" class="btn btn-primary" onclick="window.startReconciliation()">
-                                        <i class="fa-solid fa-play"></i> Iniciar Bajada
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Contenedor del Proceso Activo (Oculto hasta presionar Iniciar) -->
-                        <div id="reconciliation-process-wrapper" style="display: none;">
+                        <!-- Contenedor del Proceso Activo -->
+                        <div id="reconciliation-process-wrapper">
                             <!-- Dashboard de KPIs -->
-                            <div class="dashboard-stats" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); margin-bottom: 20px;">
-                                <div class="stat-card" style="border-left: 4px solid var(--accent-primary, #3b82f6);">
-                                    <div class="stat-header">
-                                        <span class="stat-title">Artículos Auditados</span>
-                                        <i class="fa-solid fa-boxes-stacked text-primary"></i>
+                            <div class="dashboard-stats" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 20px;">
+                                <div class="stat-card" style="border-left: 4px solid var(--accent-primary, #3b82f6); padding: 14px 18px; display: flex; flex-direction: column; justify-content: space-between; height: auto;">
+                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                                        <span style="font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-secondary);">Artículos Auditados</span>
+                                        <i class="fa-solid fa-boxes-stacked text-primary" style="font-size: 1.1rem;"></i>
                                     </div>
-                                    <div class="stat-value" id="kpi-reconcile-auditados">0 / 0</div>
-                                    <div class="stat-footer" id="kpi-reconcile-progress-lbl">0% completado</div>
+                                    <div style="font-size: 1.4rem; font-weight: 800; line-height: 1.2; margin-bottom: 4px;" id="kpi-reconcile-auditados">0 / 0</div>
+                                    <div style="font-size: 0.75rem; color: var(--text-muted);" id="kpi-reconcile-progress-lbl">0% del catálogo procesado</div>
                                 </div>
 
-                                <div class="stat-card" style="border-left: 4px solid var(--emerald, #10b981);">
-                                    <div class="stat-header">
-                                        <span class="stat-title">Neto en Descuadre</span>
-                                        <i class="fa-solid fa-scale-unbalanced text-success"></i>
+                                <div class="stat-card" style="border-left: 4px solid var(--emerald, #10b981); padding: 14px 18px; display: flex; flex-direction: column; justify-content: space-between; height: auto;">
+                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                                        <span style="font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-secondary);">Neto en Descuadre</span>
+                                        <i class="fa-solid fa-scale-unbalanced text-success" style="font-size: 1.1rem;"></i>
                                     </div>
-                                    <div class="stat-value" id="kpi-reconcile-neto">0 u.</div>
-                                    <div class="stat-footer" id="kpi-reconcile-neto-lbl">Sobrantes: 0 | Mermas: 0</div>
+                                    <div style="font-size: 1.4rem; font-weight: 800; line-height: 1.2; margin-bottom: 4px;" id="kpi-reconcile-neto">0 u.</div>
+                                    <div style="font-size: 0.75rem; color: var(--text-muted);" id="kpi-reconcile-neto-lbl">Sobrantes: 0 | Mermas: 0</div>
                                 </div>
 
-                                <div class="stat-card" style="border-left: 4px solid #8b5cf6;">
-                                    <div class="stat-header">
-                                        <span class="stat-title">Adherencia de Stock</span>
-                                        <i class="fa-solid fa-chart-line" style="color: #8b5cf6;"></i>
+                                <div class="stat-card" style="border-left: 4px solid #8b5cf6; padding: 14px 18px; display: flex; flex-direction: column; justify-content: space-between; height: auto;">
+                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                                        <span style="font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-secondary);">Adherencia de Stock</span>
+                                        <i class="fa-solid fa-chart-line" style="font-size: 1.1rem; color: #8b5cf6;"></i>
                                     </div>
-                                    <div class="stat-value" id="kpi-reconcile-adherencia">100%</div>
-                                    <div class="stat-footer" id="kpi-reconcile-adherencia-lbl">Artículos en calce perfecto</div>
+                                    <div style="font-size: 1.4rem; font-weight: 800; line-height: 1.2; margin-bottom: 4px;" id="kpi-reconcile-adherencia">100%</div>
+                                    <div style="font-size: 0.75rem; color: var(--text-muted);" id="kpi-reconcile-adherencia-lbl">Artículos en calce perfecto</div>
                                 </div>
                             </div>
 
                             <!-- Toolbar de Filtros y Acciones -->
-                            <div class="filters-bar" style="margin-bottom: 15px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; justify-content: space-between;">
-                                <div style="display: flex; gap: 10px; flex: 1; min-width: 280px; flex-wrap: wrap;">
-                                    <div class="search-input-wrapper" style="flex: 1; min-width: 180px;">
+                            <div class="filters-bar" style="margin-bottom: 18px; display: flex; gap: 12px; flex-wrap: wrap; align-items: center; justify-content: space-between;">
+                                <div style="display: flex; gap: 10px; flex: 1; min-width: 300px; flex-wrap: wrap; align-items: center;">
+                                    <div class="search-input-wrapper" style="flex: 1; min-width: 200px;">
                                         <i class="fa-solid fa-magnifying-glass"></i>
                                         <input type="text" id="reconcile-search-input" placeholder="Buscar por SKU o nombre..." oninput="window.filterReconciliationTable()">
                                     </div>
@@ -603,15 +581,18 @@
                                     </div>
                                 </div>
 
-                                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                                <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+                                    <button type="button" class="btn btn-secondary btn-sm" id="btn-restore-draft" onclick="window.loadReconciliationDraft()" style="display: none; border-color: var(--amber);">
+                                        <i class="fa-solid fa-clock-rotate-left" style="color: var(--amber);"></i> Borrador
+                                    </button>
                                     <button type="button" class="btn btn-secondary btn-sm" onclick="window.saveReconciliationDraft()">
                                         <i class="fa-solid fa-floppy-disk"></i> Guardar Borrador
                                     </button>
                                     <button type="button" class="btn btn-secondary btn-sm" onclick="window.exportReconciliationCSV()">
                                         <i class="fa-solid fa-file-excel text-success"></i> Exportar Excel
                                     </button>
-                                    <button type="button" class="btn btn-secondary btn-sm" onclick="window.cancelReconciliation()">
-                                        Cancelar
+                                    <button type="button" class="btn btn-secondary btn-sm" onclick="window.resetReconciliationConteo()" title="Reiniciar conteos">
+                                        <i class="fa-solid fa-arrows-rotate"></i> Reset
                                     </button>
                                     <button type="button" class="btn btn-primary btn-sm" onclick="window.openReconciliationSignatureModal()">
                                         <i class="fa-solid fa-signature"></i> Finalizar y Firmar
@@ -620,17 +601,17 @@
                             </div>
 
                             <!-- Tabla de Conteo -->
-                            <div class="table-container" style="max-height: 520px; overflow-y: auto;">
+                            <div class="table-container" style="max-height: 540px; overflow-y: auto;">
                                 <table class="data-table" id="table-reconciliation">
                                     <thead>
                                         <tr>
                                             <th class="sortable" onclick="window.handleReconcileSort('codigo')">Código <i class="fa-solid fa-sort"></i></th>
                                             <th class="sortable" onclick="window.handleReconcileSort('nombre')">Artículo EPP <i class="fa-solid fa-sort"></i></th>
-                                            <th class="sortable" style="text-align: center;" onclick="window.handleReconcileSort('stockSys')">Stock Sistema <i class="fa-solid fa-sort"></i></th>
+                                            <th class="sortable" style="text-align: center; width: 110px;" onclick="window.handleReconcileSort('stockSys')">Stock Sistema <i class="fa-solid fa-sort"></i></th>
                                             <th class="sortable" style="text-align: center; width: 130px;" onclick="window.handleReconcileSort('physStock')">Físico Contado <i class="fa-solid fa-sort"></i></th>
                                             <th class="sortable" style="text-align: center; width: 110px;" onclick="window.handleReconcileSort('diff')">Diferencia <i class="fa-solid fa-sort"></i></th>
                                             <th style="width: 180px;">Causa Descuadre</th>
-                                            <th>Observación / Notas</th>
+                                            <th style="min-width: 200px;">Observación / Notas</th>
                                         </tr>
                                     </thead>
                                     <tbody id="reconciliation-tbody">
