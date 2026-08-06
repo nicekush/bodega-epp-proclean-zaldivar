@@ -105,6 +105,7 @@ import {
  
 import { initLoans, renderLoansTable } from './loans.js';
 import { initSettingsView } from './settings.js';
+import { initReconciliationView } from './reconciliation.js';
  
 import { showToast, setCurrentDates, showConfirmDialog } from './utils.js';
 
@@ -223,9 +224,10 @@ function switchView(viewId, targetParam = null) {
             break;
         case "view-reports":
             viewTitle.textContent = "Historial y Reportes";
-            viewSubtitle.textContent = "Consulte y exporte el historial de transacciones y auditoría de ajustes.";
+            viewSubtitle.textContent = "Consulte y exporte el historial de transacciones, auditoría y conciliación semanal de stock.";
             renderHistoryTable();
             renderStockAuditTable();
+            initReconciliationView();
             break;
         case "view-replenishments":
             viewTitle.textContent = "Solicitudes de Compra y Abastecimiento";

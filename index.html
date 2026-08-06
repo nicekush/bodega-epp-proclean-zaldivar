@@ -512,6 +512,158 @@
                     </div>
                     <div id="stock-audit-pagination" class="pagination-container"></div>
                 </div>
+
+                <!-- SECCIÓN: Martes de Bajada (Conciliación Semanal de Stock) -->
+                <div class="card" id="reconciliation-management-card" style="margin-top: 24px;">
+                    <div class="section-title" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                        <div>
+                            <span class="sec-num">03</span>
+                            <h3>Martes de Bajada (Conciliación Semanal de Stock)</h3>
+                        </div>
+                        <div style="display: flex; gap: 8px;">
+                            <button type="button" class="btn btn-primary btn-sm" onclick="window.toggleReconciliationHistoryTab('active')" id="tab-reconcile-active">
+                                <i class="fa-solid fa-calculator"></i> Nueva Bajada
+                            </button>
+                            <button type="button" class="btn btn-secondary btn-sm" onclick="window.toggleReconciliationHistoryTab('history')" id="tab-reconcile-history">
+                                <i class="fa-solid fa-clock-rotate-left"></i> Historial de Bajadas
+                            </button>
+                        </div>
+                    </div>
+                    <p style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 20px;">
+                        Audite y concilie semanalmente el inventario físico contra el stock registrado en el sistema. Genere actas firmadas, registre mermas y mantenga la trazabilidad de la bodega.
+                    </p>
+
+                    <!-- VISTA PRINCIPAL: ASISTENTE DE CONCILIACIÓN EN CURSO -->
+                    <div id="reconciliation-active-panel">
+                        <!-- Banner Inicial / Asistente -->
+                        <div id="reconciliation-assistant-banner">
+                            <div style="background-color: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.15); padding: 18px; border-radius: var(--radius-md); margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; gap: 15px; flex-wrap: wrap;">
+                                <div>
+                                    <strong style="color: var(--emerald); display: block; margin-bottom: 4px; font-size: 1rem;">
+                                        <i class="fa-solid fa-calendar-check"></i> Asistente de Conciliación Semanal
+                                    </strong>
+                                    <span style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.4; display: block;">
+                                        Inicie el proceso guiado para comparar el stock real de bodega contra el sistema. Incluye buscador, atajos de teclado, guardado en borrador y firma digital.
+                                    </span>
+                                </div>
+                                <div style="display: flex; gap: 10px;">
+                                    <button type="button" class="btn btn-secondary" id="btn-restore-draft" onclick="window.loadReconciliationDraft()" style="display: none;">
+                                        <i class="fa-solid fa-floppy-disk"></i> Restaurar Borrador
+                                    </button>
+                                    <button type="button" class="btn btn-primary" onclick="window.startReconciliation()">
+                                        <i class="fa-solid fa-play"></i> Iniciar Bajada
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Contenedor del Proceso Activo (Oculto hasta presionar Iniciar) -->
+                        <div id="reconciliation-process-wrapper" style="display: none;">
+                            <!-- Dashboard de KPIs -->
+                            <div class="dashboard-stats" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); margin-bottom: 20px;">
+                                <div class="stat-card" style="border-left: 4px solid var(--accent-primary, #3b82f6);">
+                                    <div class="stat-header">
+                                        <span class="stat-title">Artículos Auditados</span>
+                                        <i class="fa-solid fa-boxes-stacked text-primary"></i>
+                                    </div>
+                                    <div class="stat-value" id="kpi-reconcile-auditados">0 / 0</div>
+                                    <div class="stat-footer" id="kpi-reconcile-progress-lbl">0% completado</div>
+                                </div>
+
+                                <div class="stat-card" style="border-left: 4px solid var(--emerald, #10b981);">
+                                    <div class="stat-header">
+                                        <span class="stat-title">Neto en Descuadre</span>
+                                        <i class="fa-solid fa-scale-unbalanced text-success"></i>
+                                    </div>
+                                    <div class="stat-value" id="kpi-reconcile-neto">0 u.</div>
+                                    <div class="stat-footer" id="kpi-reconcile-neto-lbl">Sobrantes: 0 | Mermas: 0</div>
+                                </div>
+
+                                <div class="stat-card" style="border-left: 4px solid #8b5cf6;">
+                                    <div class="stat-header">
+                                        <span class="stat-title">Adherencia de Stock</span>
+                                        <i class="fa-solid fa-chart-line" style="color: #8b5cf6;"></i>
+                                    </div>
+                                    <div class="stat-value" id="kpi-reconcile-adherencia">100%</div>
+                                    <div class="stat-footer" id="kpi-reconcile-adherencia-lbl">Artículos en calce perfecto</div>
+                                </div>
+                            </div>
+
+                            <!-- Toolbar de Filtros y Acciones -->
+                            <div class="filters-bar" style="margin-bottom: 15px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; justify-content: space-between;">
+                                <div style="display: flex; gap: 10px; flex: 1; min-width: 280px; flex-wrap: wrap;">
+                                    <div class="search-input-wrapper" style="flex: 1; min-width: 180px;">
+                                        <i class="fa-solid fa-magnifying-glass"></i>
+                                        <input type="text" id="reconcile-search-input" placeholder="Buscar por SKU o nombre..." oninput="window.filterReconciliationTable()">
+                                    </div>
+                                    <div class="chip-filter-group" style="display: flex; gap: 6px; align-items: center;">
+                                        <button type="button" class="btn btn-sm btn-primary active" id="chip-reconcile-all" onclick="window.setReconcileFilterChip('all')">Todos</button>
+                                        <button type="button" class="btn btn-sm btn-outline" id="chip-reconcile-diff" onclick="window.setReconcileFilterChip('diff')">🔴 Con Diferencia</button>
+                                        <button type="button" class="btn btn-sm btn-outline" id="chip-reconcile-equal" onclick="window.setReconcileFilterChip('equal')">🟢 Cuadrados</button>
+                                    </div>
+                                </div>
+
+                                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                                    <button type="button" class="btn btn-secondary btn-sm" onclick="window.saveReconciliationDraft()">
+                                        <i class="fa-solid fa-floppy-disk"></i> Guardar Borrador
+                                    </button>
+                                    <button type="button" class="btn btn-secondary btn-sm" onclick="window.exportReconciliationCSV()">
+                                        <i class="fa-solid fa-file-excel text-success"></i> Exportar Excel
+                                    </button>
+                                    <button type="button" class="btn btn-secondary btn-sm" onclick="window.cancelReconciliation()">
+                                        Cancelar
+                                    </button>
+                                    <button type="button" class="btn btn-primary btn-sm" onclick="window.openReconciliationSignatureModal()">
+                                        <i class="fa-solid fa-signature"></i> Finalizar y Firmar
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Tabla de Conteo -->
+                            <div class="table-container" style="max-height: 520px; overflow-y: auto;">
+                                <table class="data-table" id="table-reconciliation">
+                                    <thead>
+                                        <tr>
+                                            <th class="sortable" onclick="window.handleReconcileSort('codigo')">Código <i class="fa-solid fa-sort"></i></th>
+                                            <th class="sortable" onclick="window.handleReconcileSort('nombre')">Artículo EPP <i class="fa-solid fa-sort"></i></th>
+                                            <th class="sortable" style="text-align: center;" onclick="window.handleReconcileSort('stockSys')">Stock Sistema <i class="fa-solid fa-sort"></i></th>
+                                            <th class="sortable" style="text-align: center; width: 130px;" onclick="window.handleReconcileSort('physStock')">Físico Contado <i class="fa-solid fa-sort"></i></th>
+                                            <th class="sortable" style="text-align: center; width: 110px;" onclick="window.handleReconcileSort('diff')">Diferencia <i class="fa-solid fa-sort"></i></th>
+                                            <th style="width: 180px;">Causa Descuadre</th>
+                                            <th>Observación / Notas</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="reconciliation-tbody">
+                                        <!-- Dinámico en JS -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- VISTA HISTORIAL DE BAJADAS PASADAS -->
+                    <div id="reconciliation-history-panel" style="display: none;">
+                        <div class="table-container">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Fecha y Hora</th>
+                                        <th>Responsable</th>
+                                        <th style="text-align: center;">Artículos Auditados</th>
+                                        <th style="text-align: center;">Mermas Total</th>
+                                        <th style="text-align: center;">Sobrantes Total</th>
+                                        <th style="text-align: center;">Adherencia %</th>
+                                        <th style="text-align: center;">Firma</th>
+                                        <th style="text-align: center;">Acción</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="reconciliation-history-tbody">
+                                    <tr><td colspan="8" style="text-align: center; color: var(--text-muted); padding: 20px;">No se registran bajadas de inventario anteriores.</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <!-- VIEW: INSUMOS PARA MEJORAS -->
@@ -1330,29 +1482,6 @@
                                 <tr><td colspan="6" style="text-align: center; color: var(--text-muted);">Cargando equipos serializados...</td></tr>
                             </tbody>
                         </table>
-                    </div>
-                </div>
-
-                <!-- Panel de Conciliación Semanal (Martes de Bajada) -->
-                <div class="card" id="reconciliation-management-card" style="display: none; margin-bottom: 24px;">
-                    <div class="section-title">
-                        <span class="sec-num">04</span>
-                        <h3>Martes de Bajada (Conciliación Semanal de Stock)</h3>
-                    </div>
-                    <p style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 20px;">
-                        Registre el conteo físico real de inventario de los días martes. El sistema calculará automáticamente las mermas o diferencias y generará una bitácora de ajuste.
-                    </p>
-
-                    <div id="reconciliation-assistant-container">
-                        <div style="background-color: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.15); padding: 15px; border-radius: var(--radius-md); margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; gap: 15px;">
-                            <div>
-                                <strong style="color: var(--emerald); display: block; margin-bottom: 4px; font-size: 0.95rem;">Asistente de Conciliación Semanal</strong>
-                                <span style="font-size: 0.8rem; color: var(--text-secondary); line-height: 1.4; display: block;">Inicie el proceso de bajada de inventario guiado para comparar y cuadrar el stock del sistema contra el conteo físico de bodega.</span>
-                            </div>
-                            <button type="button" class="btn btn-primary" onclick="startReconciliation()" style="flex-shrink:0;">
-                                <i class="fa-solid fa-play"></i> Iniciar Bajada
-                            </button>
-                        </div>
                     </div>
                 </div>
 
@@ -2310,6 +2439,46 @@
                 <button class="btn btn-secondary" onclick="window.closeReplenishmentVoucherModal()">Cerrar</button>
                 <button class="btn btn-primary" onclick="window.printReplenishmentVoucher()">
                     <i class="fa-solid fa-print"></i> Imprimir / PDF
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL FIRMA Y APROBACIÓN DE CONCILIACIÓN -->
+    <div id="modal-reconciliation-signature" class="modal-overlay">
+        <div class="modal-content" style="max-width: 550px;">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-file-signature text-primary"></i> Finalizar y Firmar Bajada de Inventario</h3>
+                <button class="modal-close" onclick="window.closeReconciliationSignatureModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 15px;">
+                    Se registrarán permanentemente los ajustes de stock en el sistema. Confirme los datos del responsable y capture la firma digital del acta.
+                </p>
+                
+                <div id="reconciliation-summary-box" style="background-color: var(--bg-tertiary, #f8fafc); border-radius: var(--radius-md); padding: 12px; margin-bottom: 15px; font-size: 0.85rem;">
+                    <!-- Dinámico -->
+                </div>
+
+                <div class="form-group" style="margin-bottom: 15px;">
+                    <label for="reconcile-supervisor-name">Responsable / Supervisor de Bodega *</label>
+                    <input type="text" id="reconcile-supervisor-name" class="form-input" placeholder="Nombre completo del responsable">
+                </div>
+
+                <div class="form-group">
+                    <label>Firma Digital de Conformidad *</label>
+                    <div style="border: 1px solid var(--border-color, #cbd5e1); border-radius: var(--radius-md); background: #fff; position: relative;">
+                        <canvas id="reconcile-signature-canvas" width="480" height="150" style="touch-action: none; width: 100%; display: block; cursor: crosshair;"></canvas>
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="window.clearReconcileSignatureCanvas()" style="position: absolute; right: 8px; bottom: 8px; font-size: 0.75rem; padding: 4px 8px;">
+                            <i class="fa-solid fa-eraser"></i> Limpiar
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="window.closeReconciliationSignatureModal()">Cancelar</button>
+                <button class="btn btn-primary" onclick="window.confirmSaveReconciliationWithSignature()">
+                    <i class="fa-solid fa-check-double"></i> Confirmar y Procesar Cuadratura
                 </button>
             </div>
         </div>
