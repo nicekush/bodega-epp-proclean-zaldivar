@@ -513,41 +513,11 @@ export async function saveOutflowAndPrint(event, callbackAfterSave) {
         return;
     }
  
-    // Verificar si hay desviación prematura que requiera notas obligatorias
-    let requiresJustification = false;
-    let prematureItemsList = [];
-    
-    for (const item of items) {
-        const eppId = item.eppId;
-        const cleanWRut = cleanRut(workerRut);
-        const matchingDeliveries = dbSalidas.filter(s => 
-            (cleanRut(s.rut) === cleanWRut || s.rut === workerRut) && s.items.some(it => it.eppId === eppId)
-        );
-        if (matchingDeliveries.length > 0) {
-            matchingDeliveries.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
-            const lastDate = new Date(matchingDeliveries[0].fecha);
-            const diffDays = Math.floor((new Date() - lastDate) / (1000 * 60 * 60 * 24));
-            const epp = dbInventario.find(i => i.id === eppId);
-            const lifespanMonths = (epp && epp.duracion_meses !== undefined && epp.duracion_meses !== null) ? Number(epp.duracion_meses) : 6;
-            const lifespanDays = lifespanMonths * 30;
-            
-            if (diffDays < lifespanDays * 0.85) {
-                requiresJustification = true;
-                prematureItemsList.push(epp ? epp.nombre : "EPP");
-            }
-        }
-    }
- 
     const outflowComments = document.getElementById("outflow-comments")?.value.trim() || "";
     const outflowMotivo = document.getElementById("outflow-motivo")?.value || "Normal";
     const outflowTalla = document.getElementById("outflow-talla")?.value.trim() || "";
     const outflowRazonRopa = document.getElementById("outflow-razon-ropa")?.value || "";
- 
-    if (requiresJustification && !outflowComments) {
-        showToast(`Justificación obligatoria: Algunos artículos (${prematureItemsList.join(", ")}) se están re-entregando de forma prematura. Ingrese notas explicativas.`, "danger");
-        return;
-    }
- 
+
     let signatureVal = "Firma Física en Acta Impresa";
     if (!isCanvasBlank()) {
         signatureVal = canvas.toDataURL("image/png");
@@ -1040,12 +1010,11 @@ export async function deleteTurno(turnoName) {
 export function toggleOutflowMotivoFields(motivo) {
     const commentsInput = document.getElementById("outflow-comments");
     if (commentsInput) {
+        commentsInput.required = false;
         if (motivo === "Desgaste" || motivo === "Pérdida") {
-            commentsInput.required = true;
-            commentsInput.placeholder = "Justificación OBLIGATORIA: Escriba el motivo detallado...";
+            commentsInput.placeholder = "Observaciones o detalles sobre el desgaste/pérdida (opcional)...";
         } else {
-            commentsInput.required = false;
-            commentsInput.placeholder = "Escriba aquí la justificación de re-entrega prematura, pérdida o detalles de la entrega...";
+            commentsInput.placeholder = "Observaciones o notas adicionales de la entrega (opcional)...";
         }
     }
 }

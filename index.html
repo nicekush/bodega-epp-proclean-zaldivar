@@ -317,22 +317,22 @@
                     <div class="card" style="margin-top: 24px;">
                         <div class="section-title">
                             <span class="sec-num">03</span>
-                            <h3>Datos de la Entrega y Justificación</h3>
+                            <h3>Datos de la Entrega</h3>
                         </div>
                         <div class="form-grid cols-2" style="gap: 16px;">
                             <div class="form-group">
                                 <label for="outflow-motivo">Motivo de la Entrega <span class="required">*</span></label>
                                 <select id="outflow-motivo" required onchange="toggleOutflowMotivoFields(this.value)">
                                     <option value="Normal" selected>Normal / Reposición Periódica</option>
-                                    <option value="Desgaste">Desgaste Prematuro (Requiere Notas)</option>
-                                    <option value="Pérdida">Pérdida / Robo (Requiere Notas)</option>
+                                    <option value="Desgaste">Desgaste Prematuro</option>
+                                    <option value="Pérdida">Pérdida / Robo</option>
                                     <option value="Talla">Cambio de Talla</option>
                                     <option value="Primer Día">Primer Día / Inducción</option>
                                 </select>
                             </div>
                             <div class="form-group">
-                                <label for="outflow-comments">Notas / Justificación</label>
-                                <textarea id="outflow-comments" placeholder="Escriba aquí la justificación de re-entrega prematura, pérdida o detalles de la entrega..." style="width: 100%; height: 46px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 8px 12px; background: var(--bg-primary); color: var(--text-primary); font-family: inherit; font-size: 0.9rem; resize: none;"></textarea>
+                                <label for="outflow-comments">Notas / Observaciones (Opcional)</label>
+                                <textarea id="outflow-comments" placeholder="Observaciones o notas adicionales de la entrega (opcional)..." style="width: 100%; height: 46px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 8px 12px; background: var(--bg-primary); color: var(--text-primary); font-family: inherit; font-size: 0.9rem; resize: none;"></textarea>
                             </div>
                         </div>
 
