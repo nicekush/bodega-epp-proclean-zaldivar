@@ -8,13 +8,15 @@ import {
     dbAreas, 
     dbAreasFull,
     dbTurnos,
+    dbInsumos,
+    dbPrestamos,
     dbInsertOutflow, 
     dbInsertArea, 
     dbDeleteArea,
     dbInsertTurno,
     dbDeleteTurno
 } from './db.js';
-import { showToast } from './utils.js';
+import { showToast, removeAccents, debounce } from './utils.js';
 import { currentUser, formatRut, validateRutModulo11, cleanRut, matchesRut } from './auth.js';
 
 let isDrawing = false;
@@ -131,6 +133,232 @@ export function isCanvasBlank() {
     return canvas.toDataURL() === blank.toDataURL();
 }
 
+// Obtiene el catálogo consolidado de colaboradores conocidos de la bodega
+export function getKnownWorkersList() {
+    const workersMap = new Map();
+
+    // 1. Prioridad: dbSalidas (ordenadas de forma descendente por fecha en db.js)
+    if (Array.isArray(dbSalidas)) {
+        dbSalidas.forEach(s => {
+            if (s.trabajador) {
+                const name = s.trabajador.trim();
+                const rut = s.rut ? s.rut.trim() : "";
+                const cRut = rut ? cleanRut(rut) : "";
+                const key = cRut || ("name_" + removeAccents(name.toLowerCase()));
+
+                if (!workersMap.has(key) && name.length > 0) {
+                    workersMap.set(key, {
+                        nombre: name,
+                        rut: rut,
+                        cleanRut: cRut,
+                        area: s.area || "",
+                        turno: s.turno || ""
+                    });
+                }
+            }
+        });
+    }
+
+    // 2. Complemento: dbPrestamos
+    if (Array.isArray(dbPrestamos)) {
+        dbPrestamos.forEach(p => {
+            if (p.trabajador_nombre) {
+                const name = p.trabajador_nombre.trim();
+                const rut = p.trabajador_rut ? p.trabajador_rut.trim() : "";
+                const cRut = rut ? cleanRut(rut) : "";
+                const key = cRut || ("name_" + removeAccents(name.toLowerCase()));
+
+                if (!workersMap.has(key) && name.length > 0) {
+                    workersMap.set(key, {
+                        nombre: name,
+                        rut: rut,
+                        cleanRut: cRut,
+                        area: p.area || "",
+                        turno: p.turno || ""
+                    });
+                }
+            }
+        });
+    }
+
+    // 3. Complemento: dbInsumos
+    if (Array.isArray(dbInsumos)) {
+        dbInsumos.forEach(ins => {
+            if (ins.trabajador) {
+                const name = ins.trabajador.trim();
+                const rut = ins.rut ? ins.rut.trim() : "";
+                const cRut = rut ? cleanRut(rut) : "";
+                const key = cRut || ("name_" + removeAccents(name.toLowerCase()));
+
+                if (!workersMap.has(key) && name.length > 0) {
+                    workersMap.set(key, {
+                        nombre: name,
+                        rut: rut,
+                        cleanRut: cRut,
+                        area: ins.proveedor || "",
+                        turno: ""
+                    });
+                }
+            }
+        });
+    }
+
+    return Array.from(workersMap.values()).sort((a, b) => a.nombre.localeCompare(b.nombre, 'es', { sensitivity: 'base' }));
+}
+window.getKnownWorkersList = getKnownWorkersList;
+
+let smartWorkerOutflowInitialized = false;
+
+export function setupSmartWorkerOutflowSearch() {
+    const container = document.getElementById("outflow-worker-search-container");
+    if (!container) return;
+
+    const nameInput = document.getElementById("outflow-worker-name");
+    const rutInput = document.getElementById("outflow-worker-rut");
+    const areaSelect = document.getElementById("outflow-worker-area");
+    const turnoSelect = document.getElementById("outflow-worker-turno");
+    const dropdown = document.getElementById("outflow-worker-search-dropdown");
+    const clearBtn = document.getElementById("outflow-worker-clear-icon");
+
+    if (!nameInput || !dropdown) return;
+
+    function renderDropdown(filterText = "") {
+        const query = removeAccents((filterText || "").toLowerCase().trim());
+        const searchWords = query.split(/\s+/).filter(w => w.length > 0);
+
+        if (searchWords.length === 0) {
+            dropdown.innerHTML = "";
+            dropdown.classList.remove("active");
+            return;
+        }
+
+        const workers = getKnownWorkersList();
+        const matches = workers.filter(w => {
+            const normName = removeAccents((w.nombre || "").toLowerCase());
+            const normRut = (w.rut || "").toLowerCase();
+            const cleanR = (w.cleanRut || "").toLowerCase();
+            const normArea = removeAccents((w.area || "").toLowerCase());
+
+            return searchWords.every(word => 
+                normName.includes(word) || 
+                normRut.includes(word) || 
+                cleanR.includes(word) ||
+                normArea.includes(word)
+            );
+        }).slice(0, 8);
+
+        if (matches.length === 0) {
+            dropdown.innerHTML = `
+                <div style="padding: 12px; text-align: center; color: var(--text-muted); font-size: 0.85rem;">
+                    No se encontraron colaboradores coincidentes.
+                    <div style="font-size: 0.75rem; margin-top: 4px; color: var(--color-primary); font-weight: 500;">
+                        Puede escribir directamente si es un colaborador nuevo.
+                    </div>
+                </div>
+            `;
+        } else {
+            dropdown.innerHTML = matches.map(w => {
+                const displayRut = w.rut ? formatRut(w.rut) : "Sin RUT";
+                const displayArea = w.area || "Sin Área";
+                const displayTurno = w.turno ? ` • ${w.turno}` : "";
+                return `
+                    <div class="epp-search-option" data-rut="${w.rut || ''}">
+                        <div class="epp-search-option-info">
+                            <span class="epp-search-option-code">RUT: ${displayRut}</span>
+                            <span class="epp-search-option-title">${w.nombre}</span>
+                            <span class="epp-search-option-category"><i class="fa-solid fa-briefcase"></i> ${displayArea}${displayTurno}</span>
+                        </div>
+                    </div>
+                `;
+            }).join("");
+
+            dropdown.querySelectorAll(".epp-search-option").forEach((opt, idx) => {
+                opt.addEventListener("mousedown", (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const worker = matches[idx];
+                    if (worker) {
+                        selectWorker(worker);
+                    }
+                });
+            });
+        }
+
+        dropdown.classList.add("active");
+    }
+
+    function selectWorker(w) {
+        nameInput.value = w.nombre;
+        nameInput.disabled = false;
+        if (rutInput && w.rut) {
+            rutInput.value = formatRut(w.rut);
+        }
+        if (areaSelect && w.area) {
+            areaSelect.value = w.area;
+        }
+        if (turnoSelect && w.turno) {
+            turnoSelect.value = w.turno;
+        }
+        if (clearBtn) clearBtn.style.display = "block";
+        dropdown.innerHTML = "";
+        dropdown.classList.remove("active");
+
+        // Evaluar alertas de consumo si ya hay items seleccionados
+        if (typeof checkAllRowsConsumptionDeviation === "function") {
+            checkAllRowsConsumptionDeviation();
+        }
+    }
+
+    function clearWorkerSelection() {
+        nameInput.value = "";
+        nameInput.disabled = false;
+        if (rutInput) rutInput.value = "";
+        if (areaSelect) areaSelect.value = "";
+        if (turnoSelect) turnoSelect.value = "";
+        if (clearBtn) clearBtn.style.display = "none";
+        dropdown.innerHTML = "";
+        dropdown.classList.remove("active");
+        if (typeof checkAllRowsConsumptionDeviation === "function") {
+            checkAllRowsConsumptionDeviation();
+        }
+        nameInput.focus();
+    }
+
+    if (!smartWorkerOutflowInitialized) {
+        smartWorkerOutflowInitialized = true;
+
+        const debouncedWorkerSearch = debounce((val) => {
+            renderDropdown(val);
+        }, 120);
+
+        nameInput.addEventListener("input", (e) => {
+            const val = e.target.value;
+            if (clearBtn) clearBtn.style.display = val ? "block" : "none";
+            debouncedWorkerSearch(val);
+        });
+
+        nameInput.addEventListener("focus", () => {
+            if (nameInput.value.trim().length > 0) {
+                renderDropdown(nameInput.value);
+            }
+        });
+
+        if (clearBtn) {
+            clearBtn.addEventListener("click", (e) => {
+                e.stopPropagation();
+                clearWorkerSelection();
+            });
+        }
+
+        document.addEventListener("click", (e) => {
+            if (!container.contains(e.target)) {
+                dropdown.classList.remove("active");
+            }
+        });
+    }
+}
+window.setupSmartWorkerOutflowSearch = setupSmartWorkerOutflowSearch;
+
 export function autofillWorkerDetails() {
     const rutInput = document.getElementById("outflow-worker-rut");
     if (!rutInput) return;
@@ -139,6 +367,7 @@ export function autofillWorkerDetails() {
     const nameInput = document.getElementById("outflow-worker-name");
     const areaSelect = document.getElementById("outflow-worker-area");
     const turnoSelect = document.getElementById("outflow-worker-turno");
+    const clearBtn = document.getElementById("outflow-worker-clear-icon");
 
     if (!rut || rut.length < 5) {
         if (nameInput) nameInput.disabled = false;
@@ -164,7 +393,8 @@ export function autofillWorkerDetails() {
     // Autocompletar nombre, área y turno
     if (nameInput) {
         nameInput.value = recent.trabajador || "";
-        nameInput.disabled = true;
+        nameInput.disabled = false;
+        if (clearBtn) clearBtn.style.display = recent.trabajador ? "block" : "none";
     }
     if (areaSelect) {
         areaSelect.value = recent.area || "";
@@ -186,9 +416,19 @@ export function setupOutflowForm() {
     const nameInput = document.getElementById("outflow-worker-name");
     const areaSelect = document.getElementById("outflow-worker-area");
     const turnoSelect = document.getElementById("outflow-worker-turno");
+    const clearBtn = document.getElementById("outflow-worker-clear-icon");
+    const dropdown = document.getElementById("outflow-worker-search-dropdown");
+
     if (nameInput) {
         nameInput.disabled = false;
         nameInput.value = "";
+    }
+    if (clearBtn) {
+        clearBtn.style.display = "none";
+    }
+    if (dropdown) {
+        dropdown.innerHTML = "";
+        dropdown.classList.remove("active");
     }
     if (areaSelect) {
         areaSelect.disabled = false;
@@ -198,6 +438,9 @@ export function setupOutflowForm() {
         turnoSelect.disabled = false;
         turnoSelect.value = "";
     }
+
+    // Inicializar buscador inteligente de colaborador
+    setupSmartWorkerOutflowSearch();
 
     // Initialize/configure signature canvas
     initSignatureCanvas();

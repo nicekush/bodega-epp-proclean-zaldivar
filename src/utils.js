@@ -85,3 +85,9 @@ export function debounce(func, delay = 200) {
 }
 window.debounce = debounce;
 
+export function removeAccents(str) {
+    if (!str) return "";
+    return str.toString().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
+window.removeAccents = removeAccents;
+
