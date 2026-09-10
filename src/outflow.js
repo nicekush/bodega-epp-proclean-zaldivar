@@ -222,13 +222,25 @@ export function setupSmartWorkerOutflowSearch() {
 
     if (!nameInput || !dropdown) return;
 
+    function openDropdown() {
+        dropdown.classList.add("active");
+        const parentCard = container.closest('.card');
+        if (parentCard) parentCard.classList.add("has-active-dropdown");
+    }
+
+    function closeDropdown() {
+        dropdown.innerHTML = "";
+        dropdown.classList.remove("active");
+        const parentCard = container.closest('.card');
+        if (parentCard) parentCard.classList.remove("has-active-dropdown");
+    }
+
     function renderDropdown(filterText = "") {
         const query = removeAccents((filterText || "").toLowerCase().trim());
         const searchWords = query.split(/\s+/).filter(w => w.length > 0);
 
         if (searchWords.length === 0) {
-            dropdown.innerHTML = "";
-            dropdown.classList.remove("active");
+            closeDropdown();
             return;
         }
 
@@ -284,7 +296,7 @@ export function setupSmartWorkerOutflowSearch() {
             });
         }
 
-        dropdown.classList.add("active");
+        openDropdown();
     }
 
     function selectWorker(w) {
@@ -300,8 +312,7 @@ export function setupSmartWorkerOutflowSearch() {
             turnoSelect.value = w.turno;
         }
         if (clearBtn) clearBtn.style.display = "block";
-        dropdown.innerHTML = "";
-        dropdown.classList.remove("active");
+        closeDropdown();
 
         // Evaluar alertas de consumo si ya hay items seleccionados
         if (typeof checkAllRowsConsumptionDeviation === "function") {
@@ -316,8 +327,7 @@ export function setupSmartWorkerOutflowSearch() {
         if (areaSelect) areaSelect.value = "";
         if (turnoSelect) turnoSelect.value = "";
         if (clearBtn) clearBtn.style.display = "none";
-        dropdown.innerHTML = "";
-        dropdown.classList.remove("active");
+        closeDropdown();
         if (typeof checkAllRowsConsumptionDeviation === "function") {
             checkAllRowsConsumptionDeviation();
         }
@@ -352,7 +362,7 @@ export function setupSmartWorkerOutflowSearch() {
 
         document.addEventListener("click", (e) => {
             if (!container.contains(e.target)) {
-                dropdown.classList.remove("active");
+                closeDropdown();
             }
         });
     }
@@ -429,6 +439,7 @@ export function setupOutflowForm() {
     if (dropdown) {
         dropdown.innerHTML = "";
         dropdown.classList.remove("active");
+        document.getElementById("outflow-worker-search-container")?.closest('.card')?.classList.remove("has-active-dropdown");
     }
     if (areaSelect) {
         areaSelect.disabled = false;

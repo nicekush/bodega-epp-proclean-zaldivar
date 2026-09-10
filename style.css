@@ -1799,10 +1799,16 @@ th.sortable.active {
 /* ==========================================================================
    Filtro Inteligente de Búsqueda de EPP (Autocompletado en Entregas)
    ========================================================================== */
-.card:has(.epp-search-container),
-.card.has-active-dropdown {
+.card:has(.epp-search-container) {
     position: relative;
-    z-index: 50 !important;
+    z-index: 10;
+}
+
+.card.has-active-dropdown,
+.card:has(.epp-search-dropdown.active),
+.card:focus-within:has(.epp-search-dropdown.active) {
+    position: relative;
+    z-index: 1000 !important;
 }
 
 .dynamic-row {
