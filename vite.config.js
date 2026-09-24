@@ -7,5 +7,6 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist'
-  }
+  },
+  envPrefix: ['VITE_', 'NEXT_PUBLIC_', 'SUPABASE_']
 });
