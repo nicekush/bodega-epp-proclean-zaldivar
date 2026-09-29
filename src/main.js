@@ -106,6 +106,39 @@ import {
 import { initLoans, renderLoansTable } from './loans.js';
 import { initSettingsView } from './settings.js';
 import { initReconciliationView } from './reconciliation.js';
+import {
+    initGuiasView,
+    updateGuiasDashboardStats,
+    renderGuiasTable,
+    filterGuiasByState,
+    handleGuiasSearch,
+    changeGuiasPage,
+    changeGuiasPageSize,
+    openNewGuiaModal,
+    closeNewGuiaModal,
+    addWizardItemRow,
+    removeWizardItemRow,
+    selectDestinoQuick,
+    saveNewGuia,
+    openGuiaDrawer,
+    closeGuiaDrawer,
+    cambiarEstadoDirecto,
+    openEditGuiaModal,
+    closeEditGuiaModal,
+    addEditItemRow,
+    saveEditGuia,
+    openDeliverModal,
+    closeDeliverModal,
+    clearGuiaSignature,
+    saveDeliverModal,
+    openDeleteGuiaModal,
+    closeDeleteGuiaModal,
+    confirmDeleteGuia,
+    openPrintRemitoModal,
+    closePrintRemitoModal,
+    printRemito,
+    exportGuiasCSV
+} from './guias.js';
  
 import { showToast, setCurrentDates, showConfirmDialog } from './utils.js';
 
@@ -127,6 +160,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         setCurrentDates();
         initReplenishment();
         initLoans();
+        await initGuiasView();
  
         // Renderizar vistas iniciales
         updateDashboardStats();
@@ -221,6 +255,12 @@ function switchView(viewId, targetParam = null) {
             viewTitle.textContent = "Analíticas de EPP";
             viewSubtitle.textContent = "Monitoree el consumo de EPP, desvíos y cumplimiento de SLA.";
             renderAnalyticsDashboard();
+            break;
+        case "view-guias":
+            viewTitle.textContent = "Guías de Despacho";
+            viewSubtitle.textContent = "Control integral de remitos de carga, transporte y recepción conforme.";
+            updateGuiasDashboardStats();
+            renderGuiasTable();
             break;
         case "view-reports":
             viewTitle.textContent = "Historial y Reportes";
@@ -384,3 +424,36 @@ window.saveAdjustStock = saveAdjustStock;
 window.closeEditEPPModal = closeEditEPPModal;
 window.saveEditEPP = saveEditEPP;
 window.showConfirmDialog = showConfirmDialog;
+
+// ==========================================================================
+// Window Bindings: Guías de Despacho
+// ==========================================================================
+window.filterGuiasByState = filterGuiasByState;
+window.handleGuiasSearch = handleGuiasSearch;
+window.changeGuiasPage = changeGuiasPage;
+window.changeGuiasPageSize = changeGuiasPageSize;
+window.openNewGuiaModal = openNewGuiaModal;
+window.closeNewGuiaModal = closeNewGuiaModal;
+window.addWizardItemRow = addWizardItemRow;
+window.removeWizardItemRow = removeWizardItemRow;
+window.selectDestinoQuick = selectDestinoQuick;
+window.saveNewGuia = saveNewGuia;
+window.openGuiaDrawer = openGuiaDrawer;
+window.closeGuiaDrawer = closeGuiaDrawer;
+window.cambiarEstadoDirecto = cambiarEstadoDirecto;
+window.openEditGuiaModal = openEditGuiaModal;
+window.closeEditGuiaModal = closeEditGuiaModal;
+window.addEditItemRow = addEditItemRow;
+window.saveEditGuia = saveEditGuia;
+window.openDeliverModal = openDeliverModal;
+window.closeDeliverModal = closeDeliverModal;
+window.clearGuiaSignature = clearGuiaSignature;
+window.saveDeliverModal = saveDeliverModal;
+window.openDeleteGuiaModal = openDeleteGuiaModal;
+window.closeDeleteGuiaModal = closeDeleteGuiaModal;
+window.confirmDeleteGuia = confirmDeleteGuia;
+window.openPrintRemitoModal = openPrintRemitoModal;
+window.closePrintRemitoModal = closePrintRemitoModal;
+window.printRemito = printRemito;
+window.exportGuiasCSV = exportGuiasCSV;
+

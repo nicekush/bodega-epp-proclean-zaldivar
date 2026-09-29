@@ -58,6 +58,10 @@
                     <i class="fa-solid fa-chart-line"></i>
                     <span>Analíticas de EPP</span>
                 </div>
+                <div class="nav-item" data-view="view-guias" onclick="switchView('view-guias')">
+                    <i class="fa-solid fa-truck-ramp-box"></i>
+                    <span>Guías de Despacho</span>
+                </div>
                 <div class="nav-item" data-view="view-reports" onclick="switchView('view-reports')">
                     <i class="fa-solid fa-file-contract"></i>
                     <span>Historial y Reportes</span>
@@ -1503,6 +1507,119 @@
                          <div style="margin-top: 8px; font-size: 0.8rem; color: var(--text-secondary);">Tu cargo actual: <strong id="admin-current-role">-</strong></div>
                      </div>
                 </div>
+            <!-- VIEW: GUÍAS DE DESPACHO (CONTROL Y REMITOS) -->
+            <div id="view-guias" class="view-panel">
+                <!-- Dashboard Stats -->
+                <div class="dashboard-stats" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
+                    <div class="card stat-card">
+                        <div class="stat-content">
+                            <span class="stat-num" id="stat-guias-total">0</span>
+                            <span class="stat-desc">Total Guías Emitidas</span>
+                        </div>
+                        <div class="stat-icon primary"><i class="fa-solid fa-file-invoice"></i></div>
+                    </div>
+                    <div class="card stat-card">
+                        <div class="stat-content">
+                            <span class="stat-num" id="stat-guias-pendientes" style="color: var(--color-warning);">0</span>
+                            <span class="stat-desc">Por Despachar (Base)</span>
+                        </div>
+                        <div class="stat-icon warning"><i class="fa-solid fa-clock"></i></div>
+                    </div>
+                    <div class="card stat-card">
+                        <div class="stat-content">
+                            <span class="stat-num" id="stat-guias-transito" style="color: var(--color-info);">0</span>
+                            <span class="stat-desc">En Ruta / En Tránsito</span>
+                        </div>
+                        <div class="stat-icon info"><i class="fa-solid fa-truck-fast"></i></div>
+                    </div>
+                    <div class="card stat-card">
+                        <div class="stat-content">
+                            <span class="stat-num" id="stat-guias-entregadas" style="color: var(--color-success);">0</span>
+                            <span class="stat-desc">Entregadas Conformes</span>
+                        </div>
+                        <div class="stat-icon success"><i class="fa-solid fa-circle-check"></i></div>
+                    </div>
+                    <div class="card stat-card" style="background: linear-gradient(135deg, rgba(255, 122, 0, 0.15) 0%, rgba(22, 25, 37, 0.9) 100%); border-color: rgba(255, 122, 0, 0.3);">
+                        <div class="stat-content">
+                            <span class="stat-num" id="stat-guias-proximo" style="color: var(--color-primary); font-family: monospace;">#--</span>
+                            <span class="stat-desc">Próximo Folio Oficial</span>
+                        </div>
+                        <div class="stat-icon primary"><i class="fa-solid fa-hashtag"></i></div>
+                    </div>
+                </div>
+
+                <!-- Barra de Acciones, Filtros & Búsqueda -->
+                <div class="card" style="margin-bottom: 20px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+                        
+                        <!-- Pestañas de Estado -->
+                        <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                            <button type="button" id="guia-filter-all" class="btn btn-primary btn-sm guia-filter-btn active" onclick="filterGuiasByState('ALL')">
+                                TODAS
+                            </button>
+                            <button type="button" id="guia-filter-pendiente" class="btn btn-secondary btn-sm guia-filter-btn" onclick="filterGuiasByState('PENDIENTE')">
+                                <i class="fa-solid fa-clock" style="color: var(--color-warning);"></i> POR DESPACHAR
+                            </button>
+                            <button type="button" id="guia-filter-en_transito" class="btn btn-secondary btn-sm guia-filter-btn" onclick="filterGuiasByState('EN_TRANSITO')">
+                                <i class="fa-solid fa-truck" style="color: var(--color-info);"></i> EN RUTA
+                            </button>
+                            <button type="button" id="guia-filter-entregada" class="btn btn-secondary btn-sm guia-filter-btn" onclick="filterGuiasByState('ENTREGADA')">
+                                <i class="fa-solid fa-check-circle" style="color: var(--color-success);"></i> ENTREGADAS
+                            </button>
+                            <button type="button" id="guia-filter-anulada" class="btn btn-secondary btn-sm guia-filter-btn" onclick="filterGuiasByState('ANULADA')">
+                                <i class="fa-solid fa-ban" style="color: var(--color-danger);"></i> ANULADAS
+                            </button>
+                        </div>
+
+                        <!-- Botones de Acción -->
+                        <div style="display: flex; gap: 10px; align-items: center;">
+                            <button type="button" class="btn btn-secondary btn-sm" onclick="exportGuiasCSV()" title="Exportar a planilla Excel / CSV">
+                                <i class="fa-solid fa-file-excel" style="color: #10b981;"></i> Exportar Excel
+                            </button>
+                            <button type="button" class="btn btn-primary" onclick="openNewGuiaModal()">
+                                <i class="fa-solid fa-plus"></i> Nueva Guía
+                            </button>
+                        </div>
+
+                    </div>
+
+                    <!-- Buscador Universal -->
+                    <div style="margin-top: 16px; position: relative;">
+                        <div class="epp-search-input-wrapper">
+                            <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                            <input type="text" id="guias-search-input" oninput="handleGuiasSearch(this.value)" placeholder="Buscar por folio (#40), destino (PWM Chile), chofer, vehículo, repuesto..." autocomplete="off">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tabla de Guías -->
+                <div class="card" style="padding: 0; overflow: hidden;">
+                    <div class="table-container" style="overflow-x: auto;">
+                        <table class="data-table" id="table-guias">
+                            <thead>
+                                <tr>
+                                    <th style="width: 100px;">Folio</th>
+                                    <th style="width: 110px;">Fecha</th>
+                                    <th>Destino / Entrega</th>
+                                    <th>Chofer y Vehículo</th>
+                                    <th>Carga Despachada</th>
+                                    <th style="width: 130px;">Estado</th>
+                                    <th style="text-align: right; width: 160px;">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="guias-table-body">
+                                <tr>
+                                    <td colspan="7" class="text-center py-5 text-muted" style="padding: 30px;">
+                                        Cargando guías de despacho...
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Paginación -->
+                    <div class="pagination-container" id="guias-pagination"></div>
+                </div>
             </div>
 
         </main>
@@ -2471,6 +2588,440 @@
                 <button class="btn btn-primary" onclick="window.confirmSaveReconciliationWithSignature()">
                     <i class="fa-solid fa-check-double"></i> Confirmar y Procesar Cuadratura
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================== -->
+    <!-- MODALES Y COMPONENTES: MÓDULO GUÍAS DE DESPACHO                -->
+    <!-- ============================================================== -->
+
+    <!-- MODAL 1: ASISTENTE DE EMISIÓN DE NUEVA GUÍA -->
+    <div class="modal-overlay" id="guia-wizard-modal">
+        <div class="modal-content" style="max-width: 680px; max-height: 90vh; display: flex; flex-direction: column;">
+            <div class="modal-header">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <div style="width: 36px; height: 36px; border-radius: 10px; background: rgba(255, 122, 0, 0.15); color: var(--color-primary); display: flex; align-items: center; justify-content: center;">
+                        <i class="fa-solid fa-file-circle-plus"></i>
+                    </div>
+                    <div>
+                        <h3 style="margin: 0; font-size: 1.1rem;">Emisión de Guía de Despacho</h3>
+                        <p style="margin: 0; font-size: 0.75rem; color: var(--text-muted);">Asignación correlativa oficial y trazabilidad de carga</p>
+                    </div>
+                </div>
+                <button type="button" class="btn-close" onclick="closeNewGuiaModal()">&times;</button>
+            </div>
+
+            <form id="guia-wizard-form" onsubmit="saveNewGuia(event)" style="flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 16px;">
+                
+                <!-- PASO 1: IDENTIFICACIÓN Y TRANSPORTE -->
+                <div style="background: var(--bg-primary); padding: 14px; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                        <span style="font-size: 0.75rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: var(--color-primary);">
+                            1. Destino y Flota de Transporte
+                        </span>
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            <span style="font-size: 0.75rem; color: var(--text-muted);">Folio Oficial:</span>
+                            <input type="number" id="gw-folio" style="width: 80px; font-weight: 800; font-family: monospace; color: var(--color-primary); text-align: center; padding: 2px 6px; border-radius: 6px; background: var(--bg-secondary); border: 1px solid var(--border-color);" required>
+                        </div>
+                    </div>
+
+                    <!-- Destino & Accesos Rápidos -->
+                    <div class="form-group" style="margin-bottom: 12px;">
+                        <label for="gw-destino" style="font-size: 0.8rem; font-weight: 600; display: block; margin-bottom: 6px;">
+                            Lugar de Entrega / Destino <span class="required" style="color: var(--color-danger);">*</span>
+                        </label>
+                        <div id="gw-destinos-chips" style="display: flex; flex-wrap: wrap; margin-bottom: 8px;"></div>
+                        <input type="text" id="gw-destino" placeholder="Escriba o seleccione el destino (ej. PWM Chile, Taller GMI, Faena Minera)..." required style="width: 100%;">
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 100px; gap: 10px;">
+                        <div class="form-group">
+                            <label for="gw-vehiculo" style="font-size: 0.8rem; font-weight: 600; display: block; margin-bottom: 4px;">Vehículo</label>
+                            <select id="gw-vehiculo" style="width: 100%;"></select>
+                        </div>
+                        <div class="form-group">
+                            <label for="gw-chofer" style="font-size: 0.8rem; font-weight: 600; display: block; margin-bottom: 4px;">Chofer Responsable</label>
+                            <input type="text" id="gw-chofer" list="gw-choferes-list" placeholder="Nombre chofer..." required style="width: 100%;">
+                            <datalist id="gw-choferes-list"></datalist>
+                        </div>
+                        <div class="form-group">
+                            <label for="gw-patente" style="font-size: 0.8rem; font-weight: 600; display: block; margin-bottom: 4px;">Patente</label>
+                            <input type="text" id="gw-patente" placeholder="Ej: SCBY16" style="width: 100%; text-transform: uppercase;">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PASO 2: DETALLE DE CARGA (PRODUCTOS / REPUESTOS) -->
+                <div style="background: var(--bg-primary); padding: 14px; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                        <span style="font-size: 0.75rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: var(--color-primary);">
+                            2. Productos, Repuestos o Carga a Trasladar
+                        </span>
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="addWizardItemRow()" style="font-size: 0.75rem;">
+                            <i class="fa-solid fa-plus"></i> Agregar Fila
+                        </button>
+                    </div>
+
+                    <div id="gw-items-container"></div>
+                </div>
+
+                <!-- PASO 3: EMISOR Y OBSERVACIONES -->
+                <div style="background: var(--bg-primary); padding: 14px; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
+                    <span style="font-size: 0.75rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); display: block; margin-bottom: 10px;">
+                        3. Responsable y Observaciones
+                    </span>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+                        <div class="form-group">
+                            <label for="gw-fecha" style="font-size: 0.8rem; font-weight: 600; display: block; margin-bottom: 4px;">Fecha Emisión</label>
+                            <input type="date" id="gw-fecha" required style="width: 100%;">
+                        </div>
+                        <div class="form-group">
+                            <label for="gw-emisor" style="font-size: 0.8rem; font-weight: 600; display: block; margin-bottom: 4px;">Emisor Responsable</label>
+                            <input type="text" id="gw-emisor" style="width: 100%;">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="gw-observaciones" style="font-size: 0.8rem; font-weight: 600; display: block; margin-bottom: 4px;">Observaciones / Notas de Traslado</label>
+                        <input type="text" id="gw-observaciones" placeholder="Ej. Traslado a taller para cambio de componentes / Mantención" style="width: 100%;">
+                    </div>
+                </div>
+
+                <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 10px;">
+                    <button type="button" class="btn btn-secondary" onclick="closeNewGuiaModal()">Cancelar</button>
+                    <button type="submit" class="btn btn-primary" style="padding: 10px 24px; font-weight: 700;">
+                        <i class="fa-solid fa-paper-plane"></i> Emitir Guía Oficial
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL 2: EDITAR GUÍA COMPLETA -->
+    <div class="modal-overlay" id="guia-edit-modal">
+        <div class="modal-content" style="max-width: 680px; max-height: 90vh; display: flex; flex-direction: column;">
+            <div class="modal-header">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <div style="width: 36px; height: 36px; border-radius: 10px; background: rgba(6, 182, 212, 0.15); color: var(--color-info); display: flex; align-items: center; justify-content: center;">
+                        <i class="fa-solid fa-pen-to-square"></i>
+                    </div>
+                    <div>
+                        <h3 style="margin: 0; font-size: 1.1rem;">Modificar Guía de Despacho</h3>
+                        <p style="margin: 0; font-size: 0.75rem; color: var(--text-muted);">Edición auditada de datos y carga</p>
+                    </div>
+                </div>
+                <button type="button" class="btn-close" onclick="closeEditGuiaModal()">&times;</button>
+            </div>
+
+            <form id="guia-edit-form" onsubmit="saveEditGuia(event)" style="flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 16px;">
+                <input type="hidden" id="ge-id">
+
+                <div style="display: grid; grid-template-columns: 100px 1fr 1fr 140px; gap: 10px;">
+                    <div class="form-group">
+                        <label style="font-size: 0.78rem; font-weight: 600; display: block; margin-bottom: 4px;">Folio</label>
+                        <input type="number" id="ge-folio" required style="width: 100%; font-weight: 800; font-family: monospace;">
+                    </div>
+                    <div class="form-group">
+                        <label style="font-size: 0.78rem; font-weight: 600; display: block; margin-bottom: 4px;">Fecha</label>
+                        <input type="date" id="ge-fecha" required style="width: 100%;">
+                    </div>
+                    <div class="form-group">
+                        <label style="font-size: 0.78rem; font-weight: 600; display: block; margin-bottom: 4px;">Hora</label>
+                        <input type="text" id="ge-hora" style="width: 100%;">
+                    </div>
+                    <div class="form-group">
+                        <label style="font-size: 0.78rem; font-weight: 600; display: block; margin-bottom: 4px;">Estado</label>
+                        <select id="ge-estado" style="width: 100%; font-weight: 700;">
+                            <option value="PENDIENTE">Por Despachar</option>
+                            <option value="EN_TRANSITO">En Ruta</option>
+                            <option value="ENTREGADA">Entregada Conforme</option>
+                            <option value="ANULADA">Anulada</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr 120px; gap: 10px;">
+                    <div class="form-group">
+                        <label style="font-size: 0.78rem; font-weight: 600; display: block; margin-bottom: 4px;">Destino</label>
+                        <input type="text" id="ge-destino" required style="width: 100%;">
+                    </div>
+                    <div class="form-group">
+                        <label style="font-size: 0.78rem; font-weight: 600; display: block; margin-bottom: 4px;">Chofer</label>
+                        <input type="text" id="ge-chofer" required style="width: 100%;">
+                    </div>
+                    <div class="form-group">
+                        <label style="font-size: 0.78rem; font-weight: 600; display: block; margin-bottom: 4px;">Vehículo</label>
+                        <input type="text" id="ge-vehiculo" required style="width: 100%;">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label style="font-size: 0.78rem; font-weight: 600; display: block; margin-bottom: 4px;">Patente</label>
+                    <input type="text" id="ge-patente" style="width: 100%; text-transform: uppercase;">
+                </div>
+
+                <!-- Detalle de carga editable -->
+                <div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <span style="font-size: 0.78rem; font-weight: 800; text-transform: uppercase; color: var(--color-primary);">Detalle de Carga</span>
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="addEditItemRow()">+ Agregar Producto</button>
+                    </div>
+                    <div id="ge-items-container"></div>
+                </div>
+
+                <div class="form-group">
+                    <label style="font-size: 0.78rem; font-weight: 600; display: block; margin-bottom: 4px;">Observaciones</label>
+                    <input type="text" id="ge-observaciones" style="width: 100%;">
+                </div>
+
+                <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 10px;">
+                    <button type="button" class="btn btn-secondary" onclick="closeEditGuiaModal()">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL 3: REGISTRAR ENTREGA CONFORME (FIRMA DIGITAL) -->
+    <div class="modal-overlay" id="guia-deliver-modal">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <div style="width: 36px; height: 36px; border-radius: 10px; background: rgba(46, 196, 182, 0.15); color: var(--color-success); display: flex; align-items: center; justify-content: center;">
+                        <i class="fa-solid fa-signature"></i>
+                    </div>
+                    <div>
+                        <h3 style="margin: 0; font-size: 1.1rem;">Registrar Entrega Conforme</h3>
+                        <p style="margin: 0; font-size: 0.75rem; color: var(--text-muted);"><span id="gdel-folio-badge">#--</span> • Firma en Terreno</p>
+                    </div>
+                </div>
+                <button type="button" class="btn-close" onclick="closeDeliverModal()">&times;</button>
+            </div>
+
+            <form id="guia-deliver-form" onsubmit="saveDeliverModal(event)" style="padding: 20px; display: flex; flex-direction: column; gap: 14px;">
+                <div class="form-group">
+                    <label for="gdel-nombre" style="font-size: 0.8rem; font-weight: 600; display: block; margin-bottom: 4px;">Nombre Completo de Quien Recibe <span class="required" style="color: var(--color-danger);">*</span></label>
+                    <input type="text" id="gdel-nombre" placeholder="Ej: Carlos Díaz / Supervisor de Faena" required style="width: 100%;">
+                </div>
+
+                <div class="form-group">
+                    <label for="gdel-rut" style="font-size: 0.8rem; font-weight: 600; display: block; margin-bottom: 4px;">RUT de Quien Recibe (Opcional)</label>
+                    <input type="text" id="gdel-rut" placeholder="Ej: 15.678.901-2" style="width: 100%;">
+                </div>
+
+                <div class="form-group">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                        <label style="font-size: 0.8rem; font-weight: 600;">Firma en Pantalla (Dedo o Mouse)</label>
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="clearGuiaSignature()" style="font-size: 0.72rem; padding: 2px 8px;">
+                            <i class="fa-solid fa-eraser"></i> Limpiar
+                        </button>
+                    </div>
+                    <div class="signature-canvas-wrapper">
+                        <canvas id="guia-signature-canvas" width="440" height="140"></canvas>
+                    </div>
+                </div>
+
+                <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 10px;">
+                    <button type="button" class="btn btn-secondary" onclick="closeDeliverModal()">Cancelar</button>
+                    <button type="submit" class="btn btn-success" style="padding: 10px 20px; font-weight: 700;">
+                        <i class="fa-solid fa-circle-check"></i> Confirmar Recepción
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL 4: CONFIRMAR ELIMINACIÓN -->
+    <div class="modal-overlay" id="guia-delete-modal">
+        <div class="modal-content" style="max-width: 420px; text-align: center; padding: 24px;">
+            <div style="width: 54px; height: 54px; border-radius: 50%; background: rgba(230, 57, 70, 0.15); color: var(--color-danger); display: flex; align-items: center; justify-content: center; font-size: 1.5rem; margin: 0 auto 16px;">
+                <i class="fa-solid fa-trash-can"></i>
+            </div>
+            <h3 style="margin: 0 0 8px; font-size: 1.2rem;">¿Eliminar Guía de Despacho?</h3>
+            <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 20px;">
+                ¿Está seguro que desea eliminar permanentemente la Guía <strong id="gdel-confirm-folio">#--</strong> y su detalle de carga? Esta acción no se puede deshacer.
+            </p>
+            <div style="display: flex; justify-content: center; gap: 12px;">
+                <button type="button" class="btn btn-secondary" onclick="closeDeleteGuiaModal()">Cancelar</button>
+                <button type="button" class="btn btn-danger" onclick="confirmDeleteGuia()" style="padding: 8px 20px;">
+                    Sí, Eliminar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- DRAWER LATERAL: INSPECTOR DE DETALLES Y AUDITORÍA -->
+    <div class="guia-drawer-overlay" id="guia-drawer-overlay" onclick="closeGuiaDrawer()"></div>
+    <div class="guia-drawer" id="guia-drawer">
+        <div class="guia-drawer-header">
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <span id="gd-folio-badge" style="font-family: monospace; font-size: 1.1rem; font-weight: 800; color: var(--color-primary); background: rgba(255, 122, 0, 0.12); padding: 4px 10px; border-radius: 8px;">#--</span>
+                <div>
+                    <span id="gd-estado-badge" class="badge">--</span>
+                    <div id="gd-fecha-label" style="font-size: 0.75rem; color: var(--text-muted); font-family: monospace; margin-top: 2px;">--</div>
+                </div>
+            </div>
+            <button type="button" class="btn-close" onclick="closeGuiaDrawer()">&times;</button>
+        </div>
+
+        <div class="guia-drawer-body">
+            <!-- Acciones directas -->
+            <div id="gd-actions-container" style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px;"></div>
+
+            <!-- Ficha de Transporte -->
+            <div style="background: var(--bg-tertiary); padding: 14px; border-radius: var(--radius-md); border: 1px solid var(--border-color); margin-bottom: 20px;">
+                <span style="font-size: 0.72rem; font-weight: 800; text-transform: uppercase; color: var(--text-muted); display: block; margin-bottom: 10px;">Datos del Traslado</span>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 0.85rem;">
+                    <div>
+                        <span style="color: var(--text-muted); display: block; font-size: 0.75rem;">Destino / Entrega:</span>
+                        <strong id="gd-destino" style="color: var(--text-primary);">-</strong>
+                    </div>
+                    <div>
+                        <span style="color: var(--text-muted); display: block; font-size: 0.75rem;">Chofer:</span>
+                        <strong id="gd-chofer" style="color: var(--text-primary);">-</strong>
+                    </div>
+                    <div>
+                        <span style="color: var(--text-muted); display: block; font-size: 0.75rem;">Vehículo:</span>
+                        <strong id="gd-vehiculo" style="color: var(--text-primary);">-</strong>
+                    </div>
+                    <div>
+                        <span style="color: var(--text-muted); display: block; font-size: 0.75rem;">Emisor:</span>
+                        <strong id="gd-emisor" style="color: var(--text-primary);">-</strong>
+                    </div>
+                </div>
+                <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border-color); font-size: 0.8rem; color: var(--text-secondary);">
+                    <strong>Notas:</strong> <span id="gd-obs">-</span>
+                </div>
+            </div>
+
+            <!-- Recepción Conforme Registrada -->
+            <div id="gd-recepcion-card" style="display: none; background: rgba(46, 196, 182, 0.08); border: 1px solid rgba(46, 196, 182, 0.3); border-radius: var(--radius-md); padding: 14px; margin-bottom: 20px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <span style="font-size: 0.75rem; font-weight: 800; text-transform: uppercase; color: var(--color-success);">Recepción Conforme</span>
+                    <i class="fa-solid fa-circle-check" style="color: var(--color-success);"></i>
+                </div>
+                <div style="font-size: 0.85rem; color: var(--text-primary); line-height: 1.5;">
+                    <p style="margin: 0;"><strong>Recibió:</strong> <span id="gd-receptor-nombre">-</span> (<span id="gd-receptor-rut">-</span>)</p>
+                    <p style="margin: 0; font-size: 0.75rem; color: var(--text-muted);"><strong>Fecha de Recepción:</strong> <span id="gd-receptor-fecha">-</span></p>
+                </div>
+                <div id="gd-firma-container" style="margin-top: 10px; background: #fff; border-radius: var(--radius-sm); padding: 8px; text-align: center; border: 1px solid #cbd5e1;">
+                    <span style="font-size: 0.7rem; color: #64748b; font-weight: 600; display: block; margin-bottom: 4px;">Firma Digital Capturada:</span>
+                    <img id="gd-firma-img" src="" alt="Firma" style="max-height: 70px; width: auto; object-fit: contain;">
+                </div>
+            </div>
+
+            <!-- Detalle de Productos -->
+            <div>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <span style="font-size: 0.75rem; font-weight: 800; text-transform: uppercase; color: var(--color-primary);">Detalle de Carga</span>
+                    <span id="gd-items-count" style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600;">0 productos</span>
+                </div>
+                <div id="gd-items-list"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 5: PREVISUALIZACIÓN E IMPRESIÓN OFICIAL DEL REMITO (CARTA / A4) -->
+    <div class="modal-overlay" id="modal-remito-print">
+        <div class="modal-content" style="max-width: 820px; max-height: 92vh; display: flex; flex-direction: column; padding: 0; background: #ffffff !important; color: #0f172a !important;">
+            
+            <div class="modal-header no-print-actions" style="background: #1e293b; color: #ffffff; padding: 14px 20px; border-bottom: none;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <i class="fa-solid fa-print" style="color: var(--color-primary);"></i>
+                    <strong style="font-size: 0.95rem;">Previsualización de Remito Oficial</strong>
+                    <span style="font-size: 0.75rem; color: #94a3b8;">| ProCleanMG</span>
+                </div>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <button type="button" class="btn btn-primary btn-sm" onclick="printRemito()" style="font-weight: 700; padding: 6px 16px;">
+                        <i class="fa-solid fa-print"></i> Imprimir / Guardar PDF
+                    </button>
+                    <button type="button" class="btn-close" onclick="closePrintRemitoModal()" style="color: #ffffff;">&times;</button>
+                </div>
+            </div>
+
+            <div class="modal-body" style="flex: 1; overflow-y: auto; padding: 30px; font-family: Arial, sans-serif; background: #ffffff;">
+                
+                <!-- Encabezado del Remito -->
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #0f172a; padding-bottom: 16px; margin-bottom: 16px;">
+                    <div style="display: flex; align-items: center; gap: 14px;">
+                        <img src="LOGO PROCLEANMG.jpg" alt="ProCleanMG" style="height: 58px; width: auto; object-fit: contain;">
+                        <div>
+                            <h2 style="margin: 0; font-size: 1.25rem; font-weight: 900; color: #0f172a; text-transform: uppercase;" id="remito-p-razon">ProCleanMG SpA</h2>
+                            <p style="margin: 2px 0; font-size: 0.8rem; color: #475569; font-weight: 600;">Servicios Industriales & Logística Operativa</p>
+                            <p style="margin: 0; font-size: 0.75rem; color: #64748b;">Tel: <span id="remito-p-tel">934068272</span> | Correo: <span id="remito-p-correo">mandrade@procleanmg.cl</span></p>
+                        </div>
+                    </div>
+
+                    <div style="border: 2px solid #0f172a; border-radius: 8px; padding: 10px 18px; text-align: center; background: #f8fafc; min-width: 190px;">
+                        <span style="font-size: 0.75rem; font-weight: 900; letter-spacing: 0.08em; display: block; color: #475569;">GUÍA DE DESPACHO</span>
+                        <span style="font-size: 0.7rem; font-weight: 700; color: #64748b;">REMITO DE CARGA</span>
+                        <div style="font-size: 1.5rem; font-weight: 900; font-family: monospace; color: #FF7A00; margin: 4px 0;">
+                            N° <span id="remito-p-folio">--</span>
+                        </div>
+                        <div style="font-size: 0.75rem; font-family: monospace; color: #334155;">
+                            Fecha: <span id="remito-p-fecha">--</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bloques Emisor & Transporte -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; font-size: 0.8rem; border: 1px solid #cbd5e1; border-radius: 8px; padding: 12px; background: #f8fafc; margin-bottom: 16px;">
+                    <div>
+                        <span style="font-size: 0.7rem; font-weight: 900; text-transform: uppercase; color: #64748b; display: block; margin-bottom: 4px;">Datos del Emisor</span>
+                        <p style="margin: 2px 0;"><strong>Emisor:</strong> <span id="remito-p-emisor">Marco Andrade</span></p>
+                        <p style="margin: 2px 0;"><strong>RUT:</strong> <span id="remito-p-rut-emisor">76801700-K</span></p>
+                        <p style="margin: 2px 0;"><strong>Domicilio:</strong> <span id="remito-p-domicilio">Av. Iquique 3115</span></p>
+                        <p style="margin: 2px 0;"><strong>Ciudad:</strong> <span id="remito-p-ciudad">Antofagasta</span></p>
+                    </div>
+                    <div>
+                        <span style="font-size: 0.7rem; font-weight: 900; text-transform: uppercase; color: #64748b; display: block; margin-bottom: 4px;">Destino y Transporte</span>
+                        <p style="margin: 2px 0;"><strong>Destino:</strong> <strong id="remito-p-destino" style="color: #0f172a;">-</strong></p>
+                        <p style="margin: 2px 0;"><strong>Chofer:</strong> <span id="remito-p-chofer">-</span></p>
+                        <p style="margin: 2px 0;"><strong>Vehículo:</strong> <span id="remito-p-vehiculo">-</span></p>
+                        <p style="margin: 2px 0;"><strong>Patente:</strong> <span id="remito-p-patente">-</span></p>
+                    </div>
+                </div>
+
+                <!-- Tabla de Productos / Carga -->
+                <div style="border: 1px solid #0f172a; border-radius: 8px; overflow: hidden; margin-bottom: 16px;">
+                    <table style="width: 100%; border-collapse: collapse; font-size: 0.8rem;">
+                        <thead>
+                            <tr style="background: #0f172a; color: #ffffff; text-align: left;">
+                                <th style="padding: 8px 12px; width: 60px; font-weight: 800;">ART.</th>
+                                <th style="padding: 8px 12px; font-weight: 800;">DESCRIPCIÓN DE PRODUCTOS O REPUESTOS</th>
+                                <th style="padding: 8px 12px; width: 110px; text-align: right; font-weight: 800;">CANTIDAD</th>
+                            </tr>
+                        </thead>
+                        <tbody id="remito-p-items-body"></tbody>
+                    </table>
+                </div>
+
+                <!-- Observaciones -->
+                <div style="font-size: 0.78rem; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px 12px; margin-bottom: 24px;">
+                    <strong>Observaciones:</strong> <span id="remito-p-obs">Sin observaciones.</span>
+                </div>
+
+                <!-- Firmas -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-top: 30px; text-align: center;">
+                    <div style="border-top: 1px solid #0f172a; padding-top: 8px;">
+                        <div style="height: 55px;"></div>
+                        <strong style="font-size: 0.78rem; display: block; color: #0f172a; letter-spacing: 0.05em;">FIRMA DE AUTORIZACIÓN</strong>
+                        <span style="font-size: 0.7rem; color: #64748b;">Despachador Responsable ProCleanMG</span>
+                    </div>
+
+                    <div style="border-top: 1px solid #0f172a; padding-top: 8px;">
+                        <div id="remito-p-firma-box" style="min-height: 55px; display: flex; flex-direction: column; justify-content: center; align-items: center;"></div>
+                        <strong style="font-size: 0.78rem; display: block; color: #0f172a; letter-spacing: 0.05em;">FIRMA Y SELLO DE RECEPCIÓN</strong>
+                        <span style="font-size: 0.7rem; color: #64748b;">Receptor Conforme en Destino</span>
+                    </div>
+                </div>
+
+                <!-- Pie Legal -->
+                <div style="margin-top: 24px; padding-top: 12px; border-top: 1px solid #e2e8f0; display: flex; justify-content: space-between; font-size: 0.68rem; color: #94a3b8;">
+                    <span>GUÍA DE CONTROL INTERNO Y TRASLADO OPERACIONAL - PROCLEANMG</span>
+                    <span>Documento con Trazabilidad Inmutable Digital</span>
+                </div>
+
             </div>
         </div>
     </div>
