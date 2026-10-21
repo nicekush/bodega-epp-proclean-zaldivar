@@ -690,7 +690,8 @@ body.light-mode tr:hover td {
 
 .form-group input,
 .form-group select,
-.form-group textarea {
+.form-group textarea,
+.form-control {
     background-color: var(--bg-tertiary);
     border: 1px solid var(--border-color);
     border-radius: var(--radius-md);
@@ -707,17 +708,20 @@ body.light-mode tr:hover td {
 
 .form-group input:focus,
 .form-group select:focus,
-.form-group textarea:focus {
+.form-group textarea:focus,
+.form-control:focus {
     border-color: var(--color-primary);
     box-shadow: 0 0 0 3px rgba(224, 122, 95, 0.15);
 }
 
 .form-group input::placeholder,
-.form-group textarea::placeholder {
+.form-group textarea::placeholder,
+.form-control::placeholder {
     color: var(--text-muted);
 }
 
-.form-group select option {
+.form-group select option,
+select.form-control option {
     background-color: var(--bg-secondary);
     color: var(--text-primary);
 }
@@ -2241,8 +2245,9 @@ body.dark-mode .sku-chip {
 .guia-row-actions { display:flex; gap:5px; justify-content:flex-end; flex-wrap:wrap; }
 .guia-load-summary { max-width:280px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .guia-empty { text-align:center; padding:32px; color:var(--text-secondary); }
-.guia-item-editor { display:grid; grid-template-columns:minmax(0,1fr) 100px 80px 35px; gap:8px; margin-bottom:14px; align-items:center; }
+.guia-item-editor { display:grid; grid-template-columns:minmax(0,1fr) 100px 88px 42px; gap:8px; margin-bottom:14px; align-items:center; }
 .guia-item-editor input,.guia-item-editor select { width:100%; min-width:0; }
+.guia-item-editor > button { width:42px; height:44px; padding:0; justify-content:center; border-radius:var(--radius-md); }
 .guia-item-note { grid-column:1/-1; }
 .guia-detail-item { display:flex; gap:16px; justify-content:space-between; align-items:flex-start; padding:12px; border-bottom:1px solid var(--border-color); }
 .guia-detail-item > span { white-space:nowrap; }
@@ -2282,7 +2287,7 @@ body.dark-mode .sku-chip {
 @media(max-width:650px) {
     .guias-filters { grid-template-columns:repeat(2,minmax(0,1fr)); }
     .guias-filters > .epp-search-input-wrapper { grid-column:1/-1; }
-    .guia-item-editor { grid-template-columns:minmax(0,1fr) minmax(0,1fr) 35px; }
+    .guia-item-editor { grid-template-columns:minmax(0,1fr) minmax(0,1fr) 42px; }
     .guia-item-editor > input:first-child { grid-column:1/-1; }
     .guia-config-grid { grid-template-columns:1fr; }
     #guia-edit-form > div[style*="grid-template-columns"] { grid-template-columns:repeat(2,minmax(0,1fr)) !important; }

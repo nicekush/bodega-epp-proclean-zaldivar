@@ -184,11 +184,11 @@ function addItemRow(containerId, prefix, art = '', desc = '', quantity = 1, unit
     row.id = `${prefix}-item-row-${++itemSequence}`;
     row.className = `${prefix}-item-row guia-item-editor`;
     row.dataset.article = art;
-    row.innerHTML = `<input class="${prefix}-item-desc" placeholder="Descripción de la carga" maxlength="2000" required aria-label="Descripción del artículo">
-        <input class="${prefix}-item-cant" type="number" min="0.000001" max="1000000000" step="any" required aria-label="Cantidad">
-        <select class="${prefix}-item-unid" aria-label="Unidad"></select>
+    row.innerHTML = `<input class="form-control ${prefix}-item-desc" placeholder="Descripción de la carga" maxlength="2000" required aria-label="Descripción del artículo">
+        <input class="form-control ${prefix}-item-cant" type="number" min="0.000001" max="1000000000" step="any" required aria-label="Cantidad">
+        <select class="form-control ${prefix}-item-unid" aria-label="Unidad"></select>
         <button type="button" class="btn btn-secondary btn-sm" aria-label="Quitar artículo">×</button>
-        <input class="${prefix}-item-obs guia-item-note" placeholder="Observación del artículo (opcional)" maxlength="2000" aria-label="Observación del artículo">`;
+        <input class="form-control ${prefix}-item-obs guia-item-note" placeholder="Observación del artículo (opcional)" maxlength="2000" aria-label="Observación del artículo">`;
     row.querySelector(`.${prefix}-item-desc`).value = desc;
     row.querySelector(`.${prefix}-item-cant`).value = quantity;
     const select = row.querySelector('select');

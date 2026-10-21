@@ -1,6 +1,13 @@
 import { test, expect, openGuias, fillNewGuia } from './guias-fixture.js';
 import { readFile } from 'node:fs/promises';
 
+async function captureModalThemes(page, selector, name, testInfo) {
+    for (const theme of ['light', 'dark']) {
+        await page.evaluate(theme => { document.getElementById('theme-switch').checked = theme === 'dark'; window.toggleTheme(); }, theme);
+        await page.locator(selector).screenshot({ path: testInfo.outputPath(`${name}-${theme}.png`), animations: 'disabled', style: '#toast-container { visibility: hidden !important; }' });
+    }
+}
+
 test.beforeEach(async ({ page, backend }) => { await openGuias(page); });
 
 test('busca folio exacto, tildes y patente y relaciona los filtros', async ({ page }) => {
@@ -31,8 +38,9 @@ test('una búsqueda vacía no exporta todas las guías', async ({ page }) => {
     expect(downloads).toHaveLength(0);
 });
 
-test('la edición conserva comillas y texto HTML y muestra los cambios de carga', async ({ page, backend }) => {
+test('la edición conserva comillas y texto HTML y muestra los cambios de carga', async ({ page, backend }, testInfo) => {
     await page.locator('tr[data-guia-id="1"] button[data-guia-action="edit"]').click();
+    await captureModalThemes(page, '#guia-edit-modal .modal-content', 'editar-guia', testInfo);
     const description = 'Manguera 1/2" <img src=x onerror="window.guiaXss=1">';
     await page.locator('.ge-item-desc').fill(description);
     await page.locator('#ge-observaciones').fill('Cambio de carga de prueba');
@@ -136,6 +144,9 @@ test('interfaz móvil, filtros y nueva carga permanecen dentro del ancho de pant
     expect(box.width).toBeLessThanOrEqual(390);
     expect(await page.locator('#guia-wizard-form').evaluate(element => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
     await page.screenshot({ path: testInfo.outputPath('carga-movil.png'), fullPage: true });
+    await captureModalThemes(page, '#guia-wizard-modal .modal-content', 'carga-movil', testInfo);
+    await page.setViewportSize({ width: 1920, height: 1080 });
+    await captureModalThemes(page, '#guia-wizard-modal .modal-content', 'carga-escritorio', testInfo);
 });
 
 test('exportar incluye otras páginas y eliminar la última fila ajusta la página', async ({ page, backend }) => {
