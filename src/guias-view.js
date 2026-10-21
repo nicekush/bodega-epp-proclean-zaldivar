@@ -6,7 +6,7 @@ import {
 import { showToast, showConfirmDialog } from './utils.js';
 import { currentUser } from './auth.js';
 import {
-    GUIA_STATES, GUIA_UNITS, escapeGuiaHTML as html, localGuiaDate,
+    GUIA_STATES, GUIA_UNITS, escapeGuiaHTML as html, normalizeGuiaText, localGuiaDate,
     selectGuias, validateGuia, guiaTiming, isGuiaManager, canEditGuia, canAnnulGuia, buildGuiasCSV
 } from './guias-model.js';
 
@@ -45,6 +45,7 @@ function updateStatus() {
     }
     document.querySelectorAll('[data-guia-write]').forEach(button => { button.disabled = !currentUser?.rut || !dbGuiasStatus.online || !dbGuiasStatus.schemaReady; });
     document.querySelectorAll('[data-guia-manager]').forEach(button => { button.hidden = !isGuiaManager(user()); });
+    updateConfigStatus();
 }
 async function mutate(key, rootId, action) {
     if (pending.has(key)) return;
@@ -218,18 +219,18 @@ function populateGuiasCatalogosDropdowns() {
     if (vehicle) {
         const selected = vehicle.value;
         vehicle.replaceChildren(new Option('Selecciona vehículo', ''));
-        dbGuiasCatalogos.vehiculos.forEach(item => vehicle.add(new Option(item.nombre, item.nombre)));
+        sortedCatalog('vehiculos').forEach(item => vehicle.add(new Option(item.nombre, item.nombre)));
         if ([...vehicle.options].some(option => option.value === selected)) vehicle.value = selected;
     }
     const drivers = $('gw-choferes-list');
     if (drivers) {
         drivers.replaceChildren();
-        dbGuiasCatalogos.choferes.forEach(item => drivers.appendChild(new Option(item.nombre, item.nombre)));
+        sortedCatalog('choferes').forEach(item => drivers.appendChild(new Option(item.nombre, item.nombre)));
     }
     const destinations = $('gw-destinos-list');
     if (destinations) {
         destinations.replaceChildren();
-        dbGuiasCatalogos.destinos.forEach(item => destinations.appendChild(new Option(item.nombre, item.nombre)));
+        sortedCatalog('destinos').forEach(item => destinations.appendChild(new Option(item.nombre, item.nombre)));
     }
     const chips = $('gw-destinos-chips');
     if (chips) {
@@ -239,6 +240,11 @@ function populateGuiasCatalogosDropdowns() {
             button.type = 'button'; button.className = 'btn btn-secondary btn-sm'; button.textContent = item.nombre;
             button.addEventListener('click', () => selectDestinoQuick(item.nombre)); chips.appendChild(button);
         });
+    }
+    const editVehicles = $('ge-vehiculos-list');
+    if (editVehicles) {
+        editVehicles.replaceChildren();
+        sortedCatalog('vehiculos').forEach(item => editVehicles.appendChild(new Option(item.nombre, item.nombre)));
     }
 }
 export function openNewGuiaModal() {
@@ -464,12 +470,37 @@ const configFields = {
     'gcfg-emisor-domicilio': 'emisor_domicilio', 'gcfg-emisor-telefono': 'emisor_telefono'
 };
 export function openGuiasConfigModal() {
-    if (!canOperate()) return;
+    if (!currentUser?.rut) { toast('Inicia sesión en la aplicación.', 'warning'); return; }
     if (!isGuiaManager(user())) { toast('Solo supervisores y administradores pueden configurar las guías.', 'warning'); return; }
-    Object.entries(configFields).forEach(([id, key]) => { if ($(id)) $(id).value = dbGuiasConfig[key] || ''; });
-    renderConfigCatalogs(); switchGuiasConfigTab('empresa'); modal('modal-guias-config', true);
+    window.switchView('view-guias-config');
 }
-export function closeGuiasConfigModal() { modal('modal-guias-config', false); }
+export async function initGuiasConfigView() {
+    if (!isGuiaManager(user())) { window.switchView('view-guias'); toast('Solo supervisores y administradores pueden configurar las guías.', 'warning'); return; }
+    switchGuiasConfigTab('empresa');
+    await reloadGuiasConfiguration();
+}
+export async function reloadGuiasConfiguration() {
+    if (!isGuiaManager(user())) return;
+    dbGuiasStatus.settingsOnline = false;
+    text('gcfg-status', 'Cargando configuración…');
+    document.querySelectorAll('[data-guia-config-write]').forEach(button => { button.disabled = true; });
+    await dbFetchGuiasSettings();
+    Object.entries(configFields).forEach(([id, key]) => { if ($(id)) $(id).value = dbGuiasConfig[key] || ''; });
+    renderConfigCatalogs(); populateGuiasCatalogosDropdowns(); updateStatus();
+}
+function updateConfigStatus() {
+    text('gcfg-status', !dbGuiasStatus.settingsOnline
+        ? 'No se pudo actualizar la configuración. Se muestra la última copia disponible.'
+        : !dbGuiasStatus.schemaReady ? 'Configuración en modo consulta hasta completar la actualización del módulo.'
+            : 'Configuración compartida. Los cambios se aplican a las próximas guías.');
+    document.querySelectorAll('[data-guia-config-write]').forEach(button => { button.disabled = !isGuiaManager(user()) || !dbGuiasStatus.settingsOnline || !dbGuiasStatus.schemaReady; });
+}
+function canConfigure() {
+    if (!isGuiaManager(user())) { toast('Solo supervisores y administradores pueden configurar las guías.', 'warning'); return false; }
+    if (!dbGuiasStatus.schemaReady || !dbGuiasStatus.settingsOnline) { toast('Actualiza la configuración antes de guardar cambios.', 'warning'); return false; }
+    return true;
+}
+export function closeGuiasConfigModal() { window.switchView('view-guias'); }
 export function switchGuiasConfigTab(tab) {
     for (const name of ['empresa', 'catalogos']) {
         if ($(`gcfg-sec-${name}`)) $(`gcfg-sec-${name}`).style.display = name === tab ? 'block' : 'none';
@@ -479,20 +510,34 @@ export function switchGuiasConfigTab(tab) {
 }
 export async function saveGuiasConfigEmpresa(event) {
     event.preventDefault();
+    if (!canConfigure()) return;
     await mutate('config', 'form-gcfg-empresa', async () => {
         const config = Object.fromEntries(Object.entries(configFields).filter(([id]) => $(id)).map(([id, key]) => [key, value(id)]));
         if (!config.empresa_razon_social || !config.empresa_rut) throw new Error('Completa razón social y RUT de la empresa.');
         await dbSaveGuiasConfig(config); toast('Parámetros guardados para las próximas guías.');
     });
 }
+function sortedCatalog(key) {
+    return [...dbGuiasCatalogos[key]].sort((a, b) => a.nombre.localeCompare(b.nombre, 'es', { sensitivity: 'base', numeric: true }));
+}
+export function filterGuiasCatalogos() { renderConfigCatalogs(); updateConfigStatus(); }
 function renderConfigCatalogs() {
     for (const [type, key, containerId] of [['vehiculo', 'vehiculos', 'gcfg-list-vehiculos'], ['chofer', 'choferes', 'gcfg-list-choferes'], ['destino', 'destinos', 'gcfg-list-destinos']]) {
         const container = $(containerId); if (!container) continue; container.replaceChildren();
-        dbGuiasCatalogos[key].forEach(item => {
-            const chip = document.createElement('span'); chip.className = 'guia-catalog-chip';
+        const query = normalizeGuiaText(value(`gcfg-search-${type}`));
+        const list = sortedCatalog(key).filter(item => normalizeGuiaText(item.nombre).includes(query));
+        text(`gcfg-count-${type}`, `${list.length} de ${dbGuiasCatalogos[key].length} registros`);
+        if (!list.length) {
+            const empty = document.createElement('p'); empty.className = 'guia-empty';
+            empty.textContent = query ? 'No hay coincidencias con esta búsqueda.' : 'Aún no hay registros. Agrega el primero para utilizarlo en las guías.';
+            container.appendChild(empty);
+        }
+        list.forEach(item => {
+            const chip = document.createElement('div'); chip.className = 'guia-catalog-row';
             const label = document.createElement('span'); label.textContent = item.nombre; chip.appendChild(label);
-            const button = document.createElement('button'); button.type = 'button'; button.textContent = '×'; button.setAttribute('aria-label', `Retirar ${item.nombre}`);
+            const button = document.createElement('button'); button.type = 'button'; button.className = 'btn btn-danger-outline btn-sm'; button.textContent = 'Retirar'; button.dataset.guiaConfigWrite = ''; button.setAttribute('aria-label', `Retirar ${item.nombre}`);
             button.addEventListener('click', async () => {
+                if (!canConfigure()) return;
                 if (!await showConfirmDialog('Retirar del catálogo', `¿Retirar «${item.nombre}»? Las guías existentes conservarán ese dato.`)) return;
                 await mutate(`catalog-${item.id}`, 'gcfg-sec-catalogos', async () => { await dbDeleteGuiaCatalogo(item.id); renderConfigCatalogs(); populateGuiasCatalogosDropdowns(); toast('Elemento retirado del catálogo.'); });
             });
@@ -501,10 +546,11 @@ function renderConfigCatalogs() {
     }
 }
 export async function addGuiasCatalogoItem(type) {
+    if (!canConfigure()) return;
     const input = $(`gcfg-add-${type}-input`);
     const name = input?.value.trim();
     if (!name) { toast('Escribe el nombre que deseas agregar.', 'warning'); return; }
     await mutate(`catalog-add-${type}`, 'gcfg-sec-catalogos', async () => {
-        await dbAddGuiaCatalogo(type, name); input.value = ''; renderConfigCatalogs(); populateGuiasCatalogosDropdowns(); toast('Elemento agregado al catálogo.');
+        await dbAddGuiaCatalogo(type, name); input.value = ''; if ($(`gcfg-search-${type}`)) $(`gcfg-search-${type}`).value = ''; renderConfigCatalogs(); populateGuiasCatalogosDropdowns(); toast('Elemento agregado al catálogo.');
     });
 }

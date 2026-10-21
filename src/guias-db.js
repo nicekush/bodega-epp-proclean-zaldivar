@@ -1,7 +1,7 @@
 import { validateGuia } from './guias-model.js';
 
 export function createGuiasRepository(client, cache, getUser) {
-    const state = { guias: [], catalogos: { vehiculos: [], choferes: [], destinos: [] }, config: {}, online: false, schemaReady: false, error: '' };
+    const state = { guias: [], catalogos: { vehiculos: [], choferes: [], destinos: [] }, config: {}, online: false, settingsOnline: false, schemaReady: false, error: '' };
     const persist = () => cache.write('guides', state.guias);
     const persistSettings = () => cache.write('settings', { catalogos: state.catalogos, config: state.config });
     const cached = (key, fallback) => {
@@ -55,8 +55,10 @@ export function createGuiasRepository(client, cache, getUser) {
                 destinos: catalogos.filter(row => row.tipo === 'destino')
             };
             state.config = Object.fromEntries(config.map(row => [row.clave, row.valor]));
+            state.settingsOnline = true;
             persistSettings();
         } catch {
+            state.settingsOnline = false;
             state.catalogos = previous.catalogos || { vehiculos: [], choferes: [], destinos: [] };
             state.config = previous.config || {};
         }
@@ -121,8 +123,11 @@ export function createGuiasRepository(client, cache, getUser) {
         return state.config;
     }
     async function addCatalog(tipo, nombre) {
-        const item = await operate('catalogo_agregar', { tipo, nombre });
         const key = { vehiculo: 'vehiculos', chofer: 'choferes', destino: 'destinos' }[tipo];
+        nombre = String(nombre || '').trim().replace(/\s+/g, ' ');
+        if (!key || !nombre || nombre.length > 200) throw new Error('Indica un tipo y un nombre válidos (máximo 200 caracteres).');
+        if (state.catalogos[key].some(item => item.nombre.trim().replace(/\s+/g, ' ').toLocaleLowerCase('es') === nombre.toLocaleLowerCase('es'))) throw new Error('Este nombre ya está registrado en el catálogo.');
+        const item = await operate('catalogo_agregar', { tipo, nombre });
         if (key) state.catalogos[key].push(item);
         persistSettings();
         return item;

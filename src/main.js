@@ -263,6 +263,12 @@ function switchView(viewId, targetParam = null) {
             updateGuiasDashboardStats();
             renderGuiasTable();
             break;
+        case "view-guias-config":
+            viewTitle.textContent = "Configuración de Guías de Despacho";
+            viewSubtitle.textContent = "Administre empresa, emisor y catálogos de transporte.";
+            document.querySelector('.nav-item[data-view="view-guias"]')?.classList.add('active');
+            void guiasActions.initGuiasConfigView();
+            break;
         case "view-reports":
             viewTitle.textContent = "Historial y Reportes";
             viewSubtitle.textContent = "Consulte y exporte el historial de transacciones, auditoría y conciliación semanal de stock.";

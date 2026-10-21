@@ -2249,6 +2249,28 @@ body.dark-mode .sku-chip {
 .guia-config-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; margin-bottom:16px; }
 .guia-catalog-chip { display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border-radius:8px; background:var(--bg-secondary); border:1px solid var(--border-color); }
 .guia-catalog-chip button { border:0; cursor:pointer; background:transparent; color:var(--color-danger); font-size:1.15rem; }
+.guia-config-panel { max-width:1100px; margin:0 auto; }
+.guia-module-tabs { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:20px; }
+.guia-config-header { display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; padding-bottom:20px; border-bottom:1px solid var(--border-color); }
+.guia-config-body { min-width:0; }
+#view-guias-config input { width:100%; min-width:0; height:42px; padding:10px 12px; background:var(--bg-primary); color:var(--text-primary); border:1px solid var(--border-color); border-radius:8px; font:inherit; font-size:0.85rem; }
+#view-guias-config input::placeholder { color:var(--text-secondary); }
+#view-guias-config input:focus { outline:2px solid var(--color-primary); outline-offset:2px; }
+#view-guias-config label { font-size:0.8rem; }
+.guia-catalog-add { display:flex; gap:8px; margin-bottom:14px; }
+.guia-catalog-add input { min-width:0; }
+.guia-catalog-search { display:grid; grid-template-columns:auto minmax(0,1fr) auto; align-items:center; gap:10px; margin-bottom:12px; }
+.guia-catalog-search input { min-width:0; width:100%; }
+.guia-catalog-list { display:flex; flex-direction:column; gap:6px; max-height:360px; overflow:auto; }
+.guia-catalog-row { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:10px 12px; border:1px solid var(--border-color); border-radius:8px; background:var(--bg-secondary); }
+.guia-catalog-row > span { min-width:0; overflow-wrap:anywhere; }
+.guia-catalog-row > button { flex-shrink:0; }
+@media(max-width:650px) {
+    .guia-config-panel { padding:16px; }
+    .guia-config-header > div { min-width:0; }
+    .guia-config-header h3 { overflow-wrap:anywhere; }
+    .guia-catalog-search { grid-template-columns:minmax(0,1fr); gap:6px; }
+}
 .guia-annul-reason { color:var(--color-danger); font-size:0.85rem; margin-bottom:14px; }
 [data-guia-manager][hidden] { display:none !important; }
 #guia-signature-canvas { touch-action:none; max-width:100%; }

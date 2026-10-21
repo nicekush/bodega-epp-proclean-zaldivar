@@ -95,15 +95,16 @@ test('un reintento tras perder la respuesta recupera la guía sin duplicarla', a
 });
 
 test('configuración y catálogo se guardan y las nuevas guías usan los parámetros', async ({ page, backend }) => {
-    await page.getByRole('button', { name: 'Configuración Guías' }).click();
+    await page.locator('#view-guias .guia-module-tabs').getByRole('button', { name: 'Configuración', exact: true }).click();
+    await expect(page.locator('#gcfg-status')).toContainText('Configuración compartida');
     await page.locator('#gcfg-razon').fill('Empresa de prueba actualizada');
     await page.locator('#form-gcfg-empresa button[type="submit"]').click();
     await expect(page.locator('#toast-container')).toContainText('Parámetros guardados');
     await page.locator('#tab-gcfg-catalogos').click();
     await page.locator('#gcfg-add-destino-input').fill('Destino "nuevo"');
-    await page.locator('button[onclick="addGuiasCatalogoItem(\'destino\')"]').click();
+    await page.locator('#gcfg-add-destino-input').press('Enter');
     await expect(page.locator('#gcfg-list-destinos')).toContainText('Destino "nuevo"');
-    await page.locator('button[onclick="closeGuiasConfigModal()"]').click();
+    await page.getByRole('button', { name: 'Volver a Guías' }).click();
     await fillNewGuia(page);
     await page.locator('#guia-wizard-form button[type="submit"]').click();
     await expect(page.locator('#remito-p-razon')).toHaveText('Empresa de prueba actualizada');
@@ -194,4 +195,58 @@ test('sin la migración el módulo conserva la consulta y deshabilita operacione
     await expect(page.locator('#guias-connection-status')).toContainText('Modo consulta');
     await expect(page.getByRole('button', { name: /Nueva Guía/ })).toBeDisabled();
     await expect(page.locator('#guias-table-body tr')).toHaveCount(3);
+});
+
+test('Configuración de Guías administra catálogos persistentes y conserva el historial al retirarlos', async ({ page, backend }, testInfo) => {
+    await page.locator('#view-guias .guia-module-tabs').getByRole('button', { name: 'Configuración', exact: true }).click();
+    await expect(page.locator('#view-guias-config')).toHaveClass(/active/);
+    await expect(page.locator('.nav-item[data-view="view-guias"]')).toHaveClass(/active/);
+    await expect(page.locator('#view-settings')).not.toHaveClass(/active/);
+    await expect(page.locator('#view-settings button[onclick="openGuiasConfigModal()"]')).toHaveCount(0);
+    await expect(page.locator('#gcfg-status')).toContainText('Configuración compartida');
+    await page.locator('#tab-gcfg-catalogos').click();
+    for (const [type, name, plural] of [['vehiculo', 'Furgón "Nuevo"', 'vehiculos'], ['chofer', 'Óscar Pérez', 'choferes'], ['destino', 'Bodega Ñuñoa', 'destinos']]) {
+        await page.locator(`#gcfg-add-${type}-input`).fill(name);
+        await page.locator(`#gcfg-add-${type}-input`).press('Enter');
+        await expect(page.locator(`#gcfg-list-${plural}`)).toContainText(name);
+    }
+    await page.locator('#gcfg-search-chofer').fill('oscar');
+    await expect(page.locator('#gcfg-list-choferes .guia-catalog-row')).toHaveCount(1);
+    await expect(page.locator('#gcfg-count-chofer')).toHaveText('1 de 2 registros');
+    await page.locator('#gcfg-search-destino').fill('no existe');
+    await expect(page.locator('#gcfg-list-destinos')).toContainText('No hay coincidencias');
+    await page.locator('#gcfg-search-destino').clear();
+    await page.getByRole('button', { name: 'Retirar Maxus T60', exact: true }).click();
+    await page.locator('#confirm-modal-btn-yes').click();
+    await expect(page.locator('#gcfg-list-vehiculos')).not.toContainText('Maxus T60');
+    expect(await backend.scalar('SELECT vehiculo AS value FROM public.guias_despacho WHERE id=1')).toBe('Maxus T60');
+    await page.getByRole('button', { name: 'Actualizar configuración' }).click();
+    await expect(page.locator('#gcfg-list-vehiculos')).toContainText('Furgón "Nuevo"');
+    await expect(page.locator('#gcfg-list-vehiculos')).not.toContainText('Maxus T60');
+    await page.screenshot({ path: testInfo.outputPath('configuracion-catalogos.png'), fullPage: true });
+    await page.getByRole('button', { name: 'Volver a Guías' }).click();
+    await page.getByRole('button', { name: /Nueva Guía/ }).click();
+    await expect(page.locator('#gw-vehiculo option[value="Maxus T60"]')).toHaveCount(0);
+    await page.locator('#gw-vehiculo').selectOption('Furgón "Nuevo"');
+    await expect(page.locator('#gw-choferes-list option[value="Óscar Pérez"]')).toHaveCount(1);
+    await expect(page.locator('#gw-destinos-list option[value="Bodega Ñuñoa"]')).toHaveCount(1);
+});
+
+test('un catálogo vacío permanece vacío y la configuración se adapta a móvil', async ({ page, backend }, testInfo) => {
+    await backend.db.exec('DELETE FROM public.guias_despacho_catalogos;');
+    await page.locator('#view-guias .guia-module-tabs').getByRole('button', { name: 'Configuración', exact: true }).click();
+    await expect(page.locator('#gcfg-status')).toContainText('Configuración compartida');
+    await page.locator('#tab-gcfg-catalogos').click();
+    await expect(page.locator('#gcfg-list-vehiculos')).toContainText('Aún no hay registros');
+    await page.getByRole('button', { name: 'Actualizar configuración' }).click();
+    await expect(page.locator('#gcfg-count-vehiculo')).toHaveText('0 de 0 registros');
+    await page.setViewportSize({ width: 390, height: 844 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
+    await page.screenshot({ path: testInfo.outputPath('configuracion-movil.png'), fullPage: true });
+    await page.locator('#gcfg-add-vehiculo-input').fill('Transporte nuevo');
+    await page.locator('#gcfg-add-vehiculo-input').press('Enter');
+    await expect(page.locator('#gcfg-list-vehiculos')).toContainText('Transporte nuevo');
+    await page.getByRole('button', { name: 'Volver a Guías' }).click();
+    await page.getByRole('button', { name: /Nueva Guía/ }).click();
+    await expect(page.locator('#gw-vehiculo option')).toHaveCount(2);
 });

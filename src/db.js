@@ -200,44 +200,8 @@ export async function initDatabase() {
         // 12. Cargar Guías de Despacho. Una tabla vacía es un resultado válido.
         await dbFetchGuias();
 
-        // 13. Cargar Catálogos de Despacho (Vehículos, Choferes, Destinos)
-        try {
-            const { data: cats, error: errCats } = await supabase
-                .from('guias_despacho_catalogos')
-                .select('*')
-                .order('frecuencia', { ascending: false });
-
-            if (errCats) throw errCats;
-            if (cats && cats.length > 0) {
-                dbGuiasCatalogos = {
-                    vehiculos: cats.filter(c => c.tipo === 'vehiculo'),
-                    choferes: cats.filter(c => c.tipo === 'chofer'),
-                    destinos: cats.filter(c => c.tipo === 'destino'),
-                    all: cats
-                };
-            } else {
-                throw new Error("Catálogos vacíos");
-            }
-        } catch (e) {
-            const defVehiculos = [
-                'Maxus T60', 'Toyota Hilux', 'Mitsubishi L200', 'Volkswagen Delivery',
-                'Camión Hino SCBY16', 'Hyundai Porter', 'Shineray T50', 'Bus Yutong', 'Grúa Rescate'
-            ];
-            const defDestinos = [
-                'PWM Chile', 'Oficina ANT', 'Taller GMI', 'Kaufman', 'Derco', 'MPM',
-                'Salmos sur 107', 'Av. Argentina 2309', 'Av. José Infante, Salamanca', 'Faena Minera', 'Faena Zaldívar'
-            ];
-            const defChoferes = [
-                'Marco Andrade', 'Luis Gamboa', 'Pedro Velazquez', 'Robert Gonzalez',
-                'Manuel Espinosa', 'Santos Jofre', 'Alexis Silva', 'Bruno Castro', 'Ignacio Perez', 'Jhon Diaz'
-            ];
-            dbGuiasCatalogos = {
-                vehiculos: defVehiculos.map((v, i) => ({ id: i + 1, tipo: 'vehiculo', nombre: v, frecuencia: 1 })),
-                choferes: defChoferes.map((c, i) => ({ id: i + 1, tipo: 'chofer', nombre: c, frecuencia: 1 })),
-                destinos: defDestinos.map((d, i) => ({ id: i + 1, tipo: 'destino', nombre: d, frecuencia: 1 })),
-                all: []
-            };
-        }
+        // 13. Catálogos y parámetros administrados desde Configuración de Guías.
+        await dbFetchGuiasSettings();
 
     } catch (error) {
         console.error("Error cargando base de datos desde Supabase:", error);

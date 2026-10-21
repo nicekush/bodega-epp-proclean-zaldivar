@@ -14,6 +14,9 @@ Para una instalación nueva, ejecutar primero `scratch/setup_guias_despacho.sql`
 
 ## Funciones implementadas
 
+- Apartado propio en **Guías de Despacho → Configuración**, con las pestañas Guías y Configuración dentro del mismo módulo. Permite editar empresa/emisor y agregar, buscar o retirar vehículos, choferes y destinos. Disponible para supervisores y administradores.
+- Los catálogos se cargan desde la base de datos y actualizan las opciones de emisión y edición. Una lista vacía permanece vacía; el arranque no incorpora vehículos, personas ni destinos fijos. Las instalaciones nuevas también comienzan sin datos de negocio predefinidos.
+- El retiro de un dato solo afecta las opciones disponibles en próximas guías; las guías históricas conservan el texto registrado. Esta mejora de configuración utiliza las RPC existentes de v3 y no necesita SQL adicional.
 - Búsqueda por folio exacto con `#`, palabras sin tildes, patente, chofer, destino, vehículo, emisor, receptor, observaciones y artículos.
 - Filtros combinados de estado, fechas inclusivas, destino, chofer y vehículo. Las opciones relacionadas muestran la cantidad de guías coincidentes y conservan una selección aunque pase a tener cero resultados.
 - Indicadores sobre la selección filtrada, antigüedad del pendiente más antiguo y tiempo medio entre inicio de ruta y recepción, cuando existen ambos registros.

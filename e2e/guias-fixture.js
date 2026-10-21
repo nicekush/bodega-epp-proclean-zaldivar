@@ -16,6 +16,11 @@ export const test = base.extend({
         await db.exec(readFileSync(new URL('../scratch/setup_guias_despacho.sql', import.meta.url), 'utf8'));
         await db.exec(readFileSync(new URL('../scratch/upgrade_guias_despacho_v2.sql', import.meta.url), 'utf8'));
         await db.exec(readFileSync(new URL('../scratch/upgrade_guias_despacho_v3.sql', import.meta.url), 'utf8'));
+        // Datos de prueba explícitos; la instalación no incorpora datos de negocio.
+        await db.exec(`INSERT INTO public.guias_despacho_catalogos(tipo,nombre) VALUES
+            ('vehiculo','Maxus T60'),('vehiculo','Toyota Hilux'),('destino','Faena Norte'),('chofer','Carlos Díaz');
+            INSERT INTO public.guias_despacho_config(clave,valor) VALUES
+            ('empresa_razon_social','ProCleanMG SPA'),('empresa_rut','76801700-K');`);
         const scalar = async (sql, params = []) => (await db.query(sql, params)).rows[0]?.value;
         const user = { rut: '11.111.111-1', nombre: 'Supervisión de prueba', rol: 'Supervisor' };
         const backend = {

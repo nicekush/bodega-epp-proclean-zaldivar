@@ -1517,8 +1517,151 @@
                 </div>
             </div>
 
+            <!-- VIEW: CONFIGURACIÓN DE GUÍAS -->
+    <div class="view-panel" id="view-guias-config">
+        <nav class="guia-module-tabs" aria-label="Secciones de Guías de Despacho">
+            <button type="button" class="btn btn-secondary" onclick="closeGuiasConfigModal()">Guías</button>
+            <button type="button" class="btn btn-primary" aria-current="page">Configuración</button>
+        </nav>
+        <div class="card guia-config-panel">
+            <div class="guia-config-header">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <div style="width: 36px; height: 36px; border-radius: 10px; background: rgba(255, 122, 0, 0.15); color: var(--color-primary); display: flex; align-items: center; justify-content: center;">
+                        <i class="fa-solid fa-gears"></i>
+                    </div>
+                    <div>
+                        <h3 style="margin: 0; font-size: 1.1rem;">Configuración de Guías de Despacho</h3>
+                        <p style="margin: 0; font-size: 0.75rem; color: var(--text-muted);">Parámetros oficiales de la empresa emisora y catálogos de transporte</p>
+                    </div>
+                </div>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="closeGuiasConfigModal()">Volver a Guías</button>
+            </div>
+
+            <div class="guia-config-body">
+                <div class="guia-status-bar"><span id="gcfg-status" role="status"></span><button type="button" class="btn btn-secondary btn-sm" onclick="reloadGuiasConfiguration()">Actualizar configuración</button></div>
+                <p class="guia-followup">Administra las opciones de las próximas guías. Retirar un elemento del catálogo conserva los datos de las guías ya emitidas.</p>
+                <!-- Pestañas internas -->
+                <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px;">
+                    <button type="button" id="tab-gcfg-empresa" class="btn btn-primary btn-sm" onclick="switchGuiasConfigTab('empresa')">
+                        <i class="fa-solid fa-building"></i> Empresa Emisora
+                    </button>
+                    <button type="button" id="tab-gcfg-catalogos" class="btn btn-secondary btn-sm" onclick="switchGuiasConfigTab('catalogos')">
+                        <i class="fa-solid fa-truck-moving"></i> Flota y Catálogos
+                    </button>
+                </div>
+
+                <!-- SECCIÓN 1: EMPRESA EMISORA -->
+                <div id="gcfg-sec-empresa" style="display: block;">
+                    <form id="form-gcfg-empresa" onsubmit="saveGuiasConfigEmpresa(event)">
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr)); gap: 12px; margin-bottom: 12px;">
+                            <div class="form-group">
+                                <label for="gcfg-razon" style="font-size: 0.8rem; font-weight: 600;">Razón Social Empresa <span class="required" style="color: var(--color-danger);">*</span></label>
+                                <input type="text" id="gcfg-razon" maxlength="500" required style="width: 100%;">
+                            </div>
+                            <div class="form-group">
+                                <label for="gcfg-rut" style="font-size: 0.8rem; font-weight: 600;">RUT Empresa <span class="required" style="color: var(--color-danger);">*</span></label>
+                                <input type="text" id="gcfg-rut" maxlength="500" required style="width: 100%;">
+                            </div>
+                            <div class="form-group">
+                                <label for="gcfg-telefono" style="font-size: 0.8rem; font-weight: 600;">Teléfono de Contacto</label>
+                                <input type="text" id="gcfg-telefono" maxlength="500" style="width: 100%;">
+                            </div>
+                            <div class="form-group">
+                                <label for="gcfg-correo" style="font-size: 0.8rem; font-weight: 600;">Correo Electrónico</label>
+                                <input type="email" id="gcfg-correo" maxlength="500" style="width: 100%;">
+                            </div>
+                            <div class="form-group">
+                                <label for="gcfg-direccion" style="font-size: 0.8rem; font-weight: 600;">Domicilio Casa Matriz</label>
+                                <input type="text" id="gcfg-direccion" maxlength="500" style="width: 100%;">
+                            </div>
+                            <div class="form-group">
+                                <label for="gcfg-ciudad" style="font-size: 0.8rem; font-weight: 600;">Ciudad del emisor</label>
+                                <input type="text" id="gcfg-ciudad" maxlength="500" style="width: 100%;">
+                            </div>
+                        </div>
+
+                        <div class="form-group" style="margin-bottom: 20px;">
+                            <label for="gcfg-emisor-default" style="font-size: 0.8rem; font-weight: 600;">Emisor Responsable por Defecto</label>
+                                <input type="text" id="gcfg-emisor-default" maxlength="500" placeholder="Nombre del emisor responsable" style="width: 100%;">
+                        </div>
+                        <div class="guia-config-grid">
+                            <div class="form-group"><label for="gcfg-emisor-rut">RUT emisor</label><input id="gcfg-emisor-rut" type="text"></div>
+                            <div class="form-group"><label for="gcfg-emisor-telefono">Teléfono emisor</label><input id="gcfg-emisor-telefono" type="text"></div>
+                            <div class="form-group"><label for="gcfg-emisor-domicilio">Domicilio emisor</label><input id="gcfg-emisor-domicilio" type="text"></div>
+                            <div class="form-group"><label for="gcfg-comuna">Comuna emisor</label><input id="gcfg-comuna" type="text"></div>
+                        </div>
+
+                        <div style="display: flex; justify-content: flex-end;">
+                            <button type="submit" data-guia-config-write class="btn btn-primary" style="font-weight: 700;">
+                                <i class="fa-solid fa-save"></i> Guardar Parámetros de Empresa
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- SECCIÓN 2: FLOTA Y CATÁLOGOS DINÁMICOS -->
+                <div id="gcfg-sec-catalogos" style="display: none;">
+                    <div style="display: flex; flex-direction: column; gap: 20px;">
+
+                        <!-- Categoría 1: Flota de Vehículos -->
+                        <div style="background: var(--bg-tertiary); padding: 14px; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
+                            <h4 style="font-size: 0.85rem; font-weight: 800; text-transform: uppercase; color: var(--color-primary); margin-bottom: 10px; display: flex; align-items: center; gap: 8px;">
+                                <i class="fa-solid fa-truck"></i> Flota de Vehículos de Transporte
+                            </h4>
+                            <form class="guia-catalog-add" onsubmit="event.preventDefault(); addGuiasCatalogoItem('vehiculo')">
+                                <input type="text" required maxlength="200" aria-label="Agregar vehiculo" id="gcfg-add-vehiculo-input" placeholder="Nombre o modelo del vehículo" style="flex: 1;">
+                                <button type="submit" data-guia-config-write class="btn btn-primary btn-sm">
+                                    <i class="fa-solid fa-plus"></i> Agregar
+                                </button>
+                            </form>
+                            <div class="guia-catalog-search"><label for="gcfg-search-vehiculo">Buscar vehículos</label><input type="search" id="gcfg-search-vehiculo" oninput="filterGuiasCatalogos()" placeholder="Buscar por nombre…"><span id="gcfg-count-vehiculo" class="guia-muted" aria-live="polite"></span></div>
+                            <div id="gcfg-list-vehiculos" class="guia-catalog-list"></div>
+                        </div>
+
+                        <!-- Categoría 2: Choferes Autorizados -->
+                        <div style="background: var(--bg-tertiary); padding: 14px; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
+                            <h4 style="font-size: 0.85rem; font-weight: 800; text-transform: uppercase; color: var(--color-primary); margin-bottom: 10px; display: flex; align-items: center; gap: 8px;">
+                                <i class="fa-solid fa-id-card"></i> Conductores y Choferes Autorizados
+                            </h4>
+                            <form class="guia-catalog-add" onsubmit="event.preventDefault(); addGuiasCatalogoItem('chofer')">
+                                <input type="text" required maxlength="200" aria-label="Agregar chofer" id="gcfg-add-chofer-input" placeholder="Nombre completo del conductor..." style="flex: 1;">
+                                <button type="submit" data-guia-config-write class="btn btn-primary btn-sm">
+                                    <i class="fa-solid fa-plus"></i> Agregar
+                                </button>
+                            </form>
+                            <div class="guia-catalog-search"><label for="gcfg-search-chofer">Buscar choferes</label><input type="search" id="gcfg-search-chofer" oninput="filterGuiasCatalogos()" placeholder="Buscar por nombre…"><span id="gcfg-count-chofer" class="guia-muted" aria-live="polite"></span></div>
+                            <div id="gcfg-list-choferes" class="guia-catalog-list"></div>
+                        </div>
+
+                        <!-- Categoría 3: Destinos Frecuentes -->
+                        <div style="background: var(--bg-tertiary); padding: 14px; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
+                            <h4 style="font-size: 0.85rem; font-weight: 800; text-transform: uppercase; color: var(--color-primary); margin-bottom: 10px; display: flex; align-items: center; gap: 8px;">
+                                <i class="fa-solid fa-location-dot"></i> Destinos Frecuentes / Faenas / Talleres
+                            </h4>
+                            <form class="guia-catalog-add" onsubmit="event.preventDefault(); addGuiasCatalogoItem('destino')">
+                                <input type="text" required maxlength="200" aria-label="Agregar destino" id="gcfg-add-destino-input" placeholder="Nombre de la faena, taller o destino" style="flex: 1;">
+                                <button type="submit" data-guia-config-write class="btn btn-primary btn-sm">
+                                    <i class="fa-solid fa-plus"></i> Agregar
+                                </button>
+                            </form>
+                            <div class="guia-catalog-search"><label for="gcfg-search-destino">Buscar destinos</label><input type="search" id="gcfg-search-destino" oninput="filterGuiasCatalogos()" placeholder="Buscar por nombre…"><span id="gcfg-count-destino" class="guia-muted" aria-live="polite"></span></div>
+                            <div id="gcfg-list-destinos" class="guia-catalog-list"></div>
+                        </div>
+
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+
             <!-- VIEW: GUÍAS DE DESPACHO (CONTROL Y REMITOS) -->
             <div id="view-guias" class="view-panel">
+                <nav class="guia-module-tabs" aria-label="Secciones de Guías de Despacho">
+                    <button type="button" class="btn btn-primary" aria-current="page">Guías</button>
+                    <button type="button" class="btn btn-secondary" data-guia-manager onclick="openGuiasConfigModal()">Configuración</button>
+                </nav>
                 <!-- Dashboard Stats -->
                 <div class="dashboard-stats" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
                     <div class="card stat-card">
@@ -1588,9 +1731,6 @@
 
                         <!-- Botones de Acción -->
                         <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-                            <button type="button" class="btn btn-secondary btn-sm" data-guia-write data-guia-manager onclick="openGuiasConfigModal()" title="Configurar parámetros de empresa y catálogos de transporte">
-                                <i class="fa-solid fa-gears" style="color: var(--color-primary);"></i> Configuración Guías
-                            </button>
                             <button type="button" class="btn btn-secondary btn-sm" onclick="exportGuiasCSV()" title="Exportar a planilla Excel / CSV">
                                 <i class="fa-solid fa-file-excel" style="color: #10b981;"></i> Exportar CSV detallado
                             </button>
@@ -2794,15 +2934,15 @@
                 <div style="display: grid; grid-template-columns: 1fr 1fr 120px; gap: 10px;">
                     <div class="form-group">
                         <label style="font-size: 0.78rem; font-weight: 600; display: block; margin-bottom: 4px;">Destino</label>
-                        <input type="text" id="ge-destino" required style="width: 100%;">
+                        <input type="text" id="ge-destino" list="gw-destinos-list" required style="width: 100%;">
                     </div>
                     <div class="form-group">
                         <label style="font-size: 0.78rem; font-weight: 600; display: block; margin-bottom: 4px;">Chofer</label>
-                        <input type="text" id="ge-chofer" required style="width: 100%;">
+                        <input type="text" id="ge-chofer" list="gw-choferes-list" required style="width: 100%;">
                     </div>
                     <div class="form-group">
                         <label style="font-size: 0.78rem; font-weight: 600; display: block; margin-bottom: 4px;">Vehículo</label>
-                        <input type="text" id="ge-vehiculo" required style="width: 100%;">
+                        <input type="text" id="ge-vehiculo" list="ge-vehiculos-list" required style="width: 100%;"><datalist id="ge-vehiculos-list"></datalist>
                     </div>
                 </div>
 
@@ -3085,135 +3225,6 @@
                 <div style="margin-top: 24px; padding-top: 12px; border-top: 1px solid #e2e8f0; display: flex; justify-content: space-between; font-size: 0.68rem; color: #94a3b8;">
                     <span>GUÍA DE CONTROL INTERNO Y TRASLADO OPERACIONAL - PROCLEANMG</span>
                     <span>Documento con Trazabilidad Inmutable Digital</span>
-                </div>
-
-            </div>
-        </div>
-    </div>
-
-    <!-- MODAL 6: CONFIGURACIÓN DE PARÁMETROS Y CATÁLOGOS DE GUÍAS -->
-    <div class="modal-overlay" id="modal-guias-config">
-        <div class="modal-content" style="max-width: 720px; max-height: 90vh; display: flex; flex-direction: column;">
-            <div class="modal-header">
-                <div style="display: flex; align-items: center; gap: 10px;">
-                    <div style="width: 36px; height: 36px; border-radius: 10px; background: rgba(255, 122, 0, 0.15); color: var(--color-primary); display: flex; align-items: center; justify-content: center;">
-                        <i class="fa-solid fa-gears"></i>
-                    </div>
-                    <div>
-                        <h3 style="margin: 0; font-size: 1.1rem;">Configuración de Guías de Despacho</h3>
-                        <p style="margin: 0; font-size: 0.75rem; color: var(--text-muted);">Parámetros oficiales de la empresa emisora y catálogos de transporte</p>
-                    </div>
-                </div>
-                <button type="button" class="btn-close" onclick="closeGuiasConfigModal()">&times;</button>
-            </div>
-
-            <div class="modal-body" style="flex: 1; overflow-y: auto; padding: 20px;">
-                <!-- Pestañas internas -->
-                <div style="display: flex; gap: 8px; margin-bottom: 20px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px;">
-                    <button type="button" id="tab-gcfg-empresa" class="btn btn-primary btn-sm" onclick="switchGuiasConfigTab('empresa')">
-                        <i class="fa-solid fa-building"></i> Empresa Emisora
-                    </button>
-                    <button type="button" id="tab-gcfg-catalogos" class="btn btn-secondary btn-sm" onclick="switchGuiasConfigTab('catalogos')">
-                        <i class="fa-solid fa-truck-moving"></i> Flota y Catálogos
-                    </button>
-                </div>
-
-                <!-- SECCIÓN 1: EMPRESA EMISORA -->
-                <div id="gcfg-sec-empresa" style="display: block;">
-                    <form id="form-gcfg-empresa" onsubmit="saveGuiasConfigEmpresa(event)">
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
-                            <div class="form-group">
-                                <label style="font-size: 0.8rem; font-weight: 600;">Razón Social Empresa <span class="required" style="color: var(--color-danger);">*</span></label>
-                                <input type="text" id="gcfg-razon" required style="width: 100%;">
-                            </div>
-                            <div class="form-group">
-                                <label style="font-size: 0.8rem; font-weight: 600;">RUT Empresa <span class="required" style="color: var(--color-danger);">*</span></label>
-                                <input type="text" id="gcfg-rut" required style="width: 100%;">
-                            </div>
-                            <div class="form-group">
-                                <label style="font-size: 0.8rem; font-weight: 600;">Teléfono de Contacto</label>
-                                <input type="text" id="gcfg-telefono" style="width: 100%;">
-                            </div>
-                            <div class="form-group">
-                                <label style="font-size: 0.8rem; font-weight: 600;">Correo Electrónico</label>
-                                <input type="email" id="gcfg-correo" style="width: 100%;">
-                            </div>
-                            <div class="form-group">
-                                <label style="font-size: 0.8rem; font-weight: 600;">Domicilio Casa Matriz</label>
-                                <input type="text" id="gcfg-direccion" style="width: 100%;">
-                            </div>
-                            <div class="form-group">
-                                <label style="font-size: 0.8rem; font-weight: 600;">Ciudad / Comuna</label>
-                                <input type="text" id="gcfg-ciudad" style="width: 100%;">
-                            </div>
-                        </div>
-
-                        <div class="form-group" style="margin-bottom: 20px;">
-                            <label style="font-size: 0.8rem; font-weight: 600;">Emisor Responsable por Defecto</label>
-                            <input type="text" id="gcfg-emisor-default" placeholder="Ej: Marco Andrade" style="width: 100%;">
-                        </div>
-                        <div class="guia-config-grid">
-                            <div class="form-group"><label for="gcfg-emisor-rut">RUT emisor</label><input id="gcfg-emisor-rut" type="text"></div>
-                            <div class="form-group"><label for="gcfg-emisor-telefono">Teléfono emisor</label><input id="gcfg-emisor-telefono" type="text"></div>
-                            <div class="form-group"><label for="gcfg-emisor-domicilio">Domicilio emisor</label><input id="gcfg-emisor-domicilio" type="text"></div>
-                            <div class="form-group"><label for="gcfg-comuna">Comuna emisor</label><input id="gcfg-comuna" type="text"></div>
-                        </div>
-
-                        <div style="display: flex; justify-content: flex-end;">
-                            <button type="submit" class="btn btn-primary" style="font-weight: 700;">
-                                <i class="fa-solid fa-save"></i> Guardar Parámetros de Empresa
-                            </button>
-                        </div>
-                    </form>
-                </div>
-
-                <!-- SECCIÓN 2: FLOTA Y CATÁLOGOS DINÁMICOS -->
-                <div id="gcfg-sec-catalogos" style="display: none;">
-                    <div style="display: flex; flex-direction: column; gap: 20px;">
-
-                        <!-- Categoría 1: Flota de Vehículos -->
-                        <div style="background: var(--bg-tertiary); padding: 14px; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
-                            <h4 style="font-size: 0.85rem; font-weight: 800; text-transform: uppercase; color: var(--color-primary); margin-bottom: 10px; display: flex; align-items: center; gap: 8px;">
-                                <i class="fa-solid fa-truck"></i> Flota de Vehículos de Transporte
-                            </h4>
-                            <div style="display: flex; gap: 8px; margin-bottom: 10px;">
-                                <input type="text" id="gcfg-add-vehiculo-input" placeholder="Nombre/Modelo de vehículo (ej: Maxus T60)..." style="flex: 1;">
-                                <button type="button" class="btn btn-primary btn-sm" onclick="addGuiasCatalogoItem('vehiculo')">
-                                    <i class="fa-solid fa-plus"></i> Agregar
-                                </button>
-                            </div>
-                            <div id="gcfg-list-vehiculos" style="display: flex; flex-wrap: wrap; gap: 6px;"></div>
-                        </div>
-
-                        <!-- Categoría 2: Choferes Autorizados -->
-                        <div style="background: var(--bg-tertiary); padding: 14px; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
-                            <h4 style="font-size: 0.85rem; font-weight: 800; text-transform: uppercase; color: var(--color-primary); margin-bottom: 10px; display: flex; align-items: center; gap: 8px;">
-                                <i class="fa-solid fa-id-card"></i> Conductores y Choferes Autorizados
-                            </h4>
-                            <div style="display: flex; gap: 8px; margin-bottom: 10px;">
-                                <input type="text" id="gcfg-add-chofer-input" placeholder="Nombre completo del conductor..." style="flex: 1;">
-                                <button type="button" class="btn btn-primary btn-sm" onclick="addGuiasCatalogoItem('chofer')">
-                                    <i class="fa-solid fa-plus"></i> Agregar
-                                </button>
-                            </div>
-                            <div id="gcfg-list-choferes" style="display: flex; flex-wrap: wrap; gap: 6px;"></div>
-                        </div>
-
-                        <!-- Categoría 3: Destinos Frecuentes -->
-                        <div style="background: var(--bg-tertiary); padding: 14px; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
-                            <h4 style="font-size: 0.85rem; font-weight: 800; text-transform: uppercase; color: var(--color-primary); margin-bottom: 10px; display: flex; align-items: center; gap: 8px;">
-                                <i class="fa-solid fa-location-dot"></i> Destinos Frecuentes / Faenas / Talleres
-                            </h4>
-                            <div style="display: flex; gap: 8px; margin-bottom: 10px;">
-                                <input type="text" id="gcfg-add-destino-input" placeholder="Nombre de la faena o destino (ej: PWM Chile)..." style="flex: 1;">
-                                <button type="button" class="btn btn-primary btn-sm" onclick="addGuiasCatalogoItem('destino')">
-                                    <i class="fa-solid fa-plus"></i> Agregar
-                                </button>
-                            </div>
-                            <div id="gcfg-list-destinos" style="display: flex; flex-wrap: wrap; gap: 6px;"></div>
-                        </div>
-
-                    </div>
                 </div>
 
             </div>

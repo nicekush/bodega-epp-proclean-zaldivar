@@ -70,3 +70,23 @@ test('cada operación usa el usuario vigente y cerrar la sesión principal impid
     await assert.rejects(repository.create(header, items), /Inicia sesión en la aplicación/);
     assert.equal(calls.filter(call => call.name === 'guias_operar_aplicacion').length, 2);
 });
+
+test('una configuración vacía confirmada reemplaza la caché sin reponer opciones fijas', async () => {
+    const { repository, cache } = harness({ rows: [] });
+    cache.set('settings', { catalogos: { vehiculos: [{ id: 9, nombre: 'Retirado' }], choferes: [], destinos: [] }, config: { empresa_razon_social: 'Anterior' } });
+    await repository.loadSettings();
+    assert.deepEqual(repository.state.catalogos, { vehiculos: [], choferes: [], destinos: [] });
+    assert.deepEqual(repository.state.config, {});
+    assert.equal(repository.state.settingsOnline, true);
+    assert.deepEqual(cache.get('settings').catalogos.vehiculos, []);
+});
+
+test('el catálogo se guarda confirmado, normaliza espacios y evita duplicados', async () => {
+    const { repository, cache, calls } = harness({ rows: [], rpc: (_, payload) => ({ data: { id: 1, tipo: payload.p_payload.tipo, nombre: payload.p_payload.nombre }, error: null }) });
+    await repository.loadSettings();
+    await repository.addCatalog('vehiculo', '  Furgón   nuevo  ');
+    assert.equal(cache.get('settings').catalogos.vehiculos[0].nombre, 'Furgón nuevo');
+    await assert.rejects(repository.addCatalog('vehiculo', 'FURGÓN NUEVO'), /ya está registrado/);
+    await assert.rejects(repository.addCatalog('invalido', 'Nombre'), /tipo y un nombre/);
+    assert.equal(calls.filter(call => call.name === 'guias_operar_aplicacion').length, 1);
+});

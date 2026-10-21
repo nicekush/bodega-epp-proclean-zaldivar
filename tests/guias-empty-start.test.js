@@ -90,6 +90,8 @@ test('la instalación ya no importa guías ni sus ítems históricos', () => {
     assert.doesNotMatch(sql, /INSERT INTO guias_despacho\s*\(/i);
     assert.doesNotMatch(sql, /INSERT INTO guia_despacho_items\s*\(/i);
     assert.doesNotMatch(dbSource, /guiasSeed|guias_seed\.json/);
-    assert.match(sql, /INSERT INTO guias_despacho_catalogos/);
+    assert.doesNotMatch(sql, /INSERT INTO guias_despacho_catalogos/);
+    assert.doesNotMatch(sql, /INSERT INTO guias_despacho_config/);
+    assert.doesNotMatch(dbSource, /defVehiculos|defDestinos|defChoferes|Maxus T60|PWM Chile/);
     assert.match(sql, /EXISTS \(SELECT 1 FROM guias_despacho\)/);
 });
