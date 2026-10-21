@@ -844,20 +844,28 @@
             <div id="view-analytics" class="view-panel">
                 <!-- Segmentadores de Datos (Filtros Específicos en Caliente) -->
                 <div class="card" style="margin-bottom: 24px;">
-                    <div class="section-title" style="margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center;">
+                    <div class="section-title" style="margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
                         <div>
                             <span class="sec-num"><i class="fa-solid fa-filter" style="font-size:0.8rem;"></i></span>
                             <h3 style="display:inline-block;">Filtros y Segmentadores de Datos Especificos</h3>
                         </div>
-                        <div style="display:flex; gap:8px;">
+                        <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
                             <button class="btn btn-secondary btn-sm" onclick="setAnalyticsDatePreset('reset')" title="Restablecer todos los filtros">
                                 <i class="fa-solid fa-rotate-left"></i> Limpiar Filtros
                             </button>
-                            <button class="btn btn-secondary btn-sm" onclick="exportAnalyticsCSV()" title="Exportar reporte analítico a CSV">
-                                <i class="fa-solid fa-file-csv text-success"></i> Exportar Analítica CSV
+                            <label for="ana-export-type" style="font-size:0.8rem;">Contenido del CSV</label>
+                            <select id="ana-export-type" class="filter-select" style="width:auto; max-width:100%;" aria-describedby="ana-export-help">
+                                <option value="complete">Informe completo</option>
+                                <option value="deliveries">Historial de entregas</option>
+                                <option value="operators">Consumo por operador y EPP</option>
+                                <option value="products">Resumen por EPP</option>
+                            </select>
+                            <button class="btn btn-secondary btn-sm" onclick="exportAnalyticsCSV()" title="Exportar todos los resultados de la selección">
+                                <i class="fa-solid fa-file-csv text-success"></i> Exportar CSV
                             </button>
                         </div>
                     </div>
+                    <p id="ana-export-help" style="font-size:0.8rem; color:var(--text-secondary); margin-bottom:16px;">Exporta todos los resultados filtrados, sin límite de páginas. El informe completo incluye detalle, resúmenes, alertas, requerimientos y stock de referencia.</p>
 
                     <!-- Fila 1: Filtros de Clasificación -->
                     <div class="form-grid cols-4" style="gap: 16px; margin-bottom: 16px;">

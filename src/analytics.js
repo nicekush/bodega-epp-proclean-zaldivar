@@ -4,6 +4,8 @@
 // ==========================================================================
 
 import { dbSalidas, dbInventario, dbInsumos, dbAreas, dbCategorias } from './db.js';
+import { buildAnalyticsExportSections, serializeAnalyticsCSV, formatExportDate } from './analytics-export.js';
+import { showToast } from './utils.js';
 
 let initializedFilters = false;
 
@@ -213,6 +215,10 @@ export function renderAnalyticsDashboard() {
 
             matchingItems.forEach(item => {
                 let isCritical = false;
+                let previousDeliveryDate = null;
+                let daysSincePrevious = null;
+                const eppDef = dbInventario.find(i => i.id === item.eppId);
+                const lifespanDays = ((eppDef && eppDef.duracion_meses) ? Number(eppDef.duracion_meses) : 6) * 30;
                 const prevDeliveries = dbSalidas.filter(s => 
                     s.rut === del.rut && 
                     new Date(s.fecha) < delDate && 
@@ -223,9 +229,8 @@ export function renderAnalyticsDashboard() {
                     prevDeliveries.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
                     const lastDate = new Date(prevDeliveries[0].fecha);
                     const diffDays = Math.floor((delDate - lastDate) / (1000 * 60 * 60 * 24));
-                    
-                    const eppDef = dbInventario.find(i => i.id === item.eppId);
-                    const lifespanDays = ((eppDef && eppDef.duracion_meses) ? Number(eppDef.duracion_meses) : 6) * 30;
+                    previousDeliveryDate = prevDeliveries[0].fecha;
+                    daysSincePrevious = diffDays;
 
                     if (diffDays < lifespanDays * 0.5) {
                         isCritical = true;
@@ -239,7 +244,10 @@ export function renderAnalyticsDashboard() {
                 if (alertFilter === "critical" && !isCritical) return;
                 if (alertFilter === "normal" && isCritical) return;
 
-                itemsToInclude.push(item);
+                itemsToInclude.push({
+                    ...item,
+                    analytics: { isCritical, previousDeliveryDate, daysSincePrevious, lifespanDays }
+                });
                 const itemQty = Number(item.cantidad);
                 filteredEPPsCount += itemQty;
 
@@ -341,6 +349,18 @@ export function renderAnalyticsDashboard() {
     // 5. Renderizar Tablas Paginadas
     renderObservedCollaborators(filteredDeliveries);
     renderRunwayAutonomyTable(selectedCategory);
+
+    // Exportar la misma selección completa que alimenta los gráficos, sin paginación.
+    return {
+        deliveries: filteredDeliveries,
+        requests: filteredReqs,
+        filters: {
+            area: selectedArea, category: selectedCategory, product: selectedProduct,
+            shift: selectedShift, worker: workerQuery, alert: alertFilter,
+            startDate: startDateVal, endDate: endDateVal
+        },
+        alertContext: { critical: criticalDeviations, total: totalDeliveriesCount }
+    };
 }
 window.renderAnalyticsDashboard = renderAnalyticsDashboard;
 
@@ -983,9 +1003,18 @@ function renderRunwayAutonomyTable(selectedCategory) {
         }
 
         filteredRunwayList.push({
+            id: item.id,
             nombre: item.nombre,
             codigo: item.codigo,
+            unidad: item.unidad,
+            categoria: item.categoria,
             stock: currentStock,
+            stockMinimo: item.stock_minimo,
+            totalUsed,
+            dailyConsumption,
+            elapsedDays,
+            firstDeliveryDate: dbSalidas.length ? minDate.toISOString() : '',
+            lastDeliveryDate: dbSalidas.length ? maxDate.toISOString() : '',
             runwayDays: runwayDays,
             runwayText: runwayText,
             badgeClass: badgeClass,
@@ -1095,36 +1124,36 @@ window.changeAnalyticsRunwayPageSize = changeAnalyticsRunwayPageSize;
 // EXPORTACIÓN ANALÍTICA A CSV
 // ==========================================================================
 export function exportAnalyticsCSV() {
-    const BOM = "\uFEFF";
-    let csvRows = [];
+    const start = document.getElementById('ana-filter-start-date')?.value;
+    const end = document.getElementById('ana-filter-end-date')?.value;
+    if (start && end && start > end) {
+        showToast('La fecha Desde debe ser anterior o igual a Hasta.', 'warning');
+        return;
+    }
 
-    csvRows.push("ANÁLISIS DE CONSUMO DE EPP Y ADHERENCIA OPERACIONAL - PROCLEANMG");
-    csvRows.push("");
-    csvRows.push("COLABORADORES OBSERVADOS (CAMBIOS PREMATUROS)");
-    csvRows.push("Colaborador;RUT;Área;EPP;Entregas Registradas;Frecuencia Promedio (días);Duración Esperada (días)");
-
-    filteredObservedList.forEach(obs => {
-        csvRows.push(`"${(obs.trabajador || '').replace(/"/g, '""')}";"${obs.rut}";"${(obs.area || '').replace(/"/g, '""')}";"${(obs.eppName || '').replace(/"/g, '""')}";${obs.entregasCount};${obs.avgDays};${obs.lifespanDays}`);
+    const snapshot = renderAnalyticsDashboard();
+    const mode = document.getElementById('ana-export-type')?.value || 'complete';
+    const generatedAt = new Date();
+    const sections = buildAnalyticsExportSections({
+        ...snapshot, inventory: dbInventario, sourceDeliveriesCount: dbSalidas.length,
+        observed: filteredObservedList, runway: filteredRunwayList, generatedAt
     });
-
-    csvRows.push("");
-    csvRows.push("RUNWAY DE AUTONOMÍA DE STOCK");
-    csvRows.push("Código SKU;Nombre EPP;Stock Actual;Autonomía Estimada (días);Nivel de Riesgo");
-
-    filteredRunwayList.forEach(r => {
-        csvRows.push(`"${(r.codigo || '').replace(/"/g, '""')}";"${(r.nombre || '').replace(/"/g, '""')}";${r.stock};"${r.runwayDays}";"${r.riskText}"`);
-    });
-
-    const csvString = BOM + csvRows.join("\r\n");
+    const selected = sections.find(section => section.id === mode);
+    const csvString = serializeAnalyticsCSV(sections, selected ? mode : 'complete');
     const blob = new Blob([csvString], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.setAttribute("href", url);
-    link.setAttribute("download", `Analitica_Consumo_EPP_${new Date().toISOString().slice(0,10)}.csv`);
+    link.setAttribute("download", `Analitica_EPP_${selected ? mode : 'completo'}_${formatExportDate(generatedAt)}.csv`);
     document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    try {
+        link.click();
+    } finally {
+        link.remove();
+        // Dar tiempo al navegador para iniciar la descarga antes de liberar el recurso.
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+    showToast('CSV generado con todos los resultados de la selección.', 'success');
 }
 window.changeAnalyticsDeviationsPageSize = changeAnalyticsDeviationsPageSize;
 window.exportAnalyticsCSV = exportAnalyticsCSV;
