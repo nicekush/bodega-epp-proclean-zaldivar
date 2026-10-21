@@ -106,6 +106,7 @@ import {
 import { initLoans, renderLoansTable } from './loans.js';
 import { initSettingsView } from './settings.js';
 import { initReconciliationView } from './reconciliation.js';
+import * as guiasActions from './guias.js';
 import {
     initGuiasView,
     updateGuiasDashboardStats,
@@ -456,4 +457,5 @@ window.openPrintRemitoModal = openPrintRemitoModal;
 window.closePrintRemitoModal = closePrintRemitoModal;
 window.printRemito = printRemito;
 window.exportGuiasCSV = exportGuiasCSV;
+Object.assign(window, guiasActions);
 

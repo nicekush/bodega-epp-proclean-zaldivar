@@ -3,7 +3,7 @@ import { defineConfig } from 'vite';
 export default defineConfig({
   server: {
     port: 8082,
-    open: true
+    open: process.env.GUIAS_E2E !== '1'
   },
   build: {
     outDir: 'dist'

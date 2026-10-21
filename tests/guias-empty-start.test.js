@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
+import { createGuiasRepository } from '../src/guias-db.js';
 
 const dbSource = readFileSync(new URL('../src/db.js', import.meta.url), 'utf8');
 const storageKey = 'db_guias_despacho_v2';
@@ -9,16 +10,18 @@ const storageKey = 'db_guias_despacho_v2';
 function harness({ cache = {}, response = () => ({ data: [], error: null }) } = {}) {
     const storage = new Map(Object.entries(cache));
     const context = {
+        createGuiasRepository: (client, cache) => createGuiasRepository(client, cache, { get: () => ({ token: 'test' }), set() {}, clear() {} }),
         console: { warn() {}, error() {} },
         localStorage: {
             getItem: key => storage.get(key) ?? null,
             setItem: (key, value) => storage.set(key, value)
         },
         supabase: {
+            rpc(name, payload) { return Promise.resolve(response({ table: 'rpc', operation: 'rpc', name, payload })); },
             from(table) {
                 return {
                     table, operation: 'select',
-                    select() { return this; }, order() { return this; }, eq() { return this; }, single() { return this; },
+                    select() { return this; }, order() { return this; }, eq() { return this; }, single() { return this; }, range() { return this; },
                     insert(payload) { this.operation = 'insert'; this.payload = payload; return this; },
                     then(resolve, reject) { return Promise.resolve(response(this)).then(resolve, reject); }
                 };
@@ -73,9 +76,9 @@ test('la inicialización completa admite tablas vacías y actualiza la caché de
 
 test('la primera nueva guía usa folio 1 y se guarda en la caché renovada', async () => {
     const { context, storage } = harness({
-        response: query => ({ data: query.table === 'guias_despacho' && query.operation === 'insert' ? { id: 900 } : [], error: null })
+        response: query => ({ data: query.name === 'guias_modulo_version' ? 2 : query.name === 'guias_operar' ? { id: 900, folio: 1, items: [{ descripcion: 'Carga de prueba', cantidad: 1, unidad: 'UN' }] } : [], error: null })
     });
-    const result = await context.dbInsertGuia({ lugar_entrega: 'Destino de prueba' }, [{ descripcion: 'Carga de prueba', cantidad: 1 }]);
+    const result = await context.dbInsertGuia({ lugar_entrega: 'Destino de prueba', fecha: '2026-10-21', hora: '09:00', chofer: 'Chofer', vehiculo: 'Camioneta' }, [{ descripcion: 'Carga de prueba', cantidad: 1, unidad: 'UN' }]);
     assert.equal(result.folio, 1);
     assert.equal(result.id, 900);
     assert.equal(JSON.parse(storage.get(storageKey))[0].folio, 1);

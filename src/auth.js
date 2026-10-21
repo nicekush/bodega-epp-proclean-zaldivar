@@ -11,6 +11,7 @@ import {
     dbActualizarUsuario,
     dbEliminarUsuario 
 } from './db.js';
+import { dbCerrarSesionGuias } from './db.js';
 
 export let currentUser = null;
 
@@ -181,6 +182,7 @@ export async function handleLogin(event) {
 
 // Cerrar sesión
 export function handleLogout() {
+    void dbCerrarSesionGuias();
     currentUser = null;
     localStorage.removeItem("epp_active_user");
     closeUserModal();

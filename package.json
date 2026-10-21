@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "test": "node --test",
+    "test:e2e": "playwright test",
     "build": "vite build",
     "preview": "vite preview"
   },
@@ -19,6 +20,8 @@
   "author": "Antigravity",
   "license": "ISC",
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.11",
+    "@playwright/test": "^1.64.1",
     "vite": "^5.0.0"
   },
   "dependencies": {

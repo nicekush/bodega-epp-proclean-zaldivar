@@ -1552,12 +1552,17 @@
                     <div class="card stat-card" style="background: linear-gradient(135deg, rgba(255, 122, 0, 0.15) 0%, rgba(22, 25, 37, 0.9) 100%); border-color: rgba(255, 122, 0, 0.3);">
                         <div class="stat-content">
                             <span class="stat-num" id="stat-guias-proximo" style="color: var(--color-primary); font-family: monospace;">#--</span>
-                            <span class="stat-desc">Próximo Folio Oficial</span>
+                            <span class="stat-desc">Folio confirmado al emitir</span>
                         </div>
                         <div class="stat-icon primary"><i class="fa-solid fa-hashtag"></i></div>
                     </div>
                 </div>
 
+                <div class="guia-status-bar">
+                    <span id="guias-connection-status" role="status">Comprobando conexión…</span>
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="reloadGuias()">Actualizar guías</button>
+                </div>
+                <p id="guias-followup" class="guia-followup"></p>
                 <!-- Barra de Acciones, Filtros & Búsqueda -->
                 <div class="card" style="margin-bottom: 20px;">
                     <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
@@ -1582,27 +1587,47 @@
                         </div>
 
                         <!-- Botones de Acción -->
-                        <div style="display: flex; gap: 10px; align-items: center;">
-                            <button type="button" class="btn btn-secondary btn-sm" onclick="exportGuiasCSV()" title="Exportar a planilla Excel / CSV">
-                                <i class="fa-solid fa-file-excel" style="color: #10b981;"></i> Exportar Excel
+                        <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                            <button type="button" class="btn btn-secondary btn-sm" data-guia-write data-guia-manager onclick="openGuiasConfigModal()" title="Configurar parámetros de empresa y catálogos de transporte">
+                                <i class="fa-solid fa-gears" style="color: var(--color-primary);"></i> Configuración Guías
                             </button>
-                            <button type="button" class="btn btn-primary" onclick="openNewGuiaModal()">
+                            <button type="button" class="btn btn-secondary btn-sm" onclick="exportGuiasCSV()" title="Exportar a planilla Excel / CSV">
+                                <i class="fa-solid fa-file-excel" style="color: #10b981;"></i> Exportar CSV detallado
+                            </button>
+                            <button type="button" class="btn btn-primary" data-guia-write onclick="openNewGuiaModal()">
                                 <i class="fa-solid fa-plus"></i> Nueva Guía
                             </button>
                         </div>
 
                     </div>
 
-                    <!-- Buscador Universal -->
-                    <div style="margin-top: 16px; position: relative;">
-                        <div class="epp-search-input-wrapper">
+                    <!-- Buscador Universal y Filtros Avanzados por Fecha / Destino -->
+                    <div class="guias-filters">
+                        <div class="epp-search-input-wrapper" style="width: 100%;">
                             <i class="fa-solid fa-magnifying-glass search-icon"></i>
-                            <input type="text" id="guias-search-input" oninput="handleGuiasSearch(this.value)" placeholder="Buscar por folio (#40), destino (PWM Chile), chofer, vehículo, repuesto..." autocomplete="off">
+                            <input type="search" id="guias-search-input" oninput="handleGuiasSearch(this.value)" aria-label="Buscar guías" placeholder="Folio (#40), destino, patente, chofer o carga…" autocomplete="off">
                         </div>
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <input type="date" id="guias-filter-desde" class="filter-select" onchange="handleGuiasDateFilter()" style="width: 100%; font-size: 0.8rem; padding: 10px 8px;" title="Fecha Desde">
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <input type="date" id="guias-filter-hasta" class="filter-select" onchange="handleGuiasDateFilter()" style="width: 100%; font-size: 0.8rem; padding: 10px 8px;" title="Fecha Hasta">
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <select id="guias-filter-destino" class="filter-select" onchange="handleGuiasDestinoFilter()" style="width: 100%; font-size: 0.8rem; padding: 10px 8px;">
+                                <option value="">Todos los Destinos</option>
+                            </select>
+                        </div>
+                        <select id="guias-filter-chofer" class="filter-select" onchange="handleGuiasDestinoFilter()" aria-label="Filtrar por chofer"><option value="">Todos los choferes</option></select>
+                        <select id="guias-filter-vehiculo" class="filter-select" onchange="handleGuiasDestinoFilter()" aria-label="Filtrar por vehículo"><option value="">Todos los vehículos</option></select>
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="clearGuiasFilters()" style="height: 42px; width: 100%; padding: 0; justify-content: center;" title="Limpiar Filtros de Búsqueda">
+                            <i class="fa-solid fa-filter-circle-xmark"></i>
+                        </button>
                     </div>
                 </div>
 
                 <!-- Tabla de Guías -->
+                <p id="guias-count-label" class="guia-muted" aria-live="polite" style="margin-bottom:10px;"></p>
                 <div class="card" style="padding: 0; overflow: hidden;">
                     <div class="table-container" style="overflow-x: auto;">
                         <table class="data-table" id="table-guias">
@@ -2607,6 +2632,28 @@
     <!-- ============================================================== -->
 
     <!-- MODAL 1: ASISTENTE DE EMISIÓN DE NUEVA GUÍA -->
+    <div class="modal-overlay" id="guias-session-modal">
+        <div class="modal-content" style="max-width:420px;">
+            <div class="modal-header"><h3>Confirmar sesión de guías</h3><button type="button" class="btn-close" onclick="closeGuiasSessionModal()" aria-label="Cerrar">&times;</button></div>
+            <form id="guias-session-form" onsubmit="authenticateGuias(event)" class="guia-modal-form">
+                <p><strong id="guias-session-user"></strong>, confirma tu clave para registrar operaciones con tu identidad.</p>
+                <label for="guias-session-password">Clave de la aplicación</label>
+                <input type="password" id="guias-session-password" autocomplete="current-password" required>
+                <button type="submit" class="btn btn-primary">Confirmar sesión</button>
+            </form>
+        </div>
+    </div>
+    <div class="modal-overlay" id="guia-anular-modal">
+        <div class="modal-content" style="max-width:480px;">
+            <div class="modal-header"><h3>Anular guía <span id="guia-anular-folio"></span></h3><button type="button" class="btn-close" onclick="closeAnularGuiaModal()" aria-label="Cerrar">&times;</button></div>
+            <form id="guia-anular-form" onsubmit="confirmAnularGuia(event)" class="guia-modal-form">
+                <p>La guía conservará su carga y el motivo de anulación en el historial.</p>
+                <label for="guia-anular-motivo">Motivo de anulación</label>
+                <textarea id="guia-anular-motivo" required minlength="5" maxlength="2000" rows="4"></textarea>
+                <button type="submit" class="btn btn-danger">Confirmar anulación</button>
+            </form>
+        </div>
+    </div>
     <div class="modal-overlay" id="guia-wizard-modal">
         <div class="modal-content" style="max-width: 680px; max-height: 90vh; display: flex; flex-direction: column;">
             <div class="modal-header">
@@ -2631,8 +2678,8 @@
                             1. Destino y Flota de Transporte
                         </span>
                         <div style="display: flex; align-items: center; gap: 6px;">
-                            <span style="font-size: 0.75rem; color: var(--text-muted);">Folio Oficial:</span>
-                            <input type="number" id="gw-folio" style="width: 80px; font-weight: 800; font-family: monospace; color: var(--color-primary); text-align: center; padding: 2px 6px; border-radius: 6px; background: var(--bg-secondary); border: 1px solid var(--border-color);" required>
+                            <span style="font-size: 0.75rem; color: var(--text-muted);"><i class="fa-solid fa-lock" style="color: var(--color-primary);"></i> Folio Auto-generado:</span>
+                            <input type="text" id="gw-folio" readonly aria-label="Folio asignado al guardar" style="width: 110px; font-weight: 800; text-align: center;" value="Al emitir">
                         </div>
                     </div>
 
@@ -2642,13 +2689,14 @@
                             Lugar de Entrega / Destino <span class="required" style="color: var(--color-danger);">*</span>
                         </label>
                         <div id="gw-destinos-chips" style="display: flex; flex-wrap: wrap; margin-bottom: 8px;"></div>
-                        <input type="text" id="gw-destino" placeholder="Escriba o seleccione el destino (ej. PWM Chile, Taller GMI, Faena Minera)..." required style="width: 100%;">
+                        <input type="text" id="gw-destino" list="gw-destinos-list" maxlength="500" placeholder="Escribe o busca un destino…" required style="width: 100%;">
+                        <datalist id="gw-destinos-list"></datalist>
                     </div>
 
                     <div style="display: grid; grid-template-columns: 1fr 1fr 100px; gap: 10px;">
                         <div class="form-group">
                             <label for="gw-vehiculo" style="font-size: 0.8rem; font-weight: 600; display: block; margin-bottom: 4px;">Vehículo</label>
-                            <select id="gw-vehiculo" style="width: 100%;"></select>
+                            <select id="gw-vehiculo" required style="width: 100%;"></select>
                         </div>
                         <div class="form-group">
                             <label for="gw-chofer" style="font-size: 0.8rem; font-weight: 600; display: block; margin-bottom: 4px;">Chofer Responsable</label>
@@ -2685,6 +2733,10 @@
                         <div class="form-group">
                             <label for="gw-fecha" style="font-size: 0.8rem; font-weight: 600; display: block; margin-bottom: 4px;">Fecha Emisión</label>
                             <input type="date" id="gw-fecha" required style="width: 100%;">
+                        </div>
+                        <div class="form-group">
+                            <label for="gw-hora">Hora de emisión</label>
+                            <input type="time" id="gw-hora" required>
                         </div>
                         <div class="form-group">
                             <label for="gw-emisor" style="font-size: 0.8rem; font-weight: 600; display: block; margin-bottom: 4px;">Emisor Responsable</label>
@@ -2729,7 +2781,7 @@
                 <div style="display: grid; grid-template-columns: 100px 1fr 1fr 140px; gap: 10px;">
                     <div class="form-group">
                         <label style="font-size: 0.78rem; font-weight: 600; display: block; margin-bottom: 4px;">Folio</label>
-                        <input type="number" id="ge-folio" required style="width: 100%; font-weight: 800; font-family: monospace;">
+                        <input type="number" id="ge-folio" readonly style="width: 100%; font-weight: 800; font-family: monospace;">
                     </div>
                     <div class="form-group">
                         <label style="font-size: 0.78rem; font-weight: 600; display: block; margin-bottom: 4px;">Fecha</label>
@@ -2737,11 +2789,11 @@
                     </div>
                     <div class="form-group">
                         <label style="font-size: 0.78rem; font-weight: 600; display: block; margin-bottom: 4px;">Hora</label>
-                        <input type="text" id="ge-hora" style="width: 100%;">
+                        <input type="time" id="ge-hora" required style="width: 100%;">
                     </div>
                     <div class="form-group">
                         <label style="font-size: 0.78rem; font-weight: 600; display: block; margin-bottom: 4px;">Estado</label>
-                        <select id="ge-estado" style="width: 100%; font-weight: 700;">
+                        <select id="ge-estado" disabled style="width: 100%; font-weight: 700;">
                             <option value="PENDIENTE">Por Despachar</option>
                             <option value="EN_TRANSITO">En Ruta</option>
                             <option value="ENTREGADA">Entregada Conforme</option>
@@ -2921,12 +2973,24 @@
             </div>
 
             <!-- Detalle de Productos -->
-            <div>
+            <div style="margin-bottom: 20px;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
                     <span style="font-size: 0.75rem; font-weight: 800; text-transform: uppercase; color: var(--color-primary);">Detalle de Carga</span>
                     <span id="gd-items-count" style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600;">0 productos</span>
                 </div>
                 <div id="gd-items-list"></div>
+            </div>
+
+            <p id="gd-anulacion" class="guia-annul-reason"></p>
+            <!-- Trazabilidad & Línea de Tiempo -->
+            <div style="background: var(--bg-tertiary); padding: 14px; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <span style="font-size: 0.75rem; font-weight: 800; text-transform: uppercase; color: var(--color-primary); letter-spacing: 0.05em; display: flex; align-items: center; gap: 6px;">
+                        <i class="fa-solid fa-timeline"></i> Trazabilidad & Línea de Tiempo
+                    </span>
+                    <span style="font-size: 0.7rem; color: var(--text-muted);"><i class="fa-solid fa-shield-halved"></i> Historial de operaciones</span>
+                </div>
+                <div id="gd-timeline-container" class="timeline-wrapper"></div>
             </div>
         </div>
     </div>
@@ -2957,6 +3021,7 @@
                         <img src="LOGO PROCLEANMG.jpg" alt="ProCleanMG" style="height: 58px; width: auto; object-fit: contain;">
                         <div>
                             <h2 style="margin: 0; font-size: 1.25rem; font-weight: 900; color: #0f172a; text-transform: uppercase;" id="remito-p-razon">ProCleanMG SpA</h2>
+                            <p style="margin:2px 0; font-size:0.75rem; color:#475569;">RUT empresa: <span id="remito-p-rut-empresa"></span> · <span id="remito-p-direccion-empresa"></span></p>
                             <p style="margin: 2px 0; font-size: 0.8rem; color: #475569; font-weight: 600;">Servicios Industriales & Logística Operativa</p>
                             <p style="margin: 0; font-size: 0.75rem; color: #64748b;">Tel: <span id="remito-p-tel">934068272</span> | Correo: <span id="remito-p-correo">mandrade@procleanmg.cl</span></p>
                         </div>
@@ -2970,6 +3035,7 @@
                         </div>
                         <div style="font-size: 0.75rem; font-family: monospace; color: #334155;">
                             Fecha: <span id="remito-p-fecha">--</span>
+                            <div id="remito-p-estado" style="font-size:0.72rem; margin-top:5px;"></div>
                         </div>
                     </div>
                 </div>
@@ -3030,6 +3096,135 @@
                 <div style="margin-top: 24px; padding-top: 12px; border-top: 1px solid #e2e8f0; display: flex; justify-content: space-between; font-size: 0.68rem; color: #94a3b8;">
                     <span>GUÍA DE CONTROL INTERNO Y TRASLADO OPERACIONAL - PROCLEANMG</span>
                     <span>Documento con Trazabilidad Inmutable Digital</span>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 6: CONFIGURACIÓN DE PARÁMETROS Y CATÁLOGOS DE GUÍAS -->
+    <div class="modal-overlay" id="modal-guias-config">
+        <div class="modal-content" style="max-width: 720px; max-height: 90vh; display: flex; flex-direction: column;">
+            <div class="modal-header">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <div style="width: 36px; height: 36px; border-radius: 10px; background: rgba(255, 122, 0, 0.15); color: var(--color-primary); display: flex; align-items: center; justify-content: center;">
+                        <i class="fa-solid fa-gears"></i>
+                    </div>
+                    <div>
+                        <h3 style="margin: 0; font-size: 1.1rem;">Configuración de Guías de Despacho</h3>
+                        <p style="margin: 0; font-size: 0.75rem; color: var(--text-muted);">Parámetros oficiales de la empresa emisora y catálogos de transporte</p>
+                    </div>
+                </div>
+                <button type="button" class="btn-close" onclick="closeGuiasConfigModal()">&times;</button>
+            </div>
+
+            <div class="modal-body" style="flex: 1; overflow-y: auto; padding: 20px;">
+                <!-- Pestañas internas -->
+                <div style="display: flex; gap: 8px; margin-bottom: 20px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px;">
+                    <button type="button" id="tab-gcfg-empresa" class="btn btn-primary btn-sm" onclick="switchGuiasConfigTab('empresa')">
+                        <i class="fa-solid fa-building"></i> Empresa Emisora
+                    </button>
+                    <button type="button" id="tab-gcfg-catalogos" class="btn btn-secondary btn-sm" onclick="switchGuiasConfigTab('catalogos')">
+                        <i class="fa-solid fa-truck-moving"></i> Flota y Catálogos
+                    </button>
+                </div>
+
+                <!-- SECCIÓN 1: EMPRESA EMISORA -->
+                <div id="gcfg-sec-empresa" style="display: block;">
+                    <form id="form-gcfg-empresa" onsubmit="saveGuiasConfigEmpresa(event)">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+                            <div class="form-group">
+                                <label style="font-size: 0.8rem; font-weight: 600;">Razón Social Empresa <span class="required" style="color: var(--color-danger);">*</span></label>
+                                <input type="text" id="gcfg-razon" required style="width: 100%;">
+                            </div>
+                            <div class="form-group">
+                                <label style="font-size: 0.8rem; font-weight: 600;">RUT Empresa <span class="required" style="color: var(--color-danger);">*</span></label>
+                                <input type="text" id="gcfg-rut" required style="width: 100%;">
+                            </div>
+                            <div class="form-group">
+                                <label style="font-size: 0.8rem; font-weight: 600;">Teléfono de Contacto</label>
+                                <input type="text" id="gcfg-telefono" style="width: 100%;">
+                            </div>
+                            <div class="form-group">
+                                <label style="font-size: 0.8rem; font-weight: 600;">Correo Electrónico</label>
+                                <input type="email" id="gcfg-correo" style="width: 100%;">
+                            </div>
+                            <div class="form-group">
+                                <label style="font-size: 0.8rem; font-weight: 600;">Domicilio Casa Matriz</label>
+                                <input type="text" id="gcfg-direccion" style="width: 100%;">
+                            </div>
+                            <div class="form-group">
+                                <label style="font-size: 0.8rem; font-weight: 600;">Ciudad / Comuna</label>
+                                <input type="text" id="gcfg-ciudad" style="width: 100%;">
+                            </div>
+                        </div>
+
+                        <div class="form-group" style="margin-bottom: 20px;">
+                            <label style="font-size: 0.8rem; font-weight: 600;">Emisor Responsable por Defecto</label>
+                            <input type="text" id="gcfg-emisor-default" placeholder="Ej: Marco Andrade" style="width: 100%;">
+                        </div>
+                        <div class="guia-config-grid">
+                            <div class="form-group"><label for="gcfg-emisor-rut">RUT emisor</label><input id="gcfg-emisor-rut" type="text"></div>
+                            <div class="form-group"><label for="gcfg-emisor-telefono">Teléfono emisor</label><input id="gcfg-emisor-telefono" type="text"></div>
+                            <div class="form-group"><label for="gcfg-emisor-domicilio">Domicilio emisor</label><input id="gcfg-emisor-domicilio" type="text"></div>
+                            <div class="form-group"><label for="gcfg-comuna">Comuna emisor</label><input id="gcfg-comuna" type="text"></div>
+                        </div>
+
+                        <div style="display: flex; justify-content: flex-end;">
+                            <button type="submit" class="btn btn-primary" style="font-weight: 700;">
+                                <i class="fa-solid fa-save"></i> Guardar Parámetros de Empresa
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- SECCIÓN 2: FLOTA Y CATÁLOGOS DINÁMICOS -->
+                <div id="gcfg-sec-catalogos" style="display: none;">
+                    <div style="display: flex; flex-direction: column; gap: 20px;">
+
+                        <!-- Categoría 1: Flota de Vehículos -->
+                        <div style="background: var(--bg-tertiary); padding: 14px; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
+                            <h4 style="font-size: 0.85rem; font-weight: 800; text-transform: uppercase; color: var(--color-primary); margin-bottom: 10px; display: flex; align-items: center; gap: 8px;">
+                                <i class="fa-solid fa-truck"></i> Flota de Vehículos de Transporte
+                            </h4>
+                            <div style="display: flex; gap: 8px; margin-bottom: 10px;">
+                                <input type="text" id="gcfg-add-vehiculo-input" placeholder="Nombre/Modelo de vehículo (ej: Maxus T60)..." style="flex: 1;">
+                                <button type="button" class="btn btn-primary btn-sm" onclick="addGuiasCatalogoItem('vehiculo')">
+                                    <i class="fa-solid fa-plus"></i> Agregar
+                                </button>
+                            </div>
+                            <div id="gcfg-list-vehiculos" style="display: flex; flex-wrap: wrap; gap: 6px;"></div>
+                        </div>
+
+                        <!-- Categoría 2: Choferes Autorizados -->
+                        <div style="background: var(--bg-tertiary); padding: 14px; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
+                            <h4 style="font-size: 0.85rem; font-weight: 800; text-transform: uppercase; color: var(--color-primary); margin-bottom: 10px; display: flex; align-items: center; gap: 8px;">
+                                <i class="fa-solid fa-id-card"></i> Conductores y Choferes Autorizados
+                            </h4>
+                            <div style="display: flex; gap: 8px; margin-bottom: 10px;">
+                                <input type="text" id="gcfg-add-chofer-input" placeholder="Nombre completo del conductor..." style="flex: 1;">
+                                <button type="button" class="btn btn-primary btn-sm" onclick="addGuiasCatalogoItem('chofer')">
+                                    <i class="fa-solid fa-plus"></i> Agregar
+                                </button>
+                            </div>
+                            <div id="gcfg-list-choferes" style="display: flex; flex-wrap: wrap; gap: 6px;"></div>
+                        </div>
+
+                        <!-- Categoría 3: Destinos Frecuentes -->
+                        <div style="background: var(--bg-tertiary); padding: 14px; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
+                            <h4 style="font-size: 0.85rem; font-weight: 800; text-transform: uppercase; color: var(--color-primary); margin-bottom: 10px; display: flex; align-items: center; gap: 8px;">
+                                <i class="fa-solid fa-location-dot"></i> Destinos Frecuentes / Faenas / Talleres
+                            </h4>
+                            <div style="display: flex; gap: 8px; margin-bottom: 10px;">
+                                <input type="text" id="gcfg-add-destino-input" placeholder="Nombre de la faena o destino (ej: PWM Chile)..." style="flex: 1;">
+                                <button type="button" class="btn btn-primary btn-sm" onclick="addGuiasCatalogoItem('destino')">
+                                    <i class="fa-solid fa-plus"></i> Agregar
+                                </button>
+                            </div>
+                            <div id="gcfg-list-destinos" style="display: flex; flex-wrap: wrap; gap: 6px;"></div>
+                        </div>
+
+                    </div>
                 </div>
 
             </div>
