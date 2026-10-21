@@ -153,14 +153,21 @@ test('exportar incluye otras páginas y eliminar la última fila ajusta la pági
     await expect(page.locator('#guias-pagination')).toContainText('Pág. 1 de 1');
 });
 
-test('anular conserva la carga y muestra el motivo', async ({ page, backend }) => {
+test('anular conserva la carga y muestra el motivo', async ({ page, backend }, testInfo) => {
     await page.locator('tr[data-guia-id="1"] button[data-guia-action="annul"]').click();
     await page.locator('#guia-anular-motivo').fill('Traslado cancelado por el solicitante');
     await page.locator('#guia-anular-form button[type="submit"]').click();
     await expect(page.locator('tr[data-guia-id="1"]')).toContainText('Anulada');
+    await expect(page.locator('#stat-guias-anuladas')).toHaveText('1');
     await page.locator('tr[data-guia-id="1"] button[data-guia-action="view"]').click();
     await expect(page.locator('#gd-anulacion')).toContainText('Traslado cancelado');
     expect(await backend.scalar('SELECT count(*)::integer AS value FROM public.guia_despacho_items WHERE guia_id=1')).toBe(1);
+    await page.evaluate(() => window.closeGuiaDrawer());
+    await page.setViewportSize({ width: 1920, height: 1080 });
+    for (const theme of ['light', 'dark']) {
+        await page.evaluate(theme => { document.getElementById('theme-switch').checked = theme === 'dark'; window.toggleTheme(); }, theme);
+        await page.locator('#view-guias .dashboard-stats').screenshot({ path: testInfo.outputPath(`indicadores-${theme}.png`), animations: 'disabled', style: '#toast-container { visibility: hidden !important; }' });
+    }
 });
 
 test('la sesión principal permite emitir y consultar historial sin token ni segunda clave', async ({ page, backend }) => {

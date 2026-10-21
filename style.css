@@ -494,6 +494,7 @@ input:checked + .slider:before {
 .stat-icon.success { color: var(--color-success); background-color: rgba(46, 196, 182, 0.08); }
 .stat-icon.warning { color: var(--color-warning); background-color: rgba(255, 183, 3, 0.08); }
 .stat-icon.info { color: var(--color-info); background-color: rgba(6, 182, 212, 0.08); }
+.stat-icon.danger { color: var(--color-danger); background-color: rgba(239, 68, 68, 0.08); }
 
 /* ==========================================================================
    Tablas

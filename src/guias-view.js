@@ -86,10 +86,9 @@ export async function reloadGuias() {
 export function updateGuiasDashboardStats() {
     const list = selectGuias(dbGuias, filters());
     text('stat-guias-total', list.length);
-    for (const [id, state] of [['pendientes', 'PENDIENTE'], ['transito', 'EN_TRANSITO'], ['entregadas', 'ENTREGADA']]) {
+    for (const [id, state] of [['pendientes', 'PENDIENTE'], ['transito', 'EN_TRANSITO'], ['entregadas', 'ENTREGADA'], ['anuladas', 'ANULADA']]) {
         text(`stat-guias-${id}`, list.filter(guia => guia.estado === state).length);
     }
-    text('stat-guias-proximo', 'Automático');
     const timings = list.map(guia => guiaTiming(guia));
     const pendingHours = timings.map(row => row.pendingHours).filter(row => row !== null);
     const delivered = timings.map(row => row.deliveryHours).filter(row => row !== null);
