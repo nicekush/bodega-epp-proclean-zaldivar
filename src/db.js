@@ -3,7 +3,6 @@
 // ==========================================================================
 
 import { createClient } from '@supabase/supabase-js';
-import guiasSeed from './data/guias_seed.json';
 
 const supabaseUrl = 
     import.meta.env.VITE_SUPABASE_URL || 
@@ -39,6 +38,9 @@ export let dbAjustesStock = [];
 export let dbGuias = [];
 export let dbGuiasCatalogos = { vehiculos: [], choferes: [], destinos: [] };
 export let dbGuiasConfig = {};
+
+// Caché renovada tras retirar la importación histórica. No reutilizar la clave anterior.
+const GUIAS_CACHE_KEY = 'db_guias_despacho_v2';
  
 // Helper seguro para guardar en localStorage evitando QuotaExceededError
 export function safeLocalStorageSet(key, value) {
@@ -193,37 +195,8 @@ export async function initDatabase() {
             }
         }
 
-        // 12. Cargar Guías de Despacho (con Fallback Local & Semilla Histórica)
-        try {
-            const { data: gList, error: errG } = await supabase
-                .from('guias_despacho')
-                .select(`
-                    *,
-                    items:guia_despacho_items(*)
-                `)
-                .order('folio', { ascending: false });
-
-            if (errG) throw errG;
-            if (gList && gList.length > 0) {
-                dbGuias = gList;
-                safeLocalStorageSet("db_guias_despacho", JSON.stringify(dbGuias));
-            } else {
-                throw new Error("Sin registros en Supabase guias_despacho.");
-            }
-        } catch (e) {
-            console.warn("Tabla 'guias_despacho' no disponible en Supabase o vacía. Usando cache local o semilla histórica.", e);
-            const local = localStorage.getItem("db_guias_despacho");
-            if (local) {
-                try {
-                    dbGuias = JSON.parse(local);
-                } catch(err) {
-                    dbGuias = guiasSeed || [];
-                }
-            } else {
-                dbGuias = guiasSeed || [];
-                safeLocalStorageSet("db_guias_despacho", JSON.stringify(dbGuias));
-            }
-        }
+        // 12. Cargar Guías de Despacho. Una tabla vacía es un resultado válido.
+        await dbFetchGuias();
 
         // 13. Cargar Catálogos de Despacho (Vehículos, Choferes, Destinos)
         try {
@@ -1185,15 +1158,16 @@ export async function dbFetchGuias() {
             .order('folio', { ascending: false });
 
         if (error) throw error;
-        if (data && data.length > 0) {
-            dbGuias = data;
-            safeLocalStorageSet("db_guias_despacho", JSON.stringify(dbGuias));
-        }
+        if (!Array.isArray(data)) throw new Error('Respuesta inválida al cargar guías de despacho.');
+        dbGuias = data;
+        safeLocalStorageSet(GUIAS_CACHE_KEY, JSON.stringify(dbGuias));
     } catch (e) {
         console.warn("dbFetchGuias fallback local:", e);
-        const local = localStorage.getItem("db_guias_despacho");
-        if (local) {
-            try { dbGuias = JSON.parse(local); } catch(err) {}
+        try {
+            const cached = JSON.parse(localStorage.getItem(GUIAS_CACHE_KEY) || '[]');
+            dbGuias = Array.isArray(cached) ? cached : [];
+        } catch (cacheError) {
+            dbGuias = [];
         }
     }
     return dbGuias;
@@ -1284,7 +1258,7 @@ export async function dbInsertGuia(guiaData, items = [], auditUser = 'Operador')
     }));
 
     dbGuias.unshift(newGuiaRecord);
-    safeLocalStorageSet("db_guias_despacho", JSON.stringify(dbGuias));
+    safeLocalStorageSet(GUIAS_CACHE_KEY, JSON.stringify(dbGuias));
     return newGuiaRecord;
 }
 
@@ -1331,7 +1305,7 @@ export async function dbUpdateGuia(id, guiaData, items = null, auditUser = 'Oper
             dbGuias[idx].items = items;
         }
     }
-    safeLocalStorageSet("db_guias_despacho", JSON.stringify(dbGuias));
+    safeLocalStorageSet(GUIAS_CACHE_KEY, JSON.stringify(dbGuias));
     return dbGuias[idx];
 }
 
@@ -1353,7 +1327,7 @@ export async function dbDeleteGuia(id, folio, auditUser = 'Operador') {
     }
 
     dbGuias = dbGuias.filter(g => g.id !== id);
-    safeLocalStorageSet("db_guias_despacho", JSON.stringify(dbGuias));
+    safeLocalStorageSet(GUIAS_CACHE_KEY, JSON.stringify(dbGuias));
 }
 
 export async function dbChangeGuiaEstado(id, nuevoEstado, auditUser = 'Operador', motivo = '') {
@@ -1383,7 +1357,7 @@ export async function dbChangeGuiaEstado(id, nuevoEstado, auditUser = 'Operador'
 
     if (target) {
         Object.assign(target, updatePayload);
-        safeLocalStorageSet("db_guias_despacho", JSON.stringify(dbGuias));
+        safeLocalStorageSet(GUIAS_CACHE_KEY, JSON.stringify(dbGuias));
     }
 }
 
@@ -1419,7 +1393,7 @@ export async function dbConfirmarEntrega(id, receptorData, auditUser = 'Chofer /
 
     if (target) {
         Object.assign(target, updatePayload);
-        safeLocalStorageSet("db_guias_despacho", JSON.stringify(dbGuias));
+        safeLocalStorageSet(GUIAS_CACHE_KEY, JSON.stringify(dbGuias));
     }
 }
 
