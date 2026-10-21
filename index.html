@@ -2632,17 +2632,6 @@
     <!-- ============================================================== -->
 
     <!-- MODAL 1: ASISTENTE DE EMISIÓN DE NUEVA GUÍA -->
-    <div class="modal-overlay" id="guias-session-modal">
-        <div class="modal-content" style="max-width:420px;">
-            <div class="modal-header"><h3>Confirmar sesión de guías</h3><button type="button" class="btn-close" onclick="closeGuiasSessionModal()" aria-label="Cerrar">&times;</button></div>
-            <form id="guias-session-form" onsubmit="authenticateGuias(event)" class="guia-modal-form">
-                <p><strong id="guias-session-user"></strong>, confirma tu clave para registrar operaciones con tu identidad.</p>
-                <label for="guias-session-password">Clave de la aplicación</label>
-                <input type="password" id="guias-session-password" autocomplete="current-password" required>
-                <button type="submit" class="btn btn-primary">Confirmar sesión</button>
-            </form>
-        </div>
-    </div>
     <div class="modal-overlay" id="guia-anular-modal">
         <div class="modal-content" style="max-width:480px;">
             <div class="modal-header"><h3>Anular guía <span id="guia-anular-folio"></span></h3><button type="button" class="btn-close" onclick="closeAnularGuiaModal()" aria-label="Cerrar">&times;</button></div>

@@ -15,11 +15,12 @@ export const test = base.extend({
             LANGUAGE sql SECURITY DEFINER AS $$ SELECT u.password=p_password,u.rut,u.nombre,u.rol,u.cambio_clave_pendiente FROM public.usuarios u WHERE u.rut=p_rut $$;`);
         await db.exec(readFileSync(new URL('../scratch/setup_guias_despacho.sql', import.meta.url), 'utf8'));
         await db.exec(readFileSync(new URL('../scratch/upgrade_guias_despacho_v2.sql', import.meta.url), 'utf8'));
+        await db.exec(readFileSync(new URL('../scratch/upgrade_guias_despacho_v3.sql', import.meta.url), 'utf8'));
         const scalar = async (sql, params = []) => (await db.query(sql, params)).rows[0]?.value;
-        const session = await scalar('SELECT public.guias_iniciar_sesion($1,$2) AS value', ['11.111.111-1', 'clave-test']);
+        const user = { rut: '11.111.111-1', nombre: 'Supervisión de prueba', rol: 'Supervisor' };
         const backend = {
-            db, scalar, session, schemaReady: true, rejectAction: null, loseResponse: null,
-            create: async (extra = {}) => scalar('SELECT public.guias_operar($1,$2,$3::jsonb) AS value', [session.token, 'crear', JSON.stringify({
+            db, scalar, user, schemaReady: true, rejectAction: null, loseResponse: null,
+            create: async (extra = {}) => scalar('SELECT public.guias_operar_aplicacion($1,$2,$3::jsonb) AS value', [user.rut, 'crear', JSON.stringify({
                 request_id: randomUUID(), guia: { fecha: '2026-10-21', hora: '09:00', lugar_entrega: 'Faena Norte', chofer: 'Carlos Díaz', vehiculo: 'Maxus T60', patente: 'ABCD12', ...extra },
                 items: [{ articulo: '1', descripcion: 'Repuestos de prueba', cantidad: 2, unidad: 'UN' }]
             })])
@@ -27,10 +28,9 @@ export const test = base.extend({
         await backend.create();
         await backend.create({ lugar_entrega: 'Taller Sur', chofer: 'María Pérez', patente: 'EFGH34' });
         await backend.create({ lugar_entrega: 'Faena Norte', chofer: 'Carlos Díaz', vehiculo: 'Toyota Hilux', patente: 'IJKL56' });
-        await context.addInitScript(session => {
-            localStorage.setItem('epp_active_user', JSON.stringify(session.user));
-            sessionStorage.setItem('epp_guias_session_v1', JSON.stringify(session));
-        }, session);
+        await context.addInitScript(user => {
+            localStorage.setItem('epp_active_user', JSON.stringify(user));
+        }, user);
         const cors = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': 'GET,POST,HEAD,OPTIONS' };
         await context.route('https://guias-tests.supabase.co/**', async route => {
             const request = route.request();
@@ -44,13 +44,11 @@ export const test = base.extend({
                     if (target === 'verificar_credenciales') return respond((await db.query('SELECT * FROM public.verificar_credenciales($1,$2)', [payload.p_rut, payload.p_password])).rows);
                     if (target === 'guias_modulo_version') {
                         if (!backend.schemaReady) return respond({ code: 'PGRST202', message: 'Función aún no instalada' }, 404);
-                        return respond(2);
+                        return respond(3);
                     }
-                    if (target === 'guias_iniciar_sesion') return respond(await scalar('SELECT public.guias_iniciar_sesion($1,$2) AS value', [payload.p_rut, payload.p_password]));
-                    if (target === 'guias_cerrar_sesion') { await scalar('SELECT public.guias_cerrar_sesion($1) AS value', [payload.p_token]); return respond(null); }
-                    if (target === 'guias_operar') {
+                    if (target === 'guias_operar_aplicacion') {
                         if (backend.rejectAction === payload.p_action) return respond({ code: 'P0001', message: 'Guardado rechazado de prueba' }, 400);
-                        const result = await scalar('SELECT public.guias_operar($1,$2,$3::jsonb) AS value', [payload.p_token, payload.p_action, JSON.stringify(payload.p_payload)]);
+                        const result = await scalar('SELECT public.guias_operar_aplicacion($1,$2,$3::jsonb) AS value', [payload.p_rut, payload.p_action, JSON.stringify(payload.p_payload)]);
                         if (backend.loseResponse === payload.p_action) { backend.loseResponse = null; return respond({ code: '503', message: 'Respuesta no recibida. Reintenta con los mismos datos.' }, 503); }
                         return respond(result);
                     }

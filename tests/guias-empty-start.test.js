@@ -10,7 +10,7 @@ const storageKey = 'db_guias_despacho_v2';
 function harness({ cache = {}, response = () => ({ data: [], error: null }) } = {}) {
     const storage = new Map(Object.entries(cache));
     const context = {
-        createGuiasRepository: (client, cache) => createGuiasRepository(client, cache, { get: () => ({ token: 'test' }), set() {}, clear() {} }),
+        createGuiasRepository: (client, cache) => createGuiasRepository(client, cache, () => ({ rut: '11.111.111-1' })),
         console: { warn() {}, error() {} },
         localStorage: {
             getItem: key => storage.get(key) ?? null,
@@ -76,7 +76,7 @@ test('la inicialización completa admite tablas vacías y actualiza la caché de
 
 test('la primera nueva guía usa folio 1 y se guarda en la caché renovada', async () => {
     const { context, storage } = harness({
-        response: query => ({ data: query.name === 'guias_modulo_version' ? 2 : query.name === 'guias_operar' ? { id: 900, folio: 1, items: [{ descripcion: 'Carga de prueba', cantidad: 1, unidad: 'UN' }] } : [], error: null })
+        response: query => ({ data: query.name === 'guias_modulo_version' ? 3 : query.name === 'guias_operar_aplicacion' ? { id: 900, folio: 1, items: [{ descripcion: 'Carga de prueba', cantidad: 1, unidad: 'UN' }] } : [], error: null })
     });
     const result = await context.dbInsertGuia({ lugar_entrega: 'Destino de prueba', fecha: '2026-10-21', hora: '09:00', chofer: 'Chofer', vehiculo: 'Camioneta' }, [{ descripcion: 'Carga de prueba', cantidad: 1, unidad: 'UN' }]);
     assert.equal(result.folio, 1);

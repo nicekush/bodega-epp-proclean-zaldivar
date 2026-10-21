@@ -163,5 +163,58 @@ test('migración de Guías v2 en PostgreSQL aislado', { timeout: 90000 }, async 
             const after = await scalar('SELECT jsonb_build_array((SELECT last_folio FROM guia_private.folio_counter),(SELECT count(*) FROM public.guias_despacho)) AS value');
             assert.deepEqual(after, before);
         });
+
+        await t.test('v3 retira los tokens y conserva los documentos y las reglas transaccionales', async () => {
+            const migrationV3 = readFileSync(new URL('../scratch/upgrade_guias_despacho_v3.sql', import.meta.url), 'utf8');
+            const snapshot = () => scalar(`SELECT jsonb_build_array(
+                (SELECT last_folio FROM guia_private.folio_counter),
+                (SELECT jsonb_agg(to_jsonb(g) ORDER BY id) FROM public.guias_despacho g),
+                (SELECT jsonb_agg(to_jsonb(i) ORDER BY id) FROM public.guia_despacho_items i),
+                (SELECT jsonb_agg(to_jsonb(a) ORDER BY id) FROM public.guias_despacho_audit a),
+                (SELECT jsonb_agg(to_jsonb(c) ORDER BY id) FROM public.guias_despacho_catalogos c),
+                (SELECT jsonb_agg(to_jsonb(c) ORDER BY clave) FROM public.guias_despacho_config c)
+            ) AS value`);
+            const before = await snapshot();
+            await db.exec(migrationV3);
+            assert.deepEqual(await snapshot(), before);
+            assert.equal(await scalar('SELECT public.guias_modulo_version() AS value'), 3);
+            assert.equal(await scalar("SELECT to_regclass('guia_private.sessions') AS value"), null);
+            for (const name of ['guias_iniciar_sesion(text,text)', 'guias_cerrar_sesion(text)', 'guias_operar(text,text,jsonb)']) {
+                assert.equal(await scalar('SELECT to_regprocedure($1) AS value', [`public.${name}`]), null);
+            }
+            const appAct = (action, payload = {}, rut = '11.111.111-1') => scalar(
+                'SELECT public.guias_operar_aplicacion($1,$2,$3::jsonb) AS value', [rut, action, JSON.stringify(payload)]
+            );
+            await assert.rejects(appAct('auditoria', { id: 1 }, ''), /Inicia sesión/);
+            await assert.rejects(appAct('auditoria', { id: 1 }, '99.999.999-9'), /usuario ya no/);
+
+            // El rol y nombre se consultan en usuarios, no en el payload propuesto.
+            await db.exec("UPDATE public.usuarios SET nombre='Operador actualizado',rol='Bodeguero' WHERE rut='22.222.222-2'");
+            const request = { request_id: randomUUID(), guia: { ...header, created_by: 'Falso', rol: 'Administrador' }, items: load };
+            let guia = await appAct('crear', request, '22222222-2');
+            assert.equal(guia.created_by, 'Operador actualizado');
+            assert.equal((await appAct('crear', request, '22222222-2')).id, guia.id);
+            await assert.rejects(appAct('anular', revise(guia, { motivo: 'No autorizado' }), '22.222.222-2'), /Solo supervisores/);
+            guia = await appAct('editar', revise(guia, { guia: { ...header, observaciones: 'Desde sesión principal' }, items: load }));
+            await assert.rejects(appAct('ruta', { id: guia.id, expected_updated_at: before[1][0].updated_at }), /Otra persona actualizó/);
+            guia = await appAct('ruta', revise(guia));
+            guia = await appAct('entregar', revise(guia, { receptor_nombre: 'Receptor', firma_digital: signature }));
+            assert.equal(guia.estado, 'ENTREGADA');
+            await assert.rejects(appAct('editar', revise(guia, { guia: header, items: load })), /Solo se puede editar/);
+            assert.equal((await appAct('auditoria', { id: guia.id })).length, 4);
+            const rollbackBefore = await snapshot();
+            await assert.rejects(appAct('crear', { request_id: randomUUID(), guia: header, items: [{ ...load[0], descripcion: 'FALLAR' }] }), /Fallo de carga/);
+            assert.deepEqual(await snapshot(), rollbackBefore);
+
+            // Comprueba la llamada real con el rol usado por la aplicación.
+            await db.exec('SET ROLE anon;');
+            try {
+                assert.ok((await appAct('auditoria', { id: guia.id })).length);
+                await assert.rejects(db.exec("INSERT INTO public.guias_despacho_config(clave,valor) VALUES('prueba','x')"), /permission denied/);
+            } finally { await db.exec('RESET ROLE;'); }
+            const after = await snapshot();
+            await db.exec(migrationV3);
+            assert.deepEqual(await snapshot(), after);
+        });
     } finally { await db.close(); }
 });

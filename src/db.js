@@ -4,6 +4,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 import { createGuiasRepository } from './guias-db.js';
+import { currentUser } from './auth.js';
 
 const supabaseUrl = 
     import.meta.env.VITE_SUPABASE_URL || 
@@ -794,10 +795,6 @@ export async function dbVerificarCredenciales(rut, password) {
     });
     if (error) throw error;
     const result = data && data[0] ? data[0] : { success: false };
-    if (result.success && !result.cambio_clave_pendiente) {
-        try { await dbIniciarSesionGuias(rut, password); }
-        catch { /* El resto de la aplicación conserva su sesión; guías solicitará confirmación si hace falta. */ }
-    }
     return result;
 }
 
@@ -1156,7 +1153,7 @@ export async function dbDeleteReplenishment(id) {
 const guiasRepository = createGuiasRepository(supabase, {
     read: kind => JSON.parse(localStorage.getItem(kind === 'guides' ? GUIAS_CACHE_KEY : 'db_guias_settings_v2') || 'null'),
     write: (kind, value) => safeLocalStorageSet(kind === 'guides' ? GUIAS_CACHE_KEY : 'db_guias_settings_v2', JSON.stringify(value))
-});
+}, () => currentUser);
 export const dbGuiasStatus = guiasRepository.state;
 function syncGuiasState() {
     dbGuias = guiasRepository.state.guias;
@@ -1173,8 +1170,6 @@ export async function dbFetchGuiasSettings() {
     syncGuiasState();
     return dbGuiasStatus;
 }
-export const dbIniciarSesionGuias = (rut, password) => guiasRepository.login(rut, password);
-export const dbCerrarSesionGuias = () => guiasRepository.logout();
 export async function dbInsertGuia(guiaData, items = []) {
     const { request_id, folio, ...guia } = guiaData;
     const result = await guiasRepository.create(guia, items, request_id);

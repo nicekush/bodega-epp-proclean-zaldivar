@@ -11,13 +11,14 @@ import {
     dbActualizarUsuario,
     dbEliminarUsuario 
 } from './db.js';
-import { dbCerrarSesionGuias } from './db.js';
 
 export let currentUser = null;
 
 
 // Inicializa la sesión del usuario al cargar la página
 export function initAuth() {
+    // Retira el almacenamiento de la antigua autorización separada de Guías.
+    try { sessionStorage.removeItem('epp_guias_session_v1'); } catch { /* Almacenamiento restringido. */ }
     // Formatear dinámicamente el RUT en el campo de login
     const loginRutInput = document.getElementById("login-rut");
     if (loginRutInput) {
@@ -182,7 +183,6 @@ export async function handleLogin(event) {
 
 // Cerrar sesión
 export function handleLogout() {
-    void dbCerrarSesionGuias();
     currentUser = null;
     localStorage.removeItem("epp_active_user");
     closeUserModal();

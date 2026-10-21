@@ -1,13 +1,12 @@
 import {
     dbGuias, dbGuiasCatalogos, dbGuiasConfig, dbGuiasStatus, dbFetchGuias, dbFetchGuiasSettings,
     dbInsertGuia, dbUpdateGuia, dbDeleteGuia, dbChangeGuiaEstado, dbConfirmarEntrega, dbLogGuiaImpresion,
-    dbFetchGuiasAuditLogs, dbSaveGuiasConfig, dbAddGuiaCatalogo, dbDeleteGuiaCatalogo, dbIniciarSesionGuias
+    dbFetchGuiasAuditLogs, dbSaveGuiasConfig, dbAddGuiaCatalogo, dbDeleteGuiaCatalogo
 } from './db.js';
 import { showToast, showConfirmDialog } from './utils.js';
 import { currentUser } from './auth.js';
-import { getGuiasSession } from './guias-session.js';
 import {
-    GUIA_STATES, GUIA_UNITS, escapeGuiaHTML as html, normalizeGuiaText, localGuiaDate,
+    GUIA_STATES, GUIA_UNITS, escapeGuiaHTML as html, localGuiaDate,
     selectGuias, validateGuia, guiaTiming, isGuiaManager, canEditGuia, canAnnulGuia, buildGuiasCSV
 } from './guias-model.js';
 
@@ -17,11 +16,11 @@ const value = id => $(id)?.value?.trim() || '';
 const modal = (id, open) => $(id)?.classList.toggle('active', open);
 const toast = (message, type = 'success') => showToast(html(message), type);
 const findGuia = id => dbGuias.find(guia => String(guia.id) === String(id));
-const user = () => getGuiasSession()?.user || currentUser;
+const user = () => currentUser;
 const stamp = raw => raw && Number.isFinite(new Date(raw).getTime()) ? new Date(raw).toLocaleString('es-CL') : raw || 'Sin fecha';
 let currentFilter = 'ALL', currentPage = 1, pageSize = 15, searchTimer;
 let activeDrawer = null, editTarget = null, receiveTarget = null, deleteTarget = null, annulTarget = null, printTarget = null;
-let requestId = null, queuedAction = null, timelineRequest = 0, itemSequence = 0;
+let requestId = null, timelineRequest = 0, itemSequence = 0;
 let signatureCanvas = null, signatureContext = null, drawing = false, signaturePoints = 0;
 const pending = new Set();
 const registered = new WeakSet();
@@ -31,26 +30,20 @@ function filters() {
         end: value('guias-filter-hasta'), destination: value('guias-filter-destino'),
         driver: value('guias-filter-chofer'), vehicle: value('guias-filter-vehiculo') };
 }
-function ensureSession(retry) {
+function canOperate() {
+    if (!currentUser?.rut) { toast('Inicia sesión en la aplicación antes de operar con guías.', 'warning'); return false; }
     if (!dbGuiasStatus.schemaReady) { toast('Las operaciones estarán disponibles al completar la actualización del módulo.', 'warning'); return false; }
     if (!dbGuiasStatus.online) { toast('Actualiza las guías al recuperar la conexión antes de guardar.', 'warning'); return false; }
-    const session = getGuiasSession();
-    if (session && normalizeGuiaText(session.user?.rut).replace(/[.-]/g, '') === normalizeGuiaText(currentUser?.rut).replace(/[.-]/g, '')) return true;
-    queuedAction = retry;
-    text('guias-session-user', currentUser?.nombre || 'Usuario');
-    if ($('guias-session-password')) $('guias-session-password').value = '';
-    modal('guias-session-modal', true);
-    return false;
+    return true;
 }
 function updateStatus() {
     const status = $('guias-connection-status');
     if (status) {
         status.textContent = !dbGuiasStatus.online ? dbGuiasStatus.error : !dbGuiasStatus.schemaReady
             ? 'Modo consulta. Las operaciones se habilitarán al completar la actualización del módulo.'
-            : getGuiasSession() ? 'Conectado. Las operaciones quedan registradas en el historial.'
-                : 'Conectado. Confirma tu clave al realizar la primera operación.';
+            : 'Conectado. Las operaciones quedan registradas en el historial.';
     }
-    document.querySelectorAll('[data-guia-write]').forEach(button => { button.disabled = !dbGuiasStatus.online || !dbGuiasStatus.schemaReady; });
+    document.querySelectorAll('[data-guia-write]').forEach(button => { button.disabled = !currentUser?.rut || !dbGuiasStatus.online || !dbGuiasStatus.schemaReady; });
     document.querySelectorAll('[data-guia-manager]').forEach(button => { button.hidden = !isGuiaManager(user()); });
 }
 async function mutate(key, rootId, action) {
@@ -89,21 +82,6 @@ export async function reloadGuias() {
     populateGuiasCatalogosDropdowns();
     refresh();
 }
-export async function authenticateGuias(event) {
-    event.preventDefault();
-    await mutate('session', 'guias-session-form', async () => {
-        if (!currentUser?.rut) throw new Error('Inicia sesión en la aplicación antes de operar con guías.');
-        await dbIniciarSesionGuias(currentUser.rut, $('guias-session-password').value);
-        $('guias-session-password').value = '';
-        modal('guias-session-modal', false);
-        const retry = queuedAction;
-        queuedAction = null;
-        renderGuiasTable();
-        retry?.();
-    });
-}
-export function closeGuiasSessionModal() { queuedAction = null; if ($('guias-session-password')) $('guias-session-password').value = ''; modal('guias-session-modal', false); }
-
 export function updateGuiasDashboardStats() {
     const list = selectGuias(dbGuias, filters());
     text('stat-guias-total', list.length);
@@ -264,7 +242,7 @@ function populateGuiasCatalogosDropdowns() {
     }
 }
 export function openNewGuiaModal() {
-    if (!ensureSession(openNewGuiaModal)) return;
+    if (!canOperate()) return;
     $('guia-wizard-form').reset();
     requestId = crypto.randomUUID();
     $('gw-folio').value = 'Al emitir';
@@ -277,7 +255,7 @@ export function openNewGuiaModal() {
 export function closeNewGuiaModal() { if (!pending.has('create')) { modal('guia-wizard-modal', false); requestId = null; } }
 export async function saveNewGuia(event) {
     event.preventDefault();
-    if (!ensureSession(() => modal('guia-wizard-modal', true))) return;
+    if (!canOperate()) return;
     const guia = { fecha: value('gw-fecha'), hora: value('gw-hora'), lugar_entrega: value('gw-destino'),
         chofer: value('gw-chofer'), vehiculo: value('gw-vehiculo'), patente: value('gw-patente'),
         observaciones: value('gw-observaciones'), emisor_nombre: value('gw-emisor'), request_id: requestId };
@@ -290,7 +268,7 @@ export async function saveNewGuia(event) {
     });
 }
 export function openEditGuiaModal(id) {
-    if (!ensureSession(() => openEditGuiaModal(id))) return;
+    if (!canOperate()) return;
     const guia = findGuia(id);
     if (!canEditGuia(guia)) { toast('Solo se puede editar una guía por despachar.', 'warning'); return; }
     editTarget = { id: guia.id, revision: guia.updated_at };
@@ -304,7 +282,7 @@ export function openEditGuiaModal(id) {
 export function closeEditGuiaModal() { if (!pending.has('edit')) { modal('guia-edit-modal', false); editTarget = null; } }
 export async function saveEditGuia(event) {
     event.preventDefault();
-    if (!editTarget || !ensureSession(() => modal('guia-edit-modal', true))) return;
+    if (!editTarget || !canOperate()) return;
     const target = { ...editTarget };
     await mutate('edit', 'guia-edit-form', async () => {
         const guia = { fecha: value('ge-fecha'), hora: value('ge-hora'), lugar_entrega: value('ge-destino'),
@@ -352,10 +330,9 @@ async function renderGuiaTimeline(id) {
     const container = $('gd-timeline-container');
     if (!container) return;
     const request = ++timelineRequest;
-    if (!getGuiasSession()) {
-        container.textContent = 'Confirma tu clave para consultar el historial de operaciones.';
-        const button = document.createElement('button'); button.type = 'button'; button.className = 'btn btn-secondary btn-sm'; button.textContent = 'Consultar historial';
-        button.addEventListener('click', () => ensureSession(() => openGuiaDrawer(id)) && renderGuiaTimeline(id)); container.appendChild(button); return;
+    if (!currentUser?.rut) {
+        container.textContent = 'Inicia sesión en la aplicación para consultar el historial de operaciones.';
+        return;
     }
     container.textContent = 'Cargando historial…';
     try {
@@ -376,11 +353,11 @@ async function renderGuiaTimeline(id) {
 }
 export async function cambiarEstadoDirecto(id, state) {
     if (state !== 'EN_TRANSITO') { toast('Utiliza recepción o anulación para cerrar una guía.', 'warning'); return; }
-    if (!ensureSession(() => cambiarEstadoDirecto(id, state))) return;
+    if (!canOperate()) return;
     await mutate(`route-${id}`, 'gd-actions-container', async () => { await dbChangeGuiaEstado(id, state); refresh(); toast('Inicio de ruta registrado.'); });
 }
 export function openAnularGuiaModal(id) {
-    if (!ensureSession(() => openAnularGuiaModal(id))) return;
+    if (!canOperate()) return;
     const guia = findGuia(id);
     if (!canAnnulGuia(guia, user())) { toast('No puedes anular esta guía.', 'warning'); return; }
     annulTarget = { id: guia.id, revision: guia.updated_at }; text('guia-anular-folio', `#${guia.folio}`); $('guia-anular-motivo').value = ''; modal('guia-anular-modal', true);
@@ -398,7 +375,7 @@ export async function confirmAnularGuia(event) {
 }
 
 export function openDeliverModal(id) {
-    if (!ensureSession(() => openDeliverModal(id))) return;
+    if (!canOperate()) return;
     const guia = findGuia(id);
     if (guia?.estado !== 'EN_TRANSITO') { toast('La guía debe estar en ruta antes de registrar la recepción.', 'warning'); return; }
     receiveTarget = { id: guia.id, revision: guia.updated_at }; text('gdel-folio-badge', `#${guia.folio}`);
@@ -429,7 +406,7 @@ export async function saveDeliverModal(event) {
     });
 }
 export function openDeleteGuiaModal(id) {
-    if (!ensureSession(() => openDeleteGuiaModal(id))) return;
+    if (!canOperate()) return;
     const guia = findGuia(id);
     if (!canEditGuia(guia) || !isGuiaManager(user())) { toast('Solo supervisores y administradores pueden eliminar guías por despachar.', 'warning'); return; }
     deleteTarget = { id: guia.id, revision: guia.updated_at }; text('gdel-confirm-folio', `#${guia.folio}`); modal('guia-delete-modal', true);
@@ -462,7 +439,7 @@ export function openPrintRemitoModal(id) {
 export function closePrintRemitoModal() { printTarget = null; modal('modal-remito-print', false); }
 export async function printRemito() {
     const id = printTarget;
-    if (!id || !ensureSession(printRemito)) return;
+    if (!id || !canOperate()) return;
     await mutate(`print-${id}`, 'modal-remito-print', async () => {
         await dbLogGuiaImpresion(id);
         if (String(printTarget) === String(id)) window.print();
@@ -487,7 +464,7 @@ const configFields = {
     'gcfg-emisor-domicilio': 'emisor_domicilio', 'gcfg-emisor-telefono': 'emisor_telefono'
 };
 export function openGuiasConfigModal() {
-    if (!ensureSession(openGuiasConfigModal)) return;
+    if (!canOperate()) return;
     if (!isGuiaManager(user())) { toast('Solo supervisores y administradores pueden configurar las guías.', 'warning'); return; }
     Object.entries(configFields).forEach(([id, key]) => { if ($(id)) $(id).value = dbGuiasConfig[key] || ''; });
     renderConfigCatalogs(); switchGuiasConfigTab('empresa'); modal('modal-guias-config', true);

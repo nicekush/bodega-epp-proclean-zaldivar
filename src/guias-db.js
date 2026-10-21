@@ -1,7 +1,6 @@
-import { getGuiasSession, setGuiasSession, clearGuiasSession } from './guias-session.js';
 import { validateGuia } from './guias-model.js';
 
-export function createGuiasRepository(client, cache, sessions = { get: getGuiasSession, set: setGuiasSession, clear: clearGuiasSession }) {
+export function createGuiasRepository(client, cache, getUser) {
     const state = { guias: [], catalogos: { vehiculos: [], choferes: [], destinos: [] }, config: {}, online: false, schemaReady: false, error: '' };
     const persist = () => cache.write('guides', state.guias);
     const persistSettings = () => cache.write('settings', { catalogos: state.catalogos, config: state.config });
@@ -39,7 +38,7 @@ export function createGuiasRepository(client, cache, sessions = { get: getGuiasS
     async function checkSchema() {
         try {
             const { data, error } = await client.rpc('guias_modulo_version');
-            state.schemaReady = !error && data === 2;
+            state.schemaReady = !error && data === 3;
         } catch { state.schemaReady = false; }
         return state.schemaReady;
     }
@@ -65,30 +64,12 @@ export function createGuiasRepository(client, cache, sessions = { get: getGuiasS
         return state;
     }
 
-    async function login(rut, password) {
-        sessions.clear();
-        if (!await checkSchema()) throw new Error('Las operaciones de guías estarán disponibles después de actualizar el módulo en la base de datos.');
-        const { data, error } = await client.rpc('guias_iniciar_sesion', { p_rut: rut, p_password: password });
-        if (error) throw new Error(error.message || 'No se pudo confirmar la sesión.');
-        sessions.set(data);
-        return data;
-    }
-
-    async function logout() {
-        const token = sessions.get()?.token;
-        sessions.clear();
-        if (token) {
-            try { await client.rpc('guias_cerrar_sesion', { p_token: token }); } catch { /* El servidor también aplica caducidad. */ }
-        }
-    }
-
     async function operate(action, payload = {}) {
+        const user = getUser();
+        if (!user?.rut) throw new Error('Inicia sesión en la aplicación antes de operar con guías.');
         if (!state.schemaReady && !await checkSchema()) throw new Error('Falta actualizar el módulo en la base de datos. Las guías permanecen en modo consulta.');
-        const session = sessions.get();
-        if (!session) throw new Error('Confirma tu clave para operar en Guías de Despacho.');
-        const { data, error } = await client.rpc('guias_operar', { p_token: session.token, p_action: action, p_payload: payload });
+        const { data, error } = await client.rpc('guias_operar_aplicacion', { p_rut: user.rut, p_action: action, p_payload: payload });
         if (error) {
-            if (error.code === '28000') sessions.clear();
             if (error.code === 'PGRST202') state.schemaReady = false;
             throw new Error(error.message || 'No se pudo completar la operación.');
         }
@@ -152,6 +133,6 @@ export function createGuiasRepository(client, cache, sessions = { get: getGuiasS
         persistSettings();
         return item;
     }
-    return { state, loadGuides, loadSettings, checkSchema, login, logout, create, edit, change, remove, saveConfig,
+    return { state, loadGuides, loadSettings, checkSchema, create, edit, change, remove, saveConfig,
         addCatalog, deleteCatalog, audit: id => operate('auditoria', { id }), logPrint: id => operate('imprimir', { id }) };
 }

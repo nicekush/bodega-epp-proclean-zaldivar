@@ -162,15 +162,29 @@ test('anular conserva la carga y muestra el motivo', async ({ page, backend }) =
     expect(await backend.scalar('SELECT count(*)::integer AS value FROM public.guia_despacho_items WHERE guia_id=1')).toBe(1);
 });
 
-test('confirma la sesión sin guardar contraseñas y reanuda la nueva guía', async ({ page }) => {
-    await page.evaluate(() => sessionStorage.removeItem('epp_guias_session_v1'));
-    await page.getByRole('button', { name: /Nueva Guía/ }).click();
-    await expect(page.locator('#guias-session-modal')).toHaveClass(/active/);
-    await page.locator('#guias-session-password').fill('clave-test');
-    await page.locator('#guias-session-form button[type="submit"]').click();
+test('la sesión principal permite emitir y consultar historial sin token ni segunda clave', async ({ page, backend }) => {
+    const requests = [];
+    page.on('request', request => { if (request.url().includes('/rpc/')) requests.push(request); });
+    await page.evaluate(() => sessionStorage.clear());
+    await fillNewGuia(page);
     await expect(page.locator('#guia-wizard-modal')).toHaveClass(/active/);
-    expect(await page.locator('#guias-session-password').inputValue()).toBe('');
-    expect(await page.evaluate(() => sessionStorage.getItem('epp_guias_session_v1').includes('clave-test'))).toBe(false);
+    await expect(page.locator('#guias-session-modal')).toHaveCount(0);
+    await page.locator('#guia-wizard-form button[type="submit"]').click();
+    await expect(page.locator('#modal-remito-print')).toHaveClass(/active/);
+    expect(await backend.scalar('SELECT created_by AS value FROM public.guias_despacho WHERE folio=4')).toBe('Supervisión de prueba');
+    await page.locator('button[onclick="closePrintRemitoModal()"]').click();
+    await page.locator('tr[data-guia-id="4"] button[data-guia-action="view"]').click();
+    await expect(page.locator('#gd-timeline-container')).toContainText('CREACION');
+    expect(await page.evaluate(() => sessionStorage.length)).toBe(0);
+    expect(requests.some(request => /guias_iniciar_sesion|guias_cerrar_sesion/.test(request.url()))).toBe(false);
+    expect(requests.filter(request => request.url().endsWith('/guias_operar_aplicacion')).every(request => request.postDataJSON().p_rut === backend.user.rut && !('p_token' in request.postDataJSON()))).toBe(true);
+});
+
+test('cerrar la sesión principal impide emitir desde guías', async ({ page }) => {
+    await page.evaluate(() => window.handleLogout());
+    await page.evaluate(() => window.openNewGuiaModal());
+    await expect(page.locator('#guia-wizard-modal')).not.toHaveClass(/active/);
+    await expect(page.locator('#toast-container')).toContainText('Inicia sesión en la aplicación');
 });
 
 test('sin la migración el módulo conserva la consulta y deshabilita operaciones', async ({ page, backend }) => {
