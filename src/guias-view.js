@@ -136,7 +136,7 @@ export function renderGuiasTable() {
             return `<tr data-guia-id="${html(guia.id)}" class="clickable-row">
                 <td><strong>#${html(guia.folio)}</strong></td><td>${html(guia.fecha)}</td>
                 <td><strong>${html(guia.lugar_entrega)}</strong><div class="guia-muted">${html(guia.emisor_nombre)}</div></td>
-                <td>${html(guia.chofer)}<div class="guia-muted">${html(guia.vehiculo)} · ${html(guia.patente || 'Sin patente')}</div></td>
+                <td>${html(guia.chofer || 'Conductor por completar')}<div class="guia-muted">${html(guia.vehiculo || 'Vehículo por completar')} · ${html(guia.patente || 'Patente por completar')}</div></td>
                 <td><div class="guia-load-summary" title="${html(items)}">${html(items || 'Sin carga registrada')}</div><div class="guia-muted">${guia.items?.length || 0} artículos</div></td>
                 <td><span class="badge ${badge}">${html(GUIA_STATES[guia.estado] || guia.estado)}</span></td>
                 <td><div class="guia-row-actions">${actions}</div></td></tr>`;
@@ -217,7 +217,7 @@ function populateGuiasCatalogosDropdowns() {
     const vehicle = $('gw-vehiculo');
     if (vehicle) {
         const selected = vehicle.value;
-        vehicle.replaceChildren(new Option('Selecciona vehículo', ''));
+        vehicle.replaceChildren(new Option('Completar a mano', ''));
         sortedCatalog('vehiculos').forEach(item => vehicle.add(new Option(item.nombre, item.nombre)));
         if ([...vehicle.options].some(option => option.value === selected)) vehicle.value = selected;
     }
@@ -310,8 +310,8 @@ export function openGuiaDrawer(id) {
     activeDrawer = guia.id;
     text('gd-folio-badge', `#${guia.folio}`); text('gd-fecha-label', `${guia.fecha} · ${guia.hora}`);
     text('gd-estado-badge', GUIA_STATES[guia.estado]);
-    for (const [suffix, field] of Object.entries({ destino: 'lugar_entrega', chofer: 'chofer', emisor: 'emisor_nombre', obs: 'observaciones' })) text(`gd-${suffix}`, guia[field] || 'Sin registro');
-    text('gd-vehiculo', `${guia.vehiculo} · ${guia.patente || 'Sin patente'}`);
+    for (const [suffix, field] of Object.entries({ destino: 'lugar_entrega', chofer: 'chofer', emisor: 'emisor_nombre', obs: 'observaciones' })) text(`gd-${suffix}`, guia[field] || (field === 'chofer' ? 'Por completar a mano' : 'Sin registro'));
+    text('gd-vehiculo', `${guia.vehiculo || 'Vehículo por completar'} · ${guia.patente || 'Patente por completar'}`);
     text('gd-items-count', `${guia.items?.length || 0} artículos`);
     text('gd-anulacion', guia.estado === 'ANULADA' ? `Anulación: ${guia.motivo_anulacion || 'Sin motivo registrado'}` : '');
     const received = guia.estado === 'ENTREGADA';
@@ -431,6 +431,13 @@ export function openPrintRemitoModal(id) {
     if (!guia) return;
     printTarget = guia.id;
     for (const [suffix, field] of Object.entries({ folio: 'folio', fecha: 'fecha', razon: 'razon_social', 'rut-empresa': 'rut_empresa', 'direccion-empresa': 'direccion_empresa', tel: 'telefono_empresa', correo: 'correo_empresa', emisor: 'emisor_nombre', 'rut-emisor': 'emisor_rut', domicilio: 'emisor_domicilio', destino: 'lugar_entrega', chofer: 'chofer', vehiculo: 'vehiculo', patente: 'patente', obs: 'observaciones' })) text(`remito-p-${suffix}`, guia[field] || '');
+    for (const field of ['chofer', 'vehiculo', 'patente']) {
+        const element = $(`remito-p-${field}`);
+        const blank = !String(guia[field] || '').trim();
+        element.classList.toggle('remito-handwrite', blank);
+        if (blank) { element.textContent = ''; element.setAttribute('aria-label', 'Espacio para completar a mano'); }
+        else element.removeAttribute('aria-label');
+    }
     text('remito-p-ciudad', [guia.emisor_ciudad, guia.emisor_comuna].filter(Boolean).join(' / '));
     text('remito-p-estado', `${GUIA_STATES[guia.estado]}${guia.estado === 'ANULADA' ? ` — ${guia.motivo_anulacion}` : ''}`);
     $('remito-p-items-body').innerHTML = (guia.items || []).map(item => `<tr><td>${html(item.articulo)}</td><td>${html(item.descripcion)}${item.observacion ? `<div>${html(item.observacion)}</div>` : ''}</td><td>${html(item.cantidad)} ${html(item.unidad)}</td></tr>`).join('');

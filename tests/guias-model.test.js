@@ -33,6 +33,13 @@ test('fechas calendario se conservan sin desplazamiento UTC', () => {
     assert.equal(localGuiaDate('2026-10-21'), '2026-10-21');
     assert.equal(localGuiaDate('fecha incorrecta'), '');
 });
+
+test('transporte vacío u omitido es válido y el destino sigue siendo obligatorio', () => {
+    for (const transport of [{ chofer: '', vehiculo: '', patente: '' }, { chofer: ' ', vehiculo: null }, { chofer: undefined, vehiculo: undefined }]) {
+        assert.doesNotThrow(() => validateGuia({ ...header, ...transport }, load));
+    }
+    assert.throws(() => validateGuia({ ...header, lugar_entrega: '' }, load), /destino/);
+});
 test('tiempos de seguimiento no infieren un despacho ausente', () => {
     assert.equal(guiaTiming({ estado: 'EN_TRANSITO' }).transitHours, null);
     assert.equal(guiaTiming({ estado: 'ENTREGADA', despachado_at: '2026-10-21T10:00:00Z', receptor_fecha: '2026-10-21T13:30:00Z' }).deliveryHours, 3.5);

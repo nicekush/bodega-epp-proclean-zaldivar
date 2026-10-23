@@ -2284,6 +2284,7 @@ body.dark-mode .sku-chip {
 #gd-timeline-container p { margin:4px 0; overflow-wrap:anywhere; }
 #gd-timeline-container td { min-width:110px; white-space:normal; overflow-wrap:anywhere; }
 #remito-p-items-body td { padding:8px 12px; border-bottom:1px solid #cbd5e1; }
+.remito-handwrite { display:inline-block; min-width:min(170px, 65%); min-height:24px; border-bottom:1px solid #0f172a; vertical-align:bottom; }
 @media(max-width:650px) {
     .guias-filters { grid-template-columns:repeat(2,minmax(0,1fr)); }
     .guias-filters > .epp-search-input-wrapper { grid-column:1/-1; }

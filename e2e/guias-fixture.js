@@ -16,6 +16,7 @@ export const test = base.extend({
         await db.exec(readFileSync(new URL('../scratch/setup_guias_despacho.sql', import.meta.url), 'utf8'));
         await db.exec(readFileSync(new URL('../scratch/upgrade_guias_despacho_v2.sql', import.meta.url), 'utf8'));
         await db.exec(readFileSync(new URL('../scratch/upgrade_guias_despacho_v3.sql', import.meta.url), 'utf8'));
+        await db.exec(readFileSync(new URL('../scratch/upgrade_guias_despacho_v4.sql', import.meta.url), 'utf8'));
         // Datos de prueba explícitos; la instalación no incorpora datos de negocio.
         await db.exec(`INSERT INTO public.guias_despacho_catalogos(tipo,nombre) VALUES
             ('vehiculo','Maxus T60'),('vehiculo','Toyota Hilux'),('destino','Faena Norte'),('chofer','Carlos Díaz');
@@ -24,7 +25,7 @@ export const test = base.extend({
         const scalar = async (sql, params = []) => (await db.query(sql, params)).rows[0]?.value;
         const user = { rut: '11.111.111-1', nombre: 'Supervisión de prueba', rol: 'Supervisor' };
         const backend = {
-            db, scalar, user, schemaReady: true, rejectAction: null, loseResponse: null,
+            db, scalar, user, schemaReady: true, schemaVersion: 4, rejectAction: null, loseResponse: null,
             create: async (extra = {}) => scalar('SELECT public.guias_operar_aplicacion($1,$2,$3::jsonb) AS value', [user.rut, 'crear', JSON.stringify({
                 request_id: randomUUID(), guia: { fecha: '2026-10-21', hora: '09:00', lugar_entrega: 'Faena Norte', chofer: 'Carlos Díaz', vehiculo: 'Maxus T60', patente: 'ABCD12', ...extra },
                 items: [{ articulo: '1', descripcion: 'Repuestos de prueba', cantidad: 2, unidad: 'UN' }]
@@ -49,7 +50,7 @@ export const test = base.extend({
                     if (target === 'verificar_credenciales') return respond((await db.query('SELECT * FROM public.verificar_credenciales($1,$2)', [payload.p_rut, payload.p_password])).rows);
                     if (target === 'guias_modulo_version') {
                         if (!backend.schemaReady) return respond({ code: 'PGRST202', message: 'Función aún no instalada' }, 404);
-                        return respond(3);
+                        return respond(backend.schemaVersion);
                     }
                     if (target === 'guias_operar_aplicacion') {
                         if (backend.rejectAction === payload.p_action) return respond({ code: 'P0001', message: 'Guardado rechazado de prueba' }, 400);

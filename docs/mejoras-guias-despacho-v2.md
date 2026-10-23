@@ -1,22 +1,25 @@
-# Guías de Despacho (operaciones v2 y sesión de aplicación v3)
+# Guías de Despacho (operaciones v2, sesión v3 y transporte opcional v4)
 
 ## Activación
 
-El código necesita las migraciones `scratch/upgrade_guias_despacho_v2.sql` y `scratch/upgrade_guias_despacho_v3.sql`, en ese orden. Si v2 ya está instalada, ejecutar solamente v3. Las migraciones conservan las guías, artículos, auditoría, catálogos, parámetros y contador de folios. La versión v3 elimina las sesiones y funciones de autenticación separadas del módulo.
+Para permitir vehículo y conductor en blanco, ejecutar `scratch/upgrade_guias_despacho_v4.sql` después de v3 y recargar la aplicación. El resultado de `select public.guias_modulo_version();` pasa a ser `4`. La migración conserva datos y validaciones de destino/carga. Se puede reaplicar; acepta también el formato SQL con saltos de línea copiado del chat. Con v3 aún se pueden guardar guías con vehículo y conductor informados.
+
+Las migraciones se ejecutan en orden: `scratch/upgrade_guias_despacho_v2.sql`, `scratch/upgrade_guias_despacho_v3.sql` y `scratch/upgrade_guias_despacho_v4.sql`. Si v3 ya está instalada, ejecutar solamente v4. Conservan las guías, artículos, auditoría, catálogos, parámetros y contador de folios. La versión v3 elimina las sesiones y funciones de autenticación separadas del módulo.
 
 1. Abrir el editor SQL de Supabase, pegar el contenido completo de la migración pendiente y ejecutarlo.
-2. Confirmar la versión con `select public.guias_modulo_version();`, cuyo resultado debe ser `3`.
+2. Confirmar la versión con `select public.guias_modulo_version();`, cuyo resultado debe ser `4`.
 3. Recargar la aplicación actualizada. La sesión principal existente permite operar en Guías sin confirmar nuevamente la clave, incluso tras abrir otra pestaña.
 
-Hasta aplicar la migración, la interfaz mantiene la consulta y exportación disponibles y deshabilita las operaciones. No sustituye un error de servidor por un guardado local ficticio.
+Sin v3 la interfaz mantiene consulta y exportación y deshabilita las operaciones. Con v3 permite guardar guías completas; para dejar vehículo o conductor en blanco requiere v4 y avisa sin perder el formulario. No sustituye un error del servidor por un guardado local ficticio.
 
-Para una instalación nueva, ejecutar primero `scratch/setup_guias_despacho.sql` y después las migraciones v2 y v3. Tras instalar v3 no volver a ejecutar v2 de forma aislada, porque restauraría el mecanismo anterior; la interfaz detecta esa versión y deshabilita las operaciones hasta reaplicar v3.
+Para una instalación nueva, ejecutar primero `scratch/setup_guias_despacho.sql` y después v2, v3 y v4. Si se reaplica una versión anterior, volver a ejecutar las posteriores para conservar todas las capacidades.
 
 ## Funciones implementadas
 
 - Apartado propio en **Guías de Despacho → Configuración**, con las pestañas Guías y Configuración dentro del mismo módulo. Permite editar empresa/emisor y agregar, buscar o retirar vehículos, choferes y destinos. Disponible para supervisores y administradores.
 - Los catálogos se cargan desde la base de datos y actualizan las opciones de emisión y edición. Una lista vacía permanece vacía; el arranque no incorpora vehículos, personas ni destinos fijos. Las instalaciones nuevas también comienzan sin datos de negocio predefinidos.
 - El retiro de un dato solo afecta las opciones disponibles en próximas guías; las guías históricas conservan el texto registrado. Esta mejora de configuración utiliza las RPC existentes de v3 y no necesita SQL adicional.
+- Vehículo, conductor y patente opcionales en creación y edición. Los campos vacíos se guardan vacíos; la vista previa, impresión y PDF dibujan líneas para completarlos a mano. Los valores informados se conservan y se muestran normalmente. Lo escrito en papel no se sincroniza automáticamente con la ficha digital; mientras la guía siga por despachar se puede completar mediante Editar.
 - Búsqueda por folio exacto con `#`, palabras sin tildes, patente, chofer, destino, vehículo, emisor, receptor, observaciones y artículos.
 - Filtros combinados de estado, fechas inclusivas, destino, chofer y vehículo. Las opciones relacionadas muestran la cantidad de guías coincidentes y conservan una selección aunque pase a tener cero resultados.
 - Indicadores sobre la selección filtrada, antigüedad del pendiente más antiguo y tiempo medio entre inicio de ruta y recepción, cuando existen ambos registros.

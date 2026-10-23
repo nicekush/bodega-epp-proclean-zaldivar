@@ -42,7 +42,6 @@ export function validateGuia(guia, items) {
     const date = new Date(`${guia.fecha}T12:00:00Z`);
     if (!/^\d{4}-\d{2}-\d{2}$/.test(guia.fecha || '') || !Number.isFinite(date.getTime()) || date.toISOString().slice(0, 10) !== guia.fecha) throw new Error('Indica una fecha de emisión válida.');
     if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(guia.hora || '')) throw new Error('Indica una hora válida.');
-    if (!String(guia.chofer || '').trim() || !String(guia.vehiculo || '').trim()) throw new Error('Indica chofer y vehículo.');
     if (!Array.isArray(items) || items.length < 1 || items.length > 500) throw new Error('La carga debe contener entre 1 y 500 artículos.');
     for (const item of items) {
         if (!String(item.descripcion || '').trim()) throw new Error('Completa la descripción de cada artículo.');

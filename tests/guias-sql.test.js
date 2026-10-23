@@ -216,5 +216,40 @@ test('migración de Guías v2 en PostgreSQL aislado', { timeout: 90000 }, async 
             await db.exec(migrationV3);
             assert.deepEqual(await snapshot(), after);
         });
+        await t.test('v4 admite transporte vacío al crear y editar sin modificar guías anteriores', async () => {
+            const migrationV4 = readFileSync(new URL('../scratch/upgrade_guias_despacho_v4.sql', import.meta.url), 'utf8');
+            const snapshot = () => scalar(`SELECT jsonb_build_array(
+                (SELECT last_folio FROM guia_private.folio_counter),
+                (SELECT jsonb_agg(to_jsonb(g) ORDER BY id) FROM public.guias_despacho g),
+                (SELECT count(*) FROM public.guia_despacho_items),
+                (SELECT count(*) FROM public.guias_despacho_audit)
+            ) AS value`);
+            // Simula el SQL copiado del chat, con saltos y espacios diferentes.
+            let definition = await scalar("SELECT pg_get_functiondef('public.guias_operar_aplicacion(text,text,jsonb)'::regprocedure) AS value");
+            definition = definition.replace("IF length(btrim(COALESCE(v_g->>'lugar_entrega','')))", "IF length(\n btrim(COALESCE(v_g->>'lugar_entrega', ''))\n)");
+            await db.exec(definition);
+            const before = await snapshot();
+            await db.exec(migrationV4);
+            assert.deepEqual(await snapshot(), before);
+            assert.equal(await scalar('SELECT public.guias_modulo_version() AS value'), 4);
+            const appAct = (action, payload = {}) => scalar('SELECT public.guias_operar_aplicacion($1,$2,$3::jsonb) AS value', ['11.111.111-1', action, JSON.stringify(payload)]);
+            const payload = { request_id: randomUUID(), guia: { ...header, chofer: '', vehiculo: '', patente: '' }, items: load };
+            let guia = await appAct('crear', payload);
+            assert.equal(guia.chofer, ''); assert.equal(guia.vehiculo, ''); assert.equal(guia.patente, '');
+            assert.equal((await appAct('crear', payload)).id, guia.id);
+            guia = await appAct('editar', revise(guia, { guia: { ...header, chofer: 'Conductor asignado', vehiculo: '', patente: 'abcd12' }, items: load }));
+            assert.equal(guia.chofer, 'Conductor asignado'); assert.equal(guia.vehiculo, ''); assert.equal(guia.patente, 'ABCD12');
+            guia = await appAct('editar', revise(guia, { guia: { ...header, chofer: '', vehiculo: '', patente: '' }, items: load }));
+            assert.equal(guia.chofer, '');
+            const { chofer, vehiculo, patente, ...withoutTransport } = header;
+            const omitted = await appAct('crear', { request_id: randomUUID(), guia: withoutTransport, items: load });
+            assert.equal(omitted.chofer, null); assert.equal(omitted.vehiculo, null);
+            await assert.rejects(appAct('crear', { ...payload, request_id: randomUUID(), guia: { ...payload.guia, lugar_entrega: '' } }), /destino/);
+            await assert.rejects(appAct('crear', { ...payload, request_id: randomUUID(), items: [] }), /entre 1 y 500/);
+            await assert.rejects(appAct('crear', { ...payload, request_id: randomUUID(), items: [{ ...load[0], cantidad: 0 }] }), /cantidades/);
+            const after = await snapshot();
+            await db.exec(migrationV4);
+            assert.deepEqual(await snapshot(), after);
+        });
     } finally { await db.close(); }
 });

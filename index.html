@@ -2825,19 +2825,21 @@
                     <div style="display: grid; grid-template-columns: 1fr 1fr 100px; gap: 10px;">
                         <div class="form-group">
                             <label for="gw-vehiculo" style="font-size: 0.8rem; font-weight: 600; display: block; margin-bottom: 4px;">Vehículo</label>
-                            <select id="gw-vehiculo" required style="width: 100%;"></select>
+                            <select id="gw-vehiculo" style="width: 100%;"></select>
                         </div>
                         <div class="form-group">
                             <label for="gw-chofer" style="font-size: 0.8rem; font-weight: 600; display: block; margin-bottom: 4px;">Chofer Responsable</label>
-                            <input type="text" id="gw-chofer" list="gw-choferes-list" placeholder="Nombre chofer..." required style="width: 100%;">
+                            <input type="text" id="gw-chofer" list="gw-choferes-list" placeholder="Opcional: completar a mano" style="width: 100%;">
                             <datalist id="gw-choferes-list"></datalist>
                         </div>
                         <div class="form-group">
                             <label for="gw-patente" style="font-size: 0.8rem; font-weight: 600; display: block; margin-bottom: 4px;">Patente</label>
-                            <input type="text" id="gw-patente" placeholder="Ej: SCBY16" style="width: 100%; text-transform: uppercase;">
+                            <input type="text" id="gw-patente" placeholder="Opcional" style="width: 100%; text-transform: uppercase;">
                         </div>
                     </div>
                 </div>
+
+                <p class="guia-muted">Vehículo, conductor y patente son opcionales. Los campos vacíos quedarán con una línea en el remito para completarlos a mano.</p>
 
                 <!-- PASO 2: DETALLE DE CARGA (PRODUCTOS / REPUESTOS) -->
                 <div style="background: var(--bg-primary); padding: 14px; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
@@ -2938,11 +2940,11 @@
                     </div>
                     <div class="form-group">
                         <label style="font-size: 0.78rem; font-weight: 600; display: block; margin-bottom: 4px;">Chofer</label>
-                        <input type="text" id="ge-chofer" list="gw-choferes-list" required style="width: 100%;">
+                        <input type="text" id="ge-chofer" list="gw-choferes-list" placeholder="Opcional: completar a mano" style="width: 100%;">
                     </div>
                     <div class="form-group">
                         <label style="font-size: 0.78rem; font-weight: 600; display: block; margin-bottom: 4px;">Vehículo</label>
-                        <input type="text" id="ge-vehiculo" list="ge-vehiculos-list" required style="width: 100%;"><datalist id="ge-vehiculos-list"></datalist>
+                        <input type="text" id="ge-vehiculo" list="ge-vehiculos-list" placeholder="Opcional: completar a mano" style="width: 100%;"><datalist id="ge-vehiculos-list"></datalist>
                     </div>
                 </div>
 

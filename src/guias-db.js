@@ -1,7 +1,7 @@
 import { validateGuia } from './guias-model.js';
 
 export function createGuiasRepository(client, cache, getUser) {
-    const state = { guias: [], catalogos: { vehiculos: [], choferes: [], destinos: [] }, config: {}, online: false, settingsOnline: false, schemaReady: false, error: '' };
+    const state = { guias: [], catalogos: { vehiculos: [], choferes: [], destinos: [] }, config: {}, online: false, settingsOnline: false, schemaReady: false, schemaVersion: 0, error: '' };
     const persist = () => cache.write('guides', state.guias);
     const persistSettings = () => cache.write('settings', { catalogos: state.catalogos, config: state.config });
     const cached = (key, fallback) => {
@@ -38,8 +38,9 @@ export function createGuiasRepository(client, cache, getUser) {
     async function checkSchema() {
         try {
             const { data, error } = await client.rpc('guias_modulo_version');
-            state.schemaReady = !error && data === 3;
-        } catch { state.schemaReady = false; }
+            state.schemaVersion = !error && Number.isInteger(data) ? data : 0;
+            state.schemaReady = [3, 4].includes(state.schemaVersion);
+        } catch { state.schemaReady = false; state.schemaVersion = 0; }
         return state.schemaReady;
     }
 
@@ -70,6 +71,9 @@ export function createGuiasRepository(client, cache, getUser) {
         const user = getUser();
         if (!user?.rut) throw new Error('Inicia sesión en la aplicación antes de operar con guías.');
         if (!state.schemaReady && !await checkSchema()) throw new Error('Falta actualizar el módulo en la base de datos. Las guías permanecen en modo consulta.');
+        if (['crear', 'editar'].includes(action) && (!String(payload.guia?.chofer || '').trim() || !String(payload.guia?.vehiculo || '').trim()) && state.schemaVersion < 4) {
+            if (!await checkSchema() || state.schemaVersion < 4) throw new Error('Aplica la actualización SQL de transporte opcional para emitir o editar guías con conductor o vehículo en blanco.');
+        }
         const { data, error } = await client.rpc('guias_operar_aplicacion', { p_rut: user.rut, p_action: action, p_payload: payload });
         if (error) {
             if (error.code === 'PGRST202') state.schemaReady = false;

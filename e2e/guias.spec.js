@@ -268,3 +268,53 @@ test('un catálogo vacío permanece vacío y la configuración se adapta a móvi
     await page.getByRole('button', { name: /Nueva Guía/ }).click();
     await expect(page.locator('#gw-vehiculo option')).toHaveCount(2);
 });
+
+test('emite transporte vacío, imprime líneas para completar a mano y conserva los datos parciales', async ({ page, backend }, testInfo) => {
+    await backend.db.exec('DELETE FROM public.guias_despacho_catalogos;');
+    await page.getByRole('button', { name: 'Actualizar guías' }).click();
+    await page.getByRole('button', { name: /Nueva Guía/ }).click();
+    await page.locator('#gw-destino').fill('Entrega con transporte por asignar');
+    await page.locator('.gw-item-desc').fill('Carga para completar transporte a mano');
+    await page.locator('#guia-wizard-form button[type="submit"]').click();
+    await expect(page.locator('#modal-remito-print')).toHaveClass(/active/);
+    for (const field of ['chofer', 'vehiculo', 'patente']) {
+        await expect(page.locator(`#remito-p-${field}`)).toHaveText('');
+        await expect(page.locator(`#remito-p-${field}`)).toHaveClass(/remito-handwrite/);
+    }
+    expect(await backend.scalar("SELECT jsonb_build_array(chofer,vehiculo,patente) AS value FROM public.guias_despacho WHERE folio=4")).toEqual(['', '', '']);
+    await page.emulateMedia({ media: 'print' });
+    await page.setViewportSize({ width: 794, height: 1123 });
+    await expect(page.locator('#remito-p-chofer')).toHaveCSS('border-bottom-style', 'solid');
+    await page.locator('#modal-remito-print .modal-content').screenshot({ path: testInfo.outputPath('remito-transporte-manual.png'), style: '#toast-container { visibility:hidden !important; }' });
+    await page.emulateMedia({ media: 'screen' });
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await page.locator('button[onclick="closePrintRemitoModal()"]').click();
+    await page.getByRole('button', { name: 'Actualizar guías' }).click();
+    await expect(page.locator('tr[data-guia-id="4"]')).toContainText('Conductor por completar');
+    await page.locator('tr[data-guia-id="4"] button[data-guia-action="edit"]').click();
+    await expect(page.locator('#ge-vehiculo')).toHaveValue('');
+    await page.locator('#ge-chofer').fill('Conductor confirmado');
+    await page.locator('#ge-patente').fill('abcd12');
+    await page.locator('#guia-edit-form button[type="submit"]').click();
+    await expect(page.locator('#guia-edit-modal')).not.toHaveClass(/active/);
+    await page.locator('tr[data-guia-id="4"] button[data-guia-action="print"]').click();
+    await expect(page.locator('#remito-p-chofer')).toHaveText('Conductor confirmado');
+    await expect(page.locator('#remito-p-chofer')).not.toHaveClass(/remito-handwrite/);
+    await expect(page.locator('#remito-p-patente')).toHaveText('ABCD12');
+    await expect(page.locator('#remito-p-vehiculo')).toHaveClass(/remito-handwrite/);
+    await page.locator('button[onclick="closePrintRemitoModal()"]').click();
+    await page.locator('tr[data-guia-id="1"] button[data-guia-action="print"]').click();
+    await expect(page.locator('#modal-remito-print .remito-handwrite')).toHaveCount(0);
+});
+
+test('avisa si falta la migración de transporte opcional y conserva el formulario', async ({ page, backend }) => {
+    backend.schemaVersion = 3;
+    await page.getByRole('button', { name: 'Actualizar guías' }).click();
+    await page.getByRole('button', { name: /Nueva Guía/ }).click();
+    await page.locator('#gw-destino').fill('Destino de prueba');
+    await page.locator('.gw-item-desc').fill('Carga de prueba');
+    await page.locator('#guia-wizard-form button[type="submit"]').click();
+    await expect(page.locator('#toast-container')).toContainText('actualización SQL de transporte opcional');
+    await expect(page.locator('#guia-wizard-modal')).toHaveClass(/active/);
+    expect(await backend.scalar('SELECT count(*)::integer AS value FROM public.guias_despacho')).toBe(3);
+});

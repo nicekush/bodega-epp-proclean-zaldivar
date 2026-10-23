@@ -5,7 +5,7 @@ import { createGuiasRepository } from '../src/guias-db.js';
 const header = { fecha: '2026-10-21', hora: '09:00', lugar_entrega: 'Destino', chofer: 'Chofer', vehiculo: 'Vehículo' };
 const items = [{ descripcion: 'Carga', cantidad: 1, unidad: 'UN' }];
 const document = { id: 1, folio: 1, estado: 'PENDIENTE', updated_at: '2026-10-21T12:00:00.123456Z', ...header, items };
-function harness({ rows = [document], rpc = () => ({ data: document, error: null }), user = { rut: '11.111.111-1' }, schemaReady = true } = {}) {
+function harness({ rows = [document], rpc = () => ({ data: document, error: null }), user = { rut: '11.111.111-1' }, schemaReady = true, version = 3 } = {}) {
     const cache = new Map(), calls = [];
     const app = { user };
     const client = {
@@ -13,7 +13,7 @@ function harness({ rows = [document], rpc = () => ({ data: document, error: null
             return { select() { return this; }, order() { return this; }, range(start, end) { this.start = start; this.end = end; return this; },
                 then(resolve, reject) { calls.push({ table, offset: this.start }); return Promise.resolve({ data: rows.slice(this.start, this.end + 1), error: null }).then(resolve, reject); } };
         },
-        async rpc(name, payload) { calls.push({ name, payload }); return name === 'guias_modulo_version' ? { data: schemaReady ? 3 : null, error: schemaReady ? null : { code: 'PGRST202' } } : rpc(name, payload); }
+        async rpc(name, payload) { calls.push({ name, payload }); return name === 'guias_modulo_version' ? { data: schemaReady ? version : null, error: schemaReady ? null : { code: 'PGRST202' } } : rpc(name, payload); }
     };
     const repository = createGuiasRepository(client, { read: key => cache.get(key), write: (key, value) => cache.set(key, structuredClone(value)) }, () => app.user);
     return { repository, cache, calls, app };
@@ -69,6 +69,16 @@ test('cada operación usa el usuario vigente y cerrar la sesión principal impid
     app.user = null;
     await assert.rejects(repository.create(header, items), /Inicia sesión en la aplicación/);
     assert.equal(calls.filter(call => call.name === 'guias_operar_aplicacion').length, 2);
+});
+
+test('las guías con transporte vacío requieren v4 y no bloquean los guardados completos en v3', async () => {
+    const previous = harness();
+    await assert.rejects(previous.repository.create({ ...header, chofer: '', vehiculo: '' }, items), /actualización SQL de transporte opcional/);
+    assert.equal(previous.calls.some(call => call.name === 'guias_operar_aplicacion'), false);
+    await previous.repository.create(header, items);
+    const current = harness({ version: 4 });
+    await current.repository.create({ ...header, chofer: '', vehiculo: '', patente: '' }, items);
+    assert.equal(current.calls.find(call => call.name === 'guias_operar_aplicacion').payload.p_payload.guia.chofer, '');
 });
 
 test('una configuración vacía confirmada reemplaza la caché sin reponer opciones fijas', async () => {
