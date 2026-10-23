@@ -39,7 +39,7 @@ export function createGuiasRepository(client, cache, getUser) {
         try {
             const { data, error } = await client.rpc('guias_modulo_version');
             state.schemaVersion = !error && Number.isInteger(data) ? data : 0;
-            state.schemaReady = [3, 4].includes(state.schemaVersion);
+            state.schemaReady = [3, 4, 5].includes(state.schemaVersion);
         } catch { state.schemaReady = false; state.schemaVersion = 0; }
         return state.schemaReady;
     }
@@ -122,7 +122,15 @@ export function createGuiasRepository(client, cache, getUser) {
         return result;
     }
     async function saveConfig(config) {
-        state.config = await operate('configurar', { config });
+        const changes = { ...config };
+        if ('empresa_descripcion' in changes && state.schemaVersion < 5) {
+            await checkSchema();
+            if (state.schemaVersion < 5) {
+                if (String(changes.empresa_descripcion || '').trim()) throw new Error('Aplica la actualización SQL de descripción del encabezado para guardar este texto.');
+                delete changes.empresa_descripcion;
+            }
+        }
+        state.config = await operate('configurar', { config: changes });
         persistSettings();
         return state.config;
     }

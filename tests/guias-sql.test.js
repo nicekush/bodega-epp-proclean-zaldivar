@@ -251,5 +251,23 @@ test('migración de Guías v2 en PostgreSQL aislado', { timeout: 90000 }, async 
             await db.exec(migrationV4);
             assert.deepEqual(await snapshot(), after);
         });
+        await t.test('v5 permite configurar y ocultar la descripción sin textos predeterminados', async () => {
+            const migrationV5 = readFileSync(new URL('../scratch/upgrade_guias_despacho_v5.sql', import.meta.url), 'utf8');
+            const before = await scalar('SELECT jsonb_agg(to_jsonb(g) ORDER BY id) AS value FROM public.guias_despacho g');
+            await db.exec(migrationV5);
+            assert.equal(await scalar('SELECT public.guias_modulo_version() AS value'), 5);
+            assert.deepEqual(await scalar('SELECT jsonb_agg(to_jsonb(g) ORDER BY id) AS value FROM public.guias_despacho g'), before);
+            assert.equal(await scalar("SELECT count(*)::integer AS value FROM public.guias_despacho_config WHERE clave='empresa_descripcion'"), 0);
+            const configure = (config, rut = '11.111.111-1') => scalar('SELECT public.guias_operar_aplicacion($1,$2,$3::jsonb) AS value', [rut, 'configurar', JSON.stringify({ config })]);
+            await assert.rejects(configure({ empresa_descripcion: 'Descripción' }, '22.222.222-2'), /Solo supervisores/);
+            const text = 'Descripción propia & <texto> "literal"';
+            const config = await configure({ empresa_descripcion: text });
+            assert.equal(config.empresa_descripcion, text);
+            await db.exec(migrationV5);
+            assert.equal(await scalar("SELECT valor AS value FROM public.guias_despacho_config WHERE clave='empresa_descripcion'"), text);
+            await assert.rejects(configure({ empresa_descripcion: 'x'.repeat(501) }), /demasiado largo/);
+            await assert.rejects(configure({ parametro_no_permitido: 'x' }), /Parámetro no permitido/);
+            assert.equal((await configure({ empresa_descripcion: '' })).empresa_descripcion, '');
+        });
     } finally { await db.close(); }
 });

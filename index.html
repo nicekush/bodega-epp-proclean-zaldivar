@@ -1581,6 +1581,11 @@
                         </div>
 
                         <div class="form-group" style="margin-bottom: 20px;">
+                            <label for="gcfg-descripcion">Descripción bajo la razón social (opcional)</label>
+                            <input type="text" id="gcfg-descripcion" maxlength="500" placeholder="Texto del encabezado del remito" aria-describedby="gcfg-descripcion-help">
+                            <p id="gcfg-descripcion-help" class="guia-muted">Si lo dejas vacío, no se muestra. Se aplica a la vista previa e impresión de todas las guías.</p>
+                        </div>
+                        <div class="form-group" style="margin-bottom: 20px;">
                             <label for="gcfg-emisor-default" style="font-size: 0.8rem; font-weight: 600;">Emisor Responsable por Defecto</label>
                                 <input type="text" id="gcfg-emisor-default" maxlength="500" placeholder="Nombre del emisor responsable" style="width: 100%;">
                         </div>
@@ -3153,7 +3158,7 @@
                         <div>
                             <h2 style="margin: 0; font-size: 1.25rem; font-weight: 900; color: #0f172a; text-transform: uppercase;" id="remito-p-razon">ProCleanMG SpA</h2>
                             <p style="margin:2px 0; font-size:0.75rem; color:#475569;">RUT empresa: <span id="remito-p-rut-empresa"></span> · <span id="remito-p-direccion-empresa"></span></p>
-                            <p style="margin: 2px 0; font-size: 0.8rem; color: #475569; font-weight: 600;">Servicios Industriales & Logística Operativa</p>
+                            <p id="remito-p-descripcion" hidden style="margin: 2px 0; font-size: 0.8rem; color: #475569; font-weight: 600; overflow-wrap: anywhere;"></p>
                             <p style="margin: 0; font-size: 0.75rem; color: #64748b;">Tel: <span id="remito-p-tel">934068272</span> | Correo: <span id="remito-p-correo">mandrade@procleanmg.cl</span></p>
                         </div>
                     </div>

@@ -91,6 +91,17 @@ test('una configuración vacía confirmada reemplaza la caché sin reponer opcio
     assert.deepEqual(cache.get('settings').catalogos.vehiculos, []);
 });
 
+test('la descripción del encabezado se guarda con v5 y la configuración anterior sigue disponible', async () => {
+    const current = harness({ version: 5, rpc: (_, payload) => ({ data: payload.p_payload.config, error: null }) });
+    await current.repository.saveConfig({ empresa_descripcion: 'Descripción propia' });
+    assert.equal(current.cache.get('settings').config.empresa_descripcion, 'Descripción propia');
+    const previous = harness({ version: 4, rpc: (_, payload) => ({ data: payload.p_payload.config, error: null }) });
+    await assert.rejects(previous.repository.saveConfig({ empresa_descripcion: 'Descripción propia' }), /actualización SQL de descripción/);
+    assert.equal(previous.calls.some(call => call.name === 'guias_operar_aplicacion'), false);
+    await previous.repository.saveConfig({ empresa_descripcion: '', empresa_razon_social: 'Empresa' });
+    assert.deepEqual(previous.calls.find(call => call.name === 'guias_operar_aplicacion').payload.p_payload.config, { empresa_razon_social: 'Empresa' });
+});
+
 test('el catálogo se guarda confirmado, normaliza espacios y evita duplicados', async () => {
     const { repository, cache, calls } = harness({ rows: [], rpc: (_, payload) => ({ data: { id: 1, tipo: payload.p_payload.tipo, nombre: payload.p_payload.nombre }, error: null }) });
     await repository.loadSettings();

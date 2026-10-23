@@ -1,18 +1,20 @@
-# Guías de Despacho (operaciones v2, sesión v3 y transporte opcional v4)
+# Guías de Despacho (operaciones v2, sesión v3, transporte v4 y encabezado v5)
 
 ## Activación
 
+Para configurar la descripción bajo la razón social, ejecutar `scratch/upgrade_guias_despacho_v5.sql` después de v4. La versión pasa a ser `5`. El campo **Descripción bajo la razón social (opcional)** está en Guías → Configuración → Empresa emisora. Vacío oculta la línea; no existe un texto predeterminado. Es una opción de la plantilla que se aplica al imprimir cualquier guía, incluso una ya emitida, sin modificar los datos registrados de esa guía.
+
 Para permitir vehículo y conductor en blanco, ejecutar `scratch/upgrade_guias_despacho_v4.sql` después de v3 y recargar la aplicación. El resultado de `select public.guias_modulo_version();` pasa a ser `4`. La migración conserva datos y validaciones de destino/carga. Se puede reaplicar; acepta también el formato SQL con saltos de línea copiado del chat. Con v3 aún se pueden guardar guías con vehículo y conductor informados.
 
-Las migraciones se ejecutan en orden: `scratch/upgrade_guias_despacho_v2.sql`, `scratch/upgrade_guias_despacho_v3.sql` y `scratch/upgrade_guias_despacho_v4.sql`. Si v3 ya está instalada, ejecutar solamente v4. Conservan las guías, artículos, auditoría, catálogos, parámetros y contador de folios. La versión v3 elimina las sesiones y funciones de autenticación separadas del módulo.
+Las migraciones se ejecutan en orden: v2, v3, v4 y v5, usando los archivos `scratch/upgrade_guias_despacho_vN.sql` correspondientes. Si v4 ya está instalada, ejecutar solamente v5. Conservan las guías, artículos, auditoría, catálogos, parámetros y contador de folios. La versión v3 elimina las sesiones y funciones de autenticación separadas del módulo.
 
 1. Abrir el editor SQL de Supabase, pegar el contenido completo de la migración pendiente y ejecutarlo.
-2. Confirmar la versión con `select public.guias_modulo_version();`, cuyo resultado debe ser `4`.
+2. Confirmar la versión con `select public.guias_modulo_version();`, cuyo resultado debe ser `5`.
 3. Recargar la aplicación actualizada. La sesión principal existente permite operar en Guías sin confirmar nuevamente la clave, incluso tras abrir otra pestaña.
 
-Sin v3 la interfaz mantiene consulta y exportación y deshabilita las operaciones. Con v3 permite guardar guías completas; para dejar vehículo o conductor en blanco requiere v4 y avisa sin perder el formulario. No sustituye un error del servidor por un guardado local ficticio.
+Sin v3 la interfaz mantiene consulta y exportación y deshabilita las operaciones. Con v3 permite guardar guías completas; para dejar vehículo o conductor en blanco requiere v4 y para guardar una descripción requiere v5. Si falta una actualización avisa sin perder el formulario. No sustituye un error del servidor por un guardado local ficticio.
 
-Para una instalación nueva, ejecutar primero `scratch/setup_guias_despacho.sql` y después v2, v3 y v4. Si se reaplica una versión anterior, volver a ejecutar las posteriores para conservar todas las capacidades.
+Para una instalación nueva, ejecutar primero `scratch/setup_guias_despacho.sql` y después v2, v3, v4 y v5. Si se reaplica una versión anterior, volver a ejecutar las posteriores para conservar todas las capacidades.
 
 ## Funciones implementadas
 

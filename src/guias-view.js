@@ -431,6 +431,9 @@ export function openPrintRemitoModal(id) {
     if (!guia) return;
     printTarget = guia.id;
     for (const [suffix, field] of Object.entries({ folio: 'folio', fecha: 'fecha', razon: 'razon_social', 'rut-empresa': 'rut_empresa', 'direccion-empresa': 'direccion_empresa', tel: 'telefono_empresa', correo: 'correo_empresa', emisor: 'emisor_nombre', 'rut-emisor': 'emisor_rut', domicilio: 'emisor_domicilio', destino: 'lugar_entrega', chofer: 'chofer', vehiculo: 'vehiculo', patente: 'patente', obs: 'observaciones' })) text(`remito-p-${suffix}`, guia[field] || '');
+    const description = String(dbGuiasConfig.empresa_descripcion || '').trim();
+    text('remito-p-descripcion', description);
+    $('remito-p-descripcion').hidden = !description;
     for (const field of ['chofer', 'vehiculo', 'patente']) {
         const element = $(`remito-p-${field}`);
         const blank = !String(guia[field] || '').trim();
@@ -470,7 +473,7 @@ export function exportGuiasCSV() {
 }
 
 const configFields = {
-    'gcfg-razon': 'empresa_razon_social', 'gcfg-rut': 'empresa_rut', 'gcfg-telefono': 'empresa_telefono',
+    'gcfg-razon': 'empresa_razon_social', 'gcfg-descripcion': 'empresa_descripcion', 'gcfg-rut': 'empresa_rut', 'gcfg-telefono': 'empresa_telefono',
     'gcfg-correo': 'empresa_correo', 'gcfg-direccion': 'empresa_direccion', 'gcfg-ciudad': 'emisor_ciudad',
     'gcfg-comuna': 'emisor_comuna', 'gcfg-emisor-default': 'emisor_nombre', 'gcfg-emisor-rut': 'emisor_rut',
     'gcfg-emisor-domicilio': 'emisor_domicilio', 'gcfg-emisor-telefono': 'emisor_telefono'
@@ -498,7 +501,7 @@ function updateConfigStatus() {
     text('gcfg-status', !dbGuiasStatus.settingsOnline
         ? 'No se pudo actualizar la configuración. Se muestra la última copia disponible.'
         : !dbGuiasStatus.schemaReady ? 'Configuración en modo consulta hasta completar la actualización del módulo.'
-            : 'Configuración compartida. Los cambios se aplican a las próximas guías.');
+            : 'Configuración compartida del módulo de Guías.');
     document.querySelectorAll('[data-guia-config-write]').forEach(button => { button.disabled = !isGuiaManager(user()) || !dbGuiasStatus.settingsOnline || !dbGuiasStatus.schemaReady; });
 }
 function canConfigure() {
@@ -520,7 +523,7 @@ export async function saveGuiasConfigEmpresa(event) {
     await mutate('config', 'form-gcfg-empresa', async () => {
         const config = Object.fromEntries(Object.entries(configFields).filter(([id]) => $(id)).map(([id, key]) => [key, value(id)]));
         if (!config.empresa_razon_social || !config.empresa_rut) throw new Error('Completa razón social y RUT de la empresa.');
-        await dbSaveGuiasConfig(config); toast('Parámetros guardados para las próximas guías.');
+        await dbSaveGuiasConfig(config); toast('Parámetros guardados.');
     });
 }
 function sortedCatalog(key) {

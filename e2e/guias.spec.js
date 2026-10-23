@@ -318,3 +318,37 @@ test('avisa si falta la migración de transporte opcional y conserva el formular
     await expect(page.locator('#guia-wizard-modal')).toHaveClass(/active/);
     expect(await backend.scalar('SELECT count(*)::integer AS value FROM public.guias_despacho')).toBe(3);
 });
+
+test('la descripción del encabezado se configura, persiste y se oculta al dejarla vacía', async ({ page, backend }, testInfo) => {
+    await page.locator('tr[data-guia-id="1"] button[data-guia-action="print"]').click();
+    await expect(page.locator('#remito-p-descripcion')).toBeHidden();
+    await page.locator('button[onclick="closePrintRemitoModal()"]').click();
+    await page.locator('#view-guias .guia-module-tabs').getByRole('button', { name: 'Configuración', exact: true }).click();
+    await expect(page.locator('#gcfg-status')).toContainText('Configuración compartida');
+    const description = 'Descripción propia & texto <configurable>';
+    await page.getByLabel('Descripción bajo la razón social (opcional)').fill(description);
+    await page.locator('#form-gcfg-empresa button[type="submit"]').click();
+    await expect(page.locator('#toast-container')).toContainText('Parámetros guardados');
+    expect(await backend.scalar("SELECT valor AS value FROM public.guias_despacho_config WHERE clave='empresa_descripcion'")).toBe(description);
+    await page.getByRole('button', { name: 'Actualizar configuración' }).click();
+    await expect(page.locator('#gcfg-descripcion')).toHaveValue(description);
+    await page.getByRole('button', { name: 'Volver a Guías' }).click();
+    await page.locator('tr[data-guia-id="1"] button[data-guia-action="print"]').click();
+    await expect(page.locator('#remito-p-descripcion')).toBeVisible();
+    await expect(page.locator('#remito-p-descripcion')).toHaveText(description);
+    expect(await page.locator('#remito-p-descripcion').evaluate(element => element.children.length)).toBe(0);
+    await page.emulateMedia({ media: 'print' });
+    await page.setViewportSize({ width: 794, height: 1123 });
+    await page.locator('#modal-remito-print .modal-content').screenshot({ path: testInfo.outputPath('remito-descripcion-configurable.png'), style: '#toast-container { visibility:hidden !important; }' });
+    await page.emulateMedia({ media: 'screen' });
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await page.locator('button[onclick="closePrintRemitoModal()"]').click();
+    await page.locator('#view-guias .guia-module-tabs').getByRole('button', { name: 'Configuración', exact: true }).click();
+    await expect(page.locator('#gcfg-status')).toContainText('Configuración compartida');
+    await page.locator('#gcfg-descripcion').fill('');
+    await page.locator('#form-gcfg-empresa button[type="submit"]').click();
+    await expect.poll(() => backend.scalar("SELECT valor AS value FROM public.guias_despacho_config WHERE clave='empresa_descripcion'")).toBe('');
+    await page.getByRole('button', { name: 'Volver a Guías' }).click();
+    await page.locator('tr[data-guia-id="1"] button[data-guia-action="print"]').click();
+    await expect(page.locator('#remito-p-descripcion')).toBeHidden();
+});
