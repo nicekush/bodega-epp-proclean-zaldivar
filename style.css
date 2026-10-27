@@ -2318,3 +2318,18 @@ body.dark-mode .sku-chip {
     margin-top: 2px;
 }
 
+/* Devoluciones vinculadas a actas. */
+.return-dialog { max-width: 900px; width: calc(100% - 24px); }
+.return-dialog .table-container { margin: 16px 0; }
+.return-dialog th, .return-dialog td { padding: 10px; }
+.return-quantity { width: 100px; min-height: 40px; padding: 8px 10px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-tertiary); color: var(--text-primary); font: inherit; }
+.return-accept { display: flex; gap: 10px; align-items: flex-start; margin: 16px 0; line-height: 1.5; }
+.return-accept input { width: auto; flex-shrink: 0; margin-top: 5px; }
+.return-impact { padding: 12px; background: var(--bg-tertiary); border-radius: 8px; white-space: pre-line; }
+.return-status-warning { color: var(--color-warning); }
+#return-message { color: var(--color-warning); }
+#return-documents { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+#return-receipt table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+#return-receipt td, #return-receipt th { border: 1px solid var(--border-color); text-align: left; }
+#return-receipt { overflow-x: auto; }
+#return-receipt p { margin: 12px 0; line-height: 1.5; overflow-wrap: anywhere; }

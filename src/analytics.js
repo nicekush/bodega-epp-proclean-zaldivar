@@ -3,7 +3,8 @@
 // Versión Avanzada con Runway, Tendencia Temporal, Paginación, Ordenamiento y Pareto
 // ==========================================================================
 
-import { dbSalidas, dbInventario, dbInsumos, dbAreas, dbCategorias } from './db.js';
+import { dbSalidas, dbInventario, dbInsumos, dbAreas, dbCategorias, dbDevoluciones, dbDevolucionesStatus } from './db.js';
+import { netDeliveries, previousNetDelivery, deliveryBalances } from './returns-model.js';
 import { buildAnalyticsExportSections, serializeAnalyticsCSV, formatExportDate } from './analytics-export.js';
 import { showToast } from './utils.js';
 
@@ -154,6 +155,13 @@ export function handleSeasonalityPointClick(monthKey) {
 window.handleSeasonalityPointClick = handleSeasonalityPointClick;
 
 export function renderAnalyticsDashboard() {
+    const status = document.getElementById('ana-returns-status');
+    const results = document.getElementById('ana-results');
+    if (results) results.hidden = !dbDevolucionesStatus.ready;
+    if (!dbDevolucionesStatus.ready) {
+        if (status) status.textContent = dbDevolucionesStatus.error;
+        return null;
+    }
     // 1. Inicializar selectores de filtros si no se ha hecho
     if (!initializedFilters) {
         populateFiltersDropdowns();
@@ -170,7 +178,15 @@ export function renderAnalyticsDashboard() {
     const endDateVal = document.getElementById("ana-filter-end-date")?.value || "";
 
     const startDate = startDateVal ? new Date(startDateVal + "T00:00:00") : null;
-    const endDate = endDateVal ? new Date(endDateVal + "T23:59:59") : null;
+    const endDate = endDateVal ? new Date(endDateVal + "T23:59:59.999") : null;
+    if (startDate && endDate && startDate > endDate) {
+        if (status) status.textContent = 'La fecha Desde debe ser anterior o igual a Hasta.';
+        if (results) results.hidden = true;
+        return null;
+    }
+    const cutoff = endDate && endDate < new Date() ? endDate : new Date();
+    if (status) status.textContent = `Entrega neta: cantidades originales menos devoluciones sin uso recibidas hasta ${cutoff.toLocaleString('es-CL')}. Las entregas se agrupan por su fecha original. El historial de movimientos conserva las fechas de las devoluciones.`;
+    const originalDeliveries = [];
 
     // 3. Filtrar las transacciones de salida (dbSalidas) en caliente según segmentadores
     const filteredDeliveries = [];
@@ -197,11 +213,12 @@ export function renderAnalyticsDashboard() {
 
         // Filtro por Fecha
         const delDate = new Date(del.fecha);
+        if (delDate > cutoff) return;
         if (startDate && delDate < startDate) return;
         if (endDate && delDate > endDate) return;
 
         // Filtrar los items individuales de la salida por categoría o SKU específico
-        const matchingItems = del.items.filter(item => {
+        const rawItems = del.items.filter(item => {
             if (selectedProduct && item.eppId !== selectedProduct) return false;
             if (selectedCategory) {
                 const eppDef = dbInventario.find(i => i.id === item.eppId);
@@ -209,6 +226,11 @@ export function renderAnalyticsDashboard() {
             }
             return true;
         });
+        const balances = deliveryBalances(del, dbDevoluciones, cutoff)
+            .filter(item => rawItems.some(raw => raw === del.items[item.linea]));
+        if (balances.length) originalDeliveries.push({ ...del, items: balances.map(item => ({ ...item, cantidad: item.entregado })) });
+        const matchingItems = balances.filter(item => item.saldo > 0)
+            .map(item => ({ ...item, cantidad: item.saldo }));
 
         if (matchingItems.length > 0) {
             const itemsToInclude = [];
@@ -219,11 +241,8 @@ export function renderAnalyticsDashboard() {
                 let daysSincePrevious = null;
                 const eppDef = dbInventario.find(i => i.id === item.eppId);
                 const lifespanDays = ((eppDef && eppDef.duracion_meses) ? Number(eppDef.duracion_meses) : 6) * 30;
-                const prevDeliveries = dbSalidas.filter(s => 
-                    s.rut === del.rut && 
-                    new Date(s.fecha) < delDate && 
-                    s.items.some(it => it.eppId === item.eppId)
-                );
+                const previous = previousNetDelivery(dbSalidas, dbDevoluciones, del, item.eppId);
+                const prevDeliveries = previous ? [previous] : [];
 
                 if (prevDeliveries.length > 0) {
                     prevDeliveries.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
@@ -279,16 +298,26 @@ export function renderAnalyticsDashboard() {
     let prevEPPsCount = 0;
 
     if (startDate && endDate) {
-        const periodMs = endDate.getTime() - startDate.getTime();
-        const prevStart = new Date(startDate.getTime() - periodMs);
+        const periodDays = Math.round((Date.UTC(endDate.getFullYear(), endDate.getMonth(), endDate.getDate()) - Date.UTC(startDate.getFullYear(), startDate.getMonth(), startDate.getDate())) / 86400000) + 1;
+        const prevStart = new Date(startDate);
+        prevStart.setDate(prevStart.getDate() - periodDays);
         const prevEnd = new Date(startDate.getTime() - 1);
 
-        dbSalidas.forEach(del => {
+        netDeliveries(dbSalidas, dbDevoluciones, prevEnd).forEach(del => {
             if (selectedArea && del.area !== selectedArea) return;
             if (selectedShift && del.turno !== selectedShift) return;
+            if (workerQuery && !(del.trabajador || '').toLowerCase().includes(workerQuery) && !(del.rut || '').toLowerCase().includes(workerQuery)) return;
             const delDate = new Date(del.fecha);
             if (delDate >= prevStart && delDate <= prevEnd) {
-                del.items.forEach(it => prevEPPsCount += Number(it.cantidad));
+                del.items.forEach(it => {
+                    if (selectedProduct && it.eppId !== selectedProduct) return;
+                    if (selectedCategory && dbInventario.find(epp => epp.id === it.eppId)?.categoria !== selectedCategory) return;
+                    const previous = previousNetDelivery(dbSalidas, dbDevoluciones, del, it.eppId);
+                    const duration = (Number(dbInventario.find(epp => epp.id === it.eppId)?.duracion_meses) || 6) * 30;
+                    const critical = previous && Math.floor((delDate - new Date(previous.fecha)) / 86400000) < duration * 0.5;
+                    if (alertFilter === 'critical' && !critical || alertFilter === 'normal' && critical) return;
+                    prevEPPsCount += Number(it.cantidad);
+                });
             }
         });
 
@@ -353,6 +382,9 @@ export function renderAnalyticsDashboard() {
     // Exportar la misma selección completa que alimenta los gráficos, sin paginación.
     return {
         deliveries: filteredDeliveries,
+        originalDeliveries,
+        returns: dbDevoluciones,
+        cutoff: cutoff.toISOString(),
         requests: filteredReqs,
         filters: {
             area: selectedArea, category: selectedCategory, product: selectedProduct,
@@ -948,7 +980,7 @@ window.handleAnalyticsRunwaySort = handleAnalyticsRunwaySort;
 
 function renderRunwayAutonomyTable(selectedCategory) {
     const consumedSKU = {};
-    dbSalidas.forEach(del => {
+    netDeliveries(dbSalidas, dbDevoluciones).forEach(del => {
         del.items.forEach(it => {
             consumedSKU[it.eppId] = (consumedSKU[it.eppId] || 0) + Number(it.cantidad);
         });
@@ -1132,6 +1164,7 @@ export function exportAnalyticsCSV() {
     }
 
     const snapshot = renderAnalyticsDashboard();
+    if (!snapshot) { showToast('Carga las devoluciones antes de exportar saldos netos.', 'warning'); return; }
     const mode = document.getElementById('ana-export-type')?.value || 'complete';
     const generatedAt = new Date();
     const sections = buildAnalyticsExportSections({

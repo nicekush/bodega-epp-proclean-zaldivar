@@ -7,7 +7,8 @@ import {
     dbResetTransactions,
     dbInventario,
     dbCategorias,
-    dbAreas
+    dbAreas,
+    dbSalidas
 } from './db.js';
 
 import { 
@@ -71,7 +72,8 @@ import {
     openTurnosModal,
     closeTurnosModal,
     saveNewTurno,
-    populateTurnosDropdowns
+    populateTurnosDropdowns,
+    checkAllRowsConsumptionDeviation
 } from './outflow.js';
 
 import { 
@@ -142,6 +144,19 @@ import {
 } from './guias.js';
  
 import { showToast, setCurrentDates, showConfirmDialog } from './utils.js';
+
+document.addEventListener('epp-return-saved', event => {
+    checkAllRowsConsumptionDeviation();
+    updateDashboardStats();
+    renderInventoryTable();
+    renderHistoryTable();
+    if (document.getElementById('worker-search-rut')?.value) searchWorkerProfile();
+    if (document.getElementById('view-analytics')?.classList.contains('active')) renderAnalyticsDashboard();
+    if (document.getElementById('voucher-modal')?.classList.contains('active')) {
+        const delivery = dbSalidas.find(row => String(row.id) === String(event.detail.salidaId));
+        if (delivery) showVoucherDetails(delivery);
+    }
+});
 
 // Inicializar la aplicación al cargar el DOM (Asíncrono para Supabase)
 document.addEventListener("DOMContentLoaded", async () => {

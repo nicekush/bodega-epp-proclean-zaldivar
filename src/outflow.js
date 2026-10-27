@@ -5,6 +5,8 @@
 import { 
     dbInventario, 
     dbSalidas, 
+    dbDevoluciones,
+    dbDevolucionesStatus,
     dbAreas, 
     dbAreasFull,
     dbTurnos,
@@ -18,6 +20,8 @@ import {
 } from './db.js';
 import { showToast, removeAccents, debounce } from './utils.js';
 import { currentUser, formatRut, validateRutModulo11, cleanRut, matchesRut } from './auth.js';
+import { netDeliveries } from './returns-model.js';
+import { returnSummaryHTML } from './returns.js';
 
 let isDrawing = false;
 let lastX = 0;
@@ -839,6 +843,10 @@ export function showVoucherDetailsById(id) {
 let currentActiveOutflowForPrint = null;
 
 export function showVoucherDetails(outflow) {
+    const returnButton = document.getElementById('voucher-return-button');
+    if (returnButton) returnButton.dataset.returnDelivery = String(outflow.id);
+    const returnsContainer = document.getElementById('voucher-returns');
+    if (returnsContainer) returnsContainer.innerHTML = returnSummaryHTML(outflow);
     currentActiveOutflowForPrint = outflow;
     const metaId = document.getElementById("v-meta-id");
     const workerName = document.getElementById("v-worker-name");
@@ -1103,14 +1111,19 @@ export function checkEPPConsumptionDeviation(rowId) {
 
     // Buscar entregas del colaborador para este EPP específico (RUT normalizado)
     const cleanR = cleanRut(rut);
-    const matchingDeliveries = dbSalidas.filter(s => 
+    if (!dbDevolucionesStatus.ready) {
+        infoDiv.style.display = 'block';
+        infoDiv.textContent = 'No se puede verificar la frecuencia sin cargar las devoluciones.';
+        return;
+    }
+    const matchingDeliveries = netDeliveries(dbSalidas, dbDevoluciones).filter(s =>
         (cleanRut(s.rut) === cleanR || s.rut === rut) && s.items.some(it => it.eppId === eppId)
     );
 
     if (matchingDeliveries.length === 0) {
         infoDiv.style.display = "block";
         infoDiv.style.color = "var(--color-success)";
-        infoDiv.innerHTML = `<i class="fa-solid fa-circle-check"></i> Primera entrega de este EPP para el colaborador.`;
+        infoDiv.innerHTML = `<i class="fa-solid fa-circle-check"></i> Sin entregas previas con saldo de este EPP para el colaborador.`;
         return;
     }
 

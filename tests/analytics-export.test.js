@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import { buildAnalyticsExportSections, serializeAnalyticsCSV, formatExportDate } from '../src/analytics-export.js';
+import { netDeliveries, previousNetDelivery, deliveryBalances } from '../src/returns-model.js';
 
 const inventory = [
     { id: 'g', codigo: 'G-01', nombre: 'Guante anticorte', categoria: 'Manos', unidad: 'Par', stock: 10, stock_minimo: 5, duracion_meses: 6 },
@@ -178,6 +179,7 @@ function dashboardHarness(deliveries, filters = {}, mode = 'deliveries') {
     const downloads = [], notices = [], links = [];
     const context = {
         dbInventario: inventory, dbSalidas: deliveries, dbInsumos: [], dbAreas: [], dbCategorias: [],
+        dbDevoluciones: [], dbDevolucionesStatus: { ready: true }, netDeliveries, previousNetDelivery, deliveryBalances,
         window: {}, Blob, buildAnalyticsExportSections, serializeAnalyticsCSV, formatExportDate,
         showToast: (...args) => notices.push(args), setTimeout: callback => callback(),
         URL: { createObjectURL: blob => { downloads.push(blob); return 'blob:prueba'; }, revokeObjectURL() {} },

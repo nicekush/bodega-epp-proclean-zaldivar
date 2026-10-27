@@ -2,7 +2,9 @@
 // Módulo de Historial, Logs de Auditoría y Reportes Generales
 // ==========================================================================
 
-import { dbIngresos, dbSalidas, dbInsumoMovimientos, dbInventario, dbAjustesStock } from './db.js';
+import { dbIngresos, dbSalidas, dbInsumoMovimientos, dbInventario, dbAjustesStock, dbDevoluciones, dbDevolucionesStatus } from './db.js';
+import { deliveryBalances } from './returns-model.js';
+import { escapeHTML } from './returns.js';
 import { showToast, debounce } from './utils.js';
 import { showVoucherDetailsById } from './outflow.js';
 import { cleanRut, matchesRut } from './auth.js';
@@ -199,6 +201,8 @@ function applyHistoryFilters() {
             matchesType = mov.tipo === "ingreso" || mov.tipo === "insumo_recepcion";
         } else if (filterType === "salida") {
             matchesType = mov.tipo === "salida";
+        } else if (filterType === 'devolucion') {
+            matchesType = mov.tipo === 'devolucion';
         }
  
         let matchesProduct = true;
@@ -217,6 +221,8 @@ function applyHistoryFilters() {
 }
  
 export function renderHistoryTable() {
+    const returnsStatus = document.getElementById('history-returns-status');
+    if (returnsStatus) returnsStatus.textContent = dbDevolucionesStatus.ready ? '' : `${dbDevolucionesStatus.error} El historial puede estar incompleto.`;
     setupHistoryMultiSKUFilter();
     
     const tbody = document.getElementById("history-tbody");
@@ -249,6 +255,12 @@ export function renderHistoryTable() {
             usuario: sal.registrado_por || "Despacho Bodega",
             items: sal.items
         });
+    });
+
+    dbDevoluciones.forEach(record => {
+        consolidatedHistory.push({ original: record, tipo: 'devolucion', fecha: new Date(record.fecha), fechaStr: record.fecha,
+            documento: `Devolución: ${escapeHTML(record.id)}`, detalles: `${escapeHTML(record.trabajador)} | Acta: ${escapeHTML(record.salida_id)} | RUT: ${escapeHTML(record.rut)}`,
+            usuario: escapeHTML(record.registrado_por), items: record.items });
     });
 
     dbInsumoMovimientos.forEach(mov => {
@@ -312,7 +324,7 @@ export function renderHistoryTable() {
             </div>`;
         }).join("");
 
-        const badgeTipo = mov.tipo === "ingreso" 
+        const badgeTipo = mov.tipo === 'devolucion' ? '<span class="badge badge-success">Devolución sin uso (+)</span>' : mov.tipo === "ingreso"
             ? `<span class="badge badge-success"><i class="fa-solid fa-cloud-arrow-up"></i> Ingreso</span>`
             : mov.tipo === "insumo_recepcion"
                 ? `<span class="badge badge-info" style="background-color:rgba(6, 182, 212, 0.15); color:var(--color-info); border: 1px solid rgba(6,182,212,0.25);"><i class="fa-solid fa-boxes-packing"></i> Insumo</span>`
@@ -337,7 +349,7 @@ export function renderHistoryTable() {
                     ? `<button class="btn btn-secondary btn-sm val-voucher-btn" data-id="${mov.original.id}" title="Ver Vale de Entrega Firmado">
                         <i class="fa-solid fa-file-signature text-warning"></i> Vale
                        </button>`
-                    : `<span style="color:var(--text-muted); font-size:0.75rem;">N/A</span>`
+                    : mov.tipo === 'devolucion' ? `<button type="button" class="btn btn-secondary btn-sm" data-return-receipt="${escapeHTML(mov.original.id)}">Comprobante</button>` : `<span style="color:var(--text-muted); font-size:0.75rem;">N/A</span>`
                 }
             </td>
         `;
@@ -412,7 +424,7 @@ export function filterHistoryTable() {
 window.filterHistoryTable = filterHistoryTable;
 
 export function exportHistoryCSV() {
-    const listToExport = (filteredHistory && filteredHistory.length > 0) ? filteredHistory : consolidatedHistory;
+    const listToExport = filteredHistory;
 
     if (!listToExport || listToExport.length === 0) {
         showToast("No hay movimientos en el historial para exportar.", "warning");
@@ -433,7 +445,7 @@ export function exportHistoryCSV() {
         "Cantidad",
         "Unidad Medida",
         "Usuario Registrador",
-        "Comentarios / Observaciones"
+        "Comentarios / Observaciones", "Acta relacionada", "Devuelto sin uso al exportar", "Entrega neta al exportar"
     ];
 
     const BOM = "\uFEFF";
@@ -447,6 +459,7 @@ export function exportHistoryCSV() {
         let tipoLabel = "ENTREGA EPP";
         if (mov.tipo === "ingreso") tipoLabel = "INGRESO GUIA";
         if (mov.tipo === "insumo_recepcion") tipoLabel = "INSUMO MEJORA";
+        if (mov.tipo === 'devolucion') tipoLabel = 'DEVOLUCION SIN USO';
 
         const docNum = orig.factura || orig.codigo_solicitud || orig.codigoSolicitud || orig.codigo || mov.documento || "";
         const receptorProv = orig.trabajador || orig.proveedor || orig.mejora || mov.detalles || "";
@@ -454,9 +467,9 @@ export function exportHistoryCSV() {
         const area = orig.area || "";
         const turno = orig.turno || "";
         const usuario = mov.usuario || orig.registrado_por || "";
-        const comentarios = (orig.comentarios || orig.motivo_entrega || "").replace(/"/g, '""');
+        const comentarios = orig.comentarios || orig.motivo_entrega || [orig.motivo, orig.notas].filter(Boolean).join(' · ');
 
-        (mov.items || []).forEach(it => {
+        (mov.items || []).forEach((it, linea) => {
             if (selectedHistoryProductIds.length > 0 && it.eppId && !selectedHistoryProductIds.includes(it.eppId)) {
                 return; // Omitir items que no corresponden a los SKUs seleccionados
             }
@@ -490,7 +503,10 @@ export function exportHistoryCSV() {
                 it.cantidad || 1,
                 unidad,
                 usuario,
-                comentarios
+                comentarios,
+                orig.salida_id || (mov.tipo === 'salida' ? orig.id : ''),
+                mov.tipo === 'salida' && dbDevolucionesStatus.ready ? deliveryBalances(orig, dbDevoluciones)[linea].devuelto : '',
+                mov.tipo === 'salida' && dbDevolucionesStatus.ready ? deliveryBalances(orig, dbDevoluciones)[linea].saldo : ''
             ];
 
             const formattedRow = rowValues.map(val => `"${String(val).replace(/"/g, '""')}"`).join(";");
@@ -513,7 +529,7 @@ export function exportHistoryCSV() {
 }
 
 export function generateCorporatePDFReport() {
-    const listToPrint = (filteredHistory && filteredHistory.length > 0) ? filteredHistory : consolidatedHistory;
+    const listToPrint = filteredHistory;
 
     if (!listToPrint || listToPrint.length === 0) {
         showToast("No hay movimientos para generar el reporte PDF.", "warning");
@@ -554,7 +570,7 @@ export function generateCorporatePDFReport() {
         }).join("<br>");
 
         const badgeClass = mov.tipo === "ingreso" ? "badge-ingreso" : (mov.tipo === "insumo_recepcion" ? "badge-insumo" : "badge-entrega");
-        const tipoText = mov.tipo === "ingreso" ? "INGRESO GUÍA" : (mov.tipo === "insumo_recepcion" ? "INSUMO" : "ENTREGA");
+        const tipoText = mov.tipo === 'devolucion' ? 'DEVOLUCIÓN SIN USO (+)' : mov.tipo === "ingreso" ? "INGRESO GUÍA" : (mov.tipo === "insumo_recepcion" ? "INSUMO" : "ENTREGA");
 
         return `
             <tr>

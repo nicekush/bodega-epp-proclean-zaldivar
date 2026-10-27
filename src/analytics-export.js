@@ -63,7 +63,7 @@ function flattenDeliveries(deliveries, catalog) {
         return {
             deliveryKey: deliveryIndex, id,
             folio: delivery.folio || delivery.codigo || (id ? `ACTA-${id.split('-')[1] || id}` : ''),
-            line: itemIndex + 1, date, recordedDate: delivery.fecha || '',
+            line: (item.linea ?? itemIndex) + 1, date, recordedDate: delivery.fecha || '',
             rut: delivery.rut || '', rutKey: workerRut,
             // Sin RUT no se fusionan personas por coincidencia de nombre.
             workerKey: workerRut || `sin-rut-acta-${deliveryIndex}`,
@@ -75,6 +75,7 @@ function flattenDeliveries(deliveries, catalog) {
             category: product?.categoria || item.categoria || 'Sin categoría',
             unit: product?.unidad || item.unidad || 'Sin unidad',
             quantity, recordedQuantity: item.cantidad ?? '', catalogued: Boolean(product),
+            gross: item.entregado ?? item.cantidad ?? '', returned: item.devuelto ?? 0,
             previousDate: analysis.previousDeliveryDate || '',
             daysSincePrevious: analysis.daysSincePrevious ?? '',
             lifespanDays: analysis.lifespanDays ?? '',
@@ -93,7 +94,8 @@ function flattenDeliveries(deliveries, catalog) {
 
 export function buildAnalyticsExportSections({
     deliveries = [], inventory = [], requests = [], observed = [], runway = [],
-    filters = {}, alertContext = {}, generatedAt = new Date(), sourceDeliveriesCount = deliveries.length
+    filters = {}, alertContext = {}, generatedAt = new Date(), sourceDeliveriesCount = deliveries.length,
+    originalDeliveries = deliveries, returns = [], cutoff = generatedAt.toISOString()
 } = {}) {
     const catalog = new Map(inventory.map(item => [String(item.id), item]));
     const rows = flattenDeliveries(deliveries, catalog);
@@ -119,13 +121,14 @@ export function buildAnalyticsExportSections({
         'Área', 'Turno', 'ID EPP', 'Código SKU', 'EPP', 'Categoría', 'Unidad', 'Cantidad',
         'Entrega anterior (historial completo)', 'Días desde entrega anterior', 'Vida útil de referencia (días)',
         'Estado de frecuencia', 'Motivo de entrega', 'Talla', 'Razón cambio de ropa', 'Comentarios',
-        'Registrado por', 'Registro de firma', 'Observaciones de datos'
+        'Registrado por', 'Registro de firma', 'Observaciones de datos', 'Entregado original', 'Devuelto sin uso al corte', 'Fecha de corte del saldo'
     ];
     const detailValues = row => [
         row.id, row.folio, row.line, row.recordedDate, row.date ? formatExportDate(row.date) : '', row.rut, row.worker,
         row.area, row.shift, row.productId, row.code, row.product, row.category, row.unit,
         row.quantity ?? row.recordedQuantity, row.previousDate, row.daysSincePrevious, row.lifespanDays,
-        row.status, row.reason, row.size, row.clothingReason, row.comments, row.registeredBy, row.signature, row.quality
+        row.status, row.reason, row.size, row.clothingReason, row.comments, row.registeredBy, row.signature, row.quality,
+        row.gross, row.returned, cutoff
     ];
     // El informe se ordena cronológicamente sin modificar el orden de las tablas en pantalla.
     const chronologicalRows = [...rows].sort((a, b) => (a.date?.getTime() ?? Infinity) - (b.date?.getTime() ?? Infinity));
@@ -135,14 +138,18 @@ export function buildAnalyticsExportSections({
             ...filterEntries,
             ['Fuente', 'Datos cargados en la sesión de Bodega EPP; exportación sin límite de páginas de la interfaz'],
             ['Actas cargadas en sesión', sourceDeliveriesCount],
-            ['Regla de alerta', 'Intervalo inferior al 50% de la vida útil de referencia; antecedente en el historial cargado completo'],
+            ['Criterio de cantidades', 'Entrega neta: original menos devoluciones sin uso aceptadas hasta el corte. No acredita consumo físico. Actas agrupadas por fecha original.'],
+            ['Fecha de corte de saldos', cutoff],
+            ['Comparación temporal', 'Cada período se calcula con las devoluciones recibidas hasta su propio cierre.'],
+            ['Movimientos de devolución', 'Sección separada por fecha de recepción; filtros de persona, área, turno, categoría y SKU. El filtro de alerta corresponde solo a entregas.'],
+            ['Regla de alerta', 'Intervalo inferior al 50% de la vida útil; antecedente con saldo según devoluciones conocidas a la fecha de la entrega evaluada'],
             ['Frecuencia del ranking', 'Intervalos entre actas del mismo operador/EPP incluidas en la selección; vacío si hay menos de dos fechas válidas'],
             ['Unidades', 'Cantidades según unidad del catálogo; sin conversión entre pares, cajas u otras unidades'],
             ['Participación del operador', 'Porcentaje de la cantidad del mismo EPP en la selección exportada'],
             ['Identidad del operador', 'RUT sin puntos, espacios ni guion para agrupar; actas sin RUT se mantienen separadas'],
             ['Catálogo y stock', 'Valores actuales de referencia; no corresponden necesariamente a la fecha de la entrega'],
             ['Requerimientos', 'Alcance del panel actual: filtros de área y fechas de solicitud; no aplica SKU, categoría, turno, operador ni alerta'],
-            ['Cobertura de stock', 'Alcance del panel actual: todo el historial cargado y categoría seleccionada; no aplica los demás filtros. Base diaria: cantidad histórica / días entre primera y última entrega, mínimo un día'],
+            ['Cobertura de stock', 'Todo el historial cargado y categoría seleccionada; cantidades netas actuales por entrega, mínimo cero. No aplica los demás filtros. Base diaria: cantidad histórica neta / días entre primera y última entrega, mínimo un día'],
             ['Colaboradores observados', 'Tabla del panel: promedio de las entregas filtradas inferior al 55% de la vida útil; criterio distinto de alertas por evento'],
             ['Datos no registrados', 'Campos vacíos; no se infieren motivos, firmas ni fechas'],
             ['Cantidades inválidas', 'Se conservan en el detalle y se excluyen de las sumas si no son numéricas']
@@ -158,8 +165,27 @@ export function buildAnalyticsExportSections({
             ['Líneas con observaciones de datos', rows.filter(row => row.quality).length],
             ...groupRows(rows, row => [row.unit]).map(group => [`Cantidad despachada (${group[0].unit})`, stats(group).quantity])
         ]),
-        table('deliveries', 'HISTORIAL DETALLADO DE ENTREGAS', detailHeaders, chronologicalRows.map(detailValues), true)
+        table('deliveries', 'HISTORIAL DETALLADO DE ENTREGAS NETAS', detailHeaders, chronologicalRows.map(detailValues), true)
     ];
+    const originals = flattenDeliveries(originalDeliveries, catalog);
+    sections.push(table('originals', 'ENTREGAS ORIGINALES DEL PERÍODO (INCLUYE LAS TOTALMENTE DEVUELTAS; SIN FILTRO DE ALERTA)',
+        ['ID acta', 'Fecha de entrega', 'RUT', 'Colaborador', 'SKU', 'Producto', 'Cantidad original', 'Devuelto sin uso al corte', 'Entrega neta al corte', 'Unidad', 'Fecha de corte'],
+        originals.map(row => [row.id, row.recordedDate, row.rut, row.worker, row.code, row.product, row.gross, row.returned, Number(row.gross) - Number(row.returned), row.unit, cutoff]), true));
+    const returnRows = returns.filter(record => {
+        const received = dateOrNull(record.fecha);
+        if (!received || received > new Date(cutoff)) return false;
+        if (filters.startDate && received < new Date(filters.startDate + 'T00:00:00')) return false;
+        if (filters.endDate && received > new Date(filters.endDate + 'T23:59:59.999')) return false;
+        if (filters.area && record.area !== filters.area || filters.shift && record.turno !== filters.shift) return false;
+        const query = (filters.worker || '').toLowerCase();
+        return !query || (record.trabajador || '').toLowerCase().includes(query) || (record.rut || '').toLowerCase().includes(query);
+    }).flatMap(record => (record.items || []).filter(item => {
+        if (filters.product && String(item.eppId) !== String(filters.product)) return false;
+        return !filters.category || catalog.get(String(item.eppId))?.categoria === filters.category;
+    }).map(item => [record.id, record.salida_id, record.fecha, record.rut, record.trabajador, record.area, record.turno,
+        item.codigo, item.nombre, item.cantidad, item.unidad, record.motivo, record.notas, record.registrado_por]));
+    sections.push(table('returns', 'DEVOLUCIONES RECIBIDAS EN EL PERÍODO',
+        ['ID devolución', 'Acta original', 'Fecha de recepción', 'RUT', 'Colaborador', 'Área', 'Turno', 'SKU', 'Producto', 'Cantidad devuelta', 'Unidad', 'Motivo', 'Observaciones', 'Recibido por'], returnRows, true));
 
     const byProduct = groupRows(rows, row => [row.productKey]);
     const ranking = byProduct.flatMap(productRows => {

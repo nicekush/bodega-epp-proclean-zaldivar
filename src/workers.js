@@ -2,7 +2,9 @@
 // Módulo de Ficha Histórica del Colaborador (src/workers.js)
 // ==========================================================================
 
-import { dbSalidas, dbInventario, dbAreas, dbTurnos, dbUpdateWorkerProfile } from './db.js';
+import { dbSalidas, dbInventario, dbAreas, dbTurnos, dbUpdateWorkerProfile, dbDevoluciones, dbDevolucionesStatus } from './db.js';
+import { deliveryBalances, netDeliveries } from './returns-model.js';
+import { returnSummaryHTML, escapeHTML } from './returns.js';
 import { formatRut, cleanRut, matchesRut, currentUser } from './auth.js';
 import { showToast } from './utils.js';
 
@@ -167,7 +169,24 @@ export function searchWorkerProfile() {
     // 1. Calcular EPPs Vigentes (Activos)
     // Agrupar por eppId y encontrar la última fecha de entrega de cada SKU
     const latestEPPDeliveries = {};
-    workerDeliveries.forEach(del => {
+    const net = dbDevolucionesStatus.ready ? netDeliveries(workerDeliveries, dbDevoluciones) : [];
+    const balancesByProduct = new Map();
+    if (dbDevolucionesStatus.ready) workerDeliveries.forEach(delivery => {
+        deliveryBalances(delivery, dbDevoluciones).forEach(item => {
+            const key = String(item.eppId);
+            const total = balancesByProduct.get(key) || { entregado: 0, devuelto: 0, saldo: 0 };
+            for (const field of ['entregado', 'devuelto', 'saldo']) total[field] += item[field];
+            balancesByProduct.set(key, total);
+        });
+    });
+    const balanceContainer = document.getElementById('worker-return-balances');
+    if (balanceContainer) balanceContainer.innerHTML = dbDevolucionesStatus.ready
+        ? `<div class="table-container"><table><thead><tr><th>EPP</th><th>Entregado</th><th>Devuelto sin uso</th><th>Entrega neta</th><th>Unidad</th></tr></thead><tbody>${[...balancesByProduct].map(([id, total]) => {
+            const product = dbInventario.find(row => String(row.id) === id);
+            return `<tr><td>${escapeHTML(product?.nombre || id)}</td><td>${total.entregado}</td><td>${total.devuelto}</td><td>${total.saldo}</td><td>${escapeHTML(product?.unidad || 'u.')}</td></tr>`;
+        }).join('')}</tbody></table></div><p>La entrega neta descuenta devoluciones sin uso; no mide desgaste ni tenencia actual.</p>`
+        : `<p class="return-status-warning">${escapeHTML(dbDevolucionesStatus.error)} Se conserva el historial original; el saldo neto no está disponible.</p>`;
+    net.forEach(del => {
         const delDate = new Date(del.fecha);
         del.items.forEach(item => {
             const eppId = item.eppId;
@@ -228,7 +247,9 @@ export function searchWorkerProfile() {
             }
         });
 
-        if (activeEPPEntries.length === 0) {
+        if (!dbDevolucionesStatus.ready) {
+            eppsTbody.innerHTML = '<tr><td colspan="5">Carga las devoluciones para verificar los EPP vigentes.</td></tr>';
+        } else if (activeEPPEntries.length === 0) {
             eppsTbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-muted);">El colaborador no posee EPP vigentes (todos expirados o sin entregas).</td></tr>`;
         } else {
             activeEPPEntries.forEach(entry => {
@@ -264,11 +285,11 @@ export function searchWorkerProfile() {
         historyTbody.innerHTML = "";
         
         workerDeliveries.forEach(del => {
-            const itemsText = del.items.map(it => {
+            const itemsText = deliveryBalances(del, dbDevoluciones).map(it => {
                 const catalogEPP = dbInventario.find(i => i.id === it.eppId);
                 const eppName = catalogEPP ? catalogEPP.nombre : "EPP Desconocido";
                 const eppCode = catalogEPP ? catalogEPP.codigo : "???";
-                return `[${eppCode}] ${eppName} (x${it.cantidad})`;
+                return `[${eppCode}] ${eppName} · Entregado: ${it.entregado}` + (dbDevolucionesStatus.ready ? ` · Devuelto: ${it.devuelto} · Neto: ${it.saldo}` : ' · Saldo sin verificar');
             }).join(", ");
             const hasSignature = del.firma && del.firma.startsWith("data:");
             const signatureHTML = hasSignature 
@@ -281,12 +302,13 @@ export function searchWorkerProfile() {
                 <td>${del.registrado_por || del.registradoPor || "Sistema"}</td>
                 <td><span class="badge" style="background: rgba(30, 144, 255, 0.1); color: #1e90ff;"><i class="fa-solid fa-briefcase"></i> ${del.area || "N/A"}</span></td>
                 <td><span class="badge" style="background: rgba(255, 122, 0, 0.1); color: var(--color-primary);"><i class="fa-solid fa-clock"></i> ${del.turno || recent.turno || "Turno A"}</span></td>
-                <td style="font-size: 0.8rem; color: var(--text-secondary); max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${itemsText}">${itemsText}</td>
+                <td style="font-size: 0.8rem; max-width: 340px;" title="${escapeHTML(itemsText)}">${escapeHTML(itemsText)}<div>${returnSummaryHTML(del)}</div></td>
                 <td style="text-align: center;">${signatureHTML}</td>
                 <td style="text-align: center;">
                     <button class="btn btn-secondary btn-sm w-profile-view-voucher" data-id="${del.id}" title="Ver Vale de Entrega">
                         <i class="fa-solid fa-file-invoice text-primary"></i> Vale
                     </button>
+                    <button type="button" class="btn btn-secondary btn-sm" data-return-delivery="${escapeHTML(del.id)}">Devolución / saldo</button>
                 </td>
             `;
             historyTbody.appendChild(tr);

@@ -415,6 +415,7 @@
                         <span class="sec-num">01</span>
                         <h3>Historial de Movimientos de Bodega</h3>
                     </div>
+                    <p id="history-returns-status" class="return-status-warning" role="status"></p>
 
                     <div class="filters-bar">
                         <div class="search-input-wrapper">
@@ -425,6 +426,7 @@
                             <option value="">Todos los Movimientos</option>
                             <option value="ingreso">Solo Ingresos (Entradas)</option>
                             <option value="salida">Solo Salidas (Entregas)</option>
+                            <option value="devolucion">Solo Devoluciones de Colaboradores</option>
                         </select>
                         <div class="multi-sku-container" id="history-sku-multi-container">
                             <div class="multi-sku-input-box" id="history-sku-input-box" onclick="document.getElementById('history-sku-search-input').focus()">
@@ -788,6 +790,10 @@
                         </div>
                     </div>
 
+                    <div class="card" style="margin-top: 24px;">
+                        <h3>Entregas y devoluciones del colaborador</h3>
+                        <div id="worker-return-balances"></div>
+                    </div>
                     <!-- EPP Vigentes -->
                     <div class="card" style="margin-top: 24px;">
                         <div class="section-title">
@@ -857,6 +863,8 @@
                             <select id="ana-export-type" class="filter-select" style="width:auto; max-width:100%;" aria-describedby="ana-export-help">
                                 <option value="complete">Informe completo</option>
                                 <option value="deliveries">Historial de entregas</option>
+                                <option value="originals">Entregas originales del período</option>
+                                <option value="returns">Devoluciones recibidas del período</option>
                                 <option value="operators">Consumo por operador y EPP</option>
                                 <option value="products">Resumen por EPP</option>
                             </select>
@@ -933,11 +941,13 @@
                 </div>
 
                 <!-- KPI Dashboard con Comparativa de Turno y Tendencia -->
+                <p id="ana-returns-status" class="return-status-warning" role="status"></p>
+                <div id="ana-results">
                 <div class="dashboard-stats" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
                     <div class="card stat-card">
                         <div class="stat-content">
                             <span class="stat-num" id="ana-kpi-total">0</span>
-                            <span class="stat-desc">EPPs Despachados</span>
+                            <span class="stat-desc">Entrega Neta de EPP</span>
                             <div style="font-size:0.75rem; font-weight:600; margin-top:4px;" id="ana-kpi-total-sub">--</div>
                         </div>
                         <div class="stat-icon info"><i class="fa-solid fa-truck-ramp-box"></i></div>
@@ -1085,6 +1095,7 @@
                         </div>
                         <div id="analytics-runway-pagination" class="pagination-container"></div>
                     </div>
+                </div>
                 </div>
             </div>
 
@@ -2225,10 +2236,12 @@
             </div>
             <div class="modal-footer no-print-actions">
                 <button class="btn btn-secondary" onclick="closeVoucherModal()">Cerrar</button>
+                <button type="button" class="btn btn-secondary" id="voucher-return-button">Devolución / saldo</button>
                 <button class="btn btn-primary" onclick="printVoucher()">
                     <i class="fa-solid fa-print"></i> Imprimir Acta
                 </button>
             </div>
+            <div class="no-print-actions" id="voucher-returns" style="padding: 0 24px 16px;"></div>
         </div>
     </div>
 

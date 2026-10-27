@@ -5,6 +5,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { createGuiasRepository } from './guias-db.js';
 import { currentUser } from './auth.js';
+import { createReturnsRepository } from './returns-db.js';
 
 const supabaseUrl = 
     import.meta.env.VITE_SUPABASE_URL || 
@@ -31,6 +32,38 @@ export let dbTurnos = [];
 export let dbInventario = [];
 export let dbIngresos = [];
 export let dbSalidas = [];
+export let dbDevoluciones = [];
+const returnsRepository = createReturnsRepository(supabase, () => currentUser);
+export const dbDevolucionesStatus = returnsRepository.state;
+
+async function allRows(table, order = 'id') {
+    const rows = [];
+    for (let offset = 0; ; offset += 500) {
+        const { data, error } = await supabase.from(table).select('*').order(order).range(offset, offset + 499);
+        if (error) throw error;
+        rows.push(...data);
+        if (data.length < 500) return rows;
+    }
+}
+
+export async function dbFetchDevoluciones() {
+    await returnsRepository.load();
+    dbDevoluciones = returnsRepository.state.records;
+    return dbDevolucionesStatus;
+}
+
+export async function dbRegistrarDevolucion(payload) {
+    const record = await returnsRepository.save(payload);
+    dbDevoluciones = returnsRepository.state.records;
+    try {
+        dbInventario = await allRows('inventario', 'codigo');
+    } catch {
+        // El comprobante ya está confirmado. No aplicar snapshots de stock que podrían ser antiguos.
+        dbDevolucionesStatus.ready = false;
+        dbDevolucionesStatus.error = 'Devolución registrada. Actualiza la página para cargar el stock confirmado.';
+    }
+    return record;
+}
 export let dbInsumos = [];
 export let dbInsumoMovimientos = [];
 export let dbSolicitudesAbastecimiento = [];
@@ -117,9 +150,7 @@ export async function initDatabase() {
         }
 
         // 3. Cargar Catálogo de Inventario
-        const { data: inv, error: errInv } = await supabase.from('inventario').select('*').order('codigo');
-        if (errInv) throw errInv;
-        dbInventario = inv;
+        dbInventario = await allRows('inventario', 'codigo');
 
         // 4. Cargar Ingresos (Facturas)
         const { data: ing, error: errIng } = await supabase.from('ingresos').select('*').order('fecha', { ascending: false });
@@ -127,10 +158,9 @@ export async function initDatabase() {
         dbIngresos = ing;
 
         // 5. Cargar Salidas (Actas)
-        const { data: sal, error: errSal } = await supabase.from('salidas').select('*').order('fecha', { ascending: false });
-        if (errSal) throw errSal;
-        dbSalidas = sal;
-        await dbCleanDuplicateOutflows();
+        dbSalidas = (await allRows('salidas')).sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+        // Una entrega similar puede ser legítima. No eliminar actas ni restituir stock al cargar.
+        await dbFetchDevoluciones();
 
         // 6. Cargar Insumos para Mejoras
         const { data: ins, error: errIns } = await supabase.from('insumos_mejoras').select('*').order('fecha_solicitud', { ascending: false });
@@ -492,11 +522,15 @@ export async function dbRetornarPrestamo(id, dataRetorno) {
 }
 
 export async function dbUpdateEPPStock(id, newStock) {
+    const previous = dbInventario.find(item => item.id === id);
+    if (!previous) throw new Error('El producto no está disponible. Actualiza el inventario.');
     const { data, error } = await supabase.from('inventario')
         .update({ stock: newStock })
         .eq('id', id)
+        .eq('stock', previous.stock)
         .select();
     if (error) throw error;
+    if (!data?.length) throw new Error('El stock cambió durante la operación. Actualiza la página y revisa el movimiento antes de reintentar.');
     // Sincronizar localmente
     const idx = dbInventario.findIndex(i => i.id === id);
     if (idx !== -1) dbInventario[idx].stock = newStock;
@@ -534,7 +568,7 @@ export async function dbDeleteArea(nombre) {
 }
 
 // Ingresos (Facturas)
-export async function dbInsertInflow(inflow) {
+export async function dbInsertInflow(inflow, { updateStock = true } = {}) {
     // Insertar el ingreso
     const { data, error } = await supabase.from('ingresos').insert([{
         factura: inflow.factura,
@@ -547,7 +581,7 @@ export async function dbInsertInflow(inflow) {
     if (error) throw error;
     
     // Actualizar stock de los EPPs asociados en Supabase
-    for (const item of inflow.items) {
+    for (const item of updateStock ? inflow.items : []) {
         const localEPP = dbInventario.find(i => i.id === item.eppId);
         if (localEPP) {
             const nuevoStock = localEPP.stock + item.cantidad;
@@ -603,69 +637,8 @@ export async function dbInsertOutflow(outflow) {
 }
 
 export async function dbCleanDuplicateOutflows() {
-    if (!dbSalidas || dbSalidas.length < 2) return { cleanedCount: 0 };
-
-    const duplicateIdsToDelete = [];
-    const itemsToRestoreMap = {};
-
-    const sortedSalidas = [...dbSalidas].sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
-
-    for (let i = 0; i < sortedSalidas.length - 1; i++) {
-        const current = sortedSalidas[i];
-        if (duplicateIdsToDelete.includes(current.id)) continue;
-
-        for (let j = i + 1; j < sortedSalidas.length; j++) {
-            const next = sortedSalidas[j];
-            if (duplicateIdsToDelete.includes(next.id)) continue;
-
-            const timeDiffMs = Math.abs(new Date(next.fecha) - new Date(current.fecha));
-            if (timeDiffMs > 90000) break;
-
-            const rutMatch = (current.rut || "").trim().toUpperCase() === (next.rut || "").trim().toUpperCase();
-            const userMatch = (current.registrado_por || "").trim().toUpperCase() === (next.registrado_por || "").trim().toUpperCase();
-
-            const getItemsSignature = (itemsArr) => {
-                if (!Array.isArray(itemsArr)) return "";
-                return itemsArr
-                    .map(it => `${it.eppId}:${it.cantidad}`)
-                    .sort()
-                    .join("|");
-            };
-
-            const itemsMatch = getItemsSignature(current.items) === getItemsSignature(next.items);
-
-            if (rutMatch && userMatch && itemsMatch && getItemsSignature(current.items) !== "") {
-                console.warn("Salida duplicada por doble clic detectada:", next.id, "Fecha:", next.fecha);
-                duplicateIdsToDelete.push(next.id);
-
-                (next.items || []).forEach(item => {
-                    itemsToRestoreMap[item.eppId] = (itemsToRestoreMap[item.eppId] || 0) + Number(item.cantidad);
-                });
-            }
-        }
-    }
-
-    if (duplicateIdsToDelete.length === 0) return { cleanedCount: 0 };
-
-    console.log(`Deduplicando ${duplicateIdsToDelete.length} salidas e incrementando stock restituido...`);
-
-    for (const id of duplicateIdsToDelete) {
-        const { error } = await supabase.from('salidas').delete().eq('id', id);
-        if (error) console.error("Error eliminando registro duplicado en Supabase:", error);
-    }
-
-    for (const eppId of Object.keys(itemsToRestoreMap)) {
-        const qtyToRestore = itemsToRestoreMap[eppId];
-        const localEPP = dbInventario.find(i => i.id === eppId);
-        if (localEPP) {
-            const nuevoStock = localEPP.stock + qtyToRestore;
-            localEPP.stock = nuevoStock;
-            await dbUpdateEPPStock(eppId, nuevoStock);
-        }
-    }
-
-    dbSalidas = dbSalidas.filter(s => !duplicateIdsToDelete.includes(s.id));
-    return { cleanedCount: duplicateIdsToDelete.length, restoredItems: itemsToRestoreMap };
+    // Compatibilidad con llamadas anteriores: no eliminar actas por parecido temporal.
+    return { cleanedCount: 0 };
 }
 
 // Insumos para Mejoras (Solicitud)
@@ -728,6 +701,10 @@ export async function dbInsertSupplyReception(mov, reqId, updatedItems, newStatu
 
 // Función de reinicio de BD (borra todas las transacciones pero mantiene catálogo)
 export async function dbResetTransactions() {
+    await dbFetchDevoluciones();
+    if (!dbDevolucionesStatus.ready || dbDevoluciones.length) {
+        throw new Error('No se puede reiniciar sin verificar y conservar las devoluciones vinculadas a las actas.');
+    }
     const { error: err1 } = await supabase.from('ingresos').delete().neq('factura', 'KEEP');
     const { error: err2 } = await supabase.from('salidas').delete().neq('trabajador', 'KEEP');
     const { error: err3 } = await supabase.from('insumos_movimientos').delete().neq('mejora', 'KEEP');

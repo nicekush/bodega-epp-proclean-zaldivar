@@ -672,7 +672,7 @@ export async function confirmSaveReconciliationWithSignature() {
                 comentarios: `Ajustes de cuadratura semanal aprobados por ${supervisorName}.\n` + 
                              adjustments.map(a => `${a.nombre}: Dif: ${a.diff > 0 ? '+' + a.diff : a.diff} (Motivo: ${a.reason}). Note: ${a.note}`).join("\n"),
                 registrado_por: supervisorName
-            });
+            }, { updateStock: false });
         }
 
         // Guardar registro de la Bajada completa en el Historial Local
