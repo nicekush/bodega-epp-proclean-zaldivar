@@ -2,6 +2,8 @@
 
 Fecha: 27 de octubre de 2026.
 
+Este documento describe la primera etapa. La optimización posterior de firmas está documentada en [carga-firmas-actas.md](carga-firmas-actas.md).
+
 ## Alcance
 
 Se mantienen todas las consultas, campos, firmas, páginas del historial, reglas de negocio y fallbacks existentes. No requiere SQL ni cambios en datos o permisos.

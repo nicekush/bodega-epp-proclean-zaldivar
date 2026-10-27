@@ -13,6 +13,7 @@ import {
     dbInsumos,
     dbPrestamos,
     dbInsertOutflow, 
+    dbLoadOutflowSignature,
     dbInsertArea, 
     dbDeleteArea,
     dbInsertTurno,
@@ -22,6 +23,7 @@ import { showToast, removeAccents, debounce } from './utils.js';
 import { currentUser, formatRut, validateRutModulo11, cleanRut, matchesRut } from './auth.js';
 import { netDeliveries } from './returns-model.js';
 import { returnSummaryHTML } from './returns.js';
+import { hasOutflowSignature, outflowSignatureLabel } from './outflow-signatures.js';
 
 let isDrawing = false;
 let lastX = 0;
@@ -832,17 +834,23 @@ export async function saveOutflowAndPrint(event, callbackAfterSave) {
 }
 
 export function showVoucherDetailsById(id) {
-    const outflow = dbSalidas.find(s => s.id === id);
+    const outflow = dbSalidas.find(s => String(s.id) === String(id));
     if (outflow) {
-        showVoucherDetails(outflow);
+        return showVoucherDetails(outflow);
     } else {
         showToast("No se encontró el registro de entrega especificado.", "danger");
     }
 }
 
 let currentActiveOutflowForPrint = null;
+let voucherGeneration = 0;
+let voucherSignaturePromise = null;
+let voucherSignatureReady = false;
+let printingVoucherGeneration = null;
 
 export function showVoucherDetails(outflow) {
+    const generation = ++voucherGeneration;
+    setVoucherSignaturePending('Cargando firma del acta…');
     const returnButton = document.getElementById('voucher-return-button');
     if (returnButton) returnButton.dataset.returnDelivery = String(outflow.id);
     const returnsContainer = document.getElementById('voucher-returns');
@@ -860,7 +868,7 @@ export function showVoucherDetails(outflow) {
 
     const formattedRut = formatRut(outflow.rut || "");
 
-    if (metaId) metaId.textContent = `ID: ACTA-${outflow.id.split("-")[1] || outflow.id}`;
+    if (metaId) metaId.textContent = `ID: ACTA-${String(outflow.id).split("-")[1] || outflow.id}`;
     if (workerName) workerName.textContent = outflow.trabajador;
     if (workerRut) workerRut.textContent = formattedRut;
     if (workerArea) workerArea.textContent = outflow.area;
@@ -891,6 +899,69 @@ export function showVoucherDetails(outflow) {
         });
     }
 
+    if (signatureName) signatureName.textContent = `Firma de ${outflow.trabajador}`;
+
+    const modal = document.getElementById("voucher-modal");
+    if (modal) {
+        modal.classList.add("active");
+        modal.scrollTop = 0;
+        const modalBody = modal.querySelector(".modal-body");
+        if (modalBody) modalBody.scrollTop = 0;
+    }
+    voucherSignaturePromise = loadVoucherSignature(outflow, generation);
+    return voucherSignaturePromise;
+}
+
+function setVoucherSignaturePending(message, retry = false) {
+    voucherSignatureReady = false;
+    document.getElementById('voucher-modal')?.classList.add('signature-unconfirmed');
+    const print = document.getElementById('voucher-print-button');
+    if (print) print.disabled = true;
+    const status = document.getElementById('v-signature-status');
+    if (status) { status.textContent = message; status.hidden = false; }
+    const retryButton = document.getElementById('voucher-signature-retry');
+    if (retryButton) {
+        retryButton.hidden = !retry;
+        retryButton.onclick = () => {
+            if (!currentActiveOutflowForPrint) return;
+            setVoucherSignaturePending('Cargando firma del acta…');
+            voucherSignaturePromise = loadVoucherSignature(currentActiveOutflowForPrint, voucherGeneration, true);
+        };
+    }
+    const image = document.getElementById('v-signature-img');
+    if (image) { image.style.display = 'none'; image.removeAttribute('src'); }
+    const physical = document.getElementById('v-signature-physical');
+    if (physical) physical.style.display = 'none';
+    const stamp = document.getElementById('v-signature-stamp-text');
+    if (stamp) stamp.style.display = 'none';
+}
+
+async function loadVoucherSignature(outflow, generation, refresh = false) {
+    const current = () => generation === voucherGeneration && currentActiveOutflowForPrint === outflow;
+    try {
+        if (refresh || !hasOutflowSignature(outflow)) {
+            const loaded = await dbLoadOutflowSignature(outflow.id, { refresh });
+            outflow.firma = loaded.firma;
+        }
+        if (!current()) return false;
+        renderVoucherSignature(outflow);
+        const image = document.getElementById('v-signature-img');
+        if (String(outflow.firma || '').startsWith('data:') && image?.decode) await image.decode();
+        if (!current()) return false;
+        voucherSignatureReady = true;
+        document.getElementById('voucher-modal')?.classList.remove('signature-unconfirmed');
+        const print = document.getElementById('voucher-print-button');
+        if (print) print.disabled = false;
+        const status = document.getElementById('v-signature-status');
+        if (status) { status.textContent = outflowSignatureLabel(outflow); status.hidden = true; }
+        return true;
+    } catch {
+        if (current()) setVoucherSignaturePending('No fue posible cargar la firma. Reintenta antes de imprimir.', true);
+        return false;
+    }
+}
+
+function renderVoucherSignature(outflow) {
     const sigImg = document.getElementById("v-signature-img");
     const physicalSig = document.getElementById("v-signature-physical");
     let stampText = document.getElementById("v-signature-stamp-text");
@@ -922,69 +993,74 @@ export function showVoucherDetails(outflow) {
                 stampText.style.margin = "10px 0";
                 sigImg.parentNode.appendChild(stampText);
             }
-            stampText.textContent = outflow.firma || "Firmado vía QR en Celular";
+            stampText.textContent = outflow.firma || "Sin firma registrada";
             stampText.style.display = "inline-block";
         }
-    }
-
-    if (signatureName) signatureName.textContent = `Firma de ${outflow.trabajador}`;
-
-    const modal = document.getElementById("voucher-modal");
-    if (modal) {
-        modal.classList.add("active");
-        modal.scrollTop = 0;
-        const modalBody = modal.querySelector(".modal-body");
-        if (modalBody) modalBody.scrollTop = 0;
     }
 }
 
 export function closeVoucherModal() {
+    voucherGeneration++;
+    voucherSignatureReady = false;
+    currentActiveOutflowForPrint = null;
+    voucherSignaturePromise = null;
     const modal = document.getElementById("voucher-modal");
     if (modal) modal.classList.remove("active");
 }
 
-export function printVoucher() {
-    const originalTitle = document.title;
+export async function printVoucher() {
+    if (printingVoucherGeneration === voucherGeneration || !currentActiveOutflowForPrint) return;
+    const generation = voucherGeneration;
+    printingVoucherGeneration = generation;
+    try {
+        if (voucherSignaturePromise) await voucherSignaturePromise;
+        if (generation !== voucherGeneration || !currentActiveOutflowForPrint) return;
+        if (!voucherSignatureReady) {
+            showToast('Carga la firma del acta antes de imprimir.', 'warning');
+            return;
+        }
+        const originalTitle = document.title;
 
-    const modal = document.getElementById("voucher-modal");
-    if (modal) {
-        modal.scrollTop = 0;
-        const modalBody = modal.querySelector(".modal-body");
-        if (modalBody) modalBody.scrollTop = 0;
-    }
-
-    if (currentActiveOutflowForPrint) {
-        const rawName = (currentActiveOutflowForPrint.trabajador || "Trabajador").trim();
-        const parts = rawName.split(/\s+/);
-        let apellido = "";
-        let nombre = "";
-
-        if (parts.length >= 2) {
-            apellido = parts[parts.length - 1];
-            nombre = parts.slice(0, -1).join("_");
-        } else {
-            apellido = parts[0] || "Trabajador";
-            nombre = "";
+        const modal = document.getElementById("voucher-modal");
+        if (modal) {
+            modal.scrollTop = 0;
+            const modalBody = modal.querySelector(".modal-body");
+            if (modalBody) modalBody.scrollTop = 0;
         }
 
-        const dateObj = currentActiveOutflowForPrint.fecha ? new Date(currentActiveOutflowForPrint.fecha) : new Date();
-        const day = String(dateObj.getDate()).padStart(2, '0');
-        const month = String(dateObj.getMonth() + 1).padStart(2, '0');
-        const year = dateObj.getFullYear();
-        const dateStr = `${day}-${month}-${year}`;
+        if (currentActiveOutflowForPrint) {
+            const rawName = (currentActiveOutflowForPrint.trabajador || "Trabajador").trim();
+            const parts = rawName.split(/\s+/);
+            let apellido = "";
+            let nombre = "";
 
-        const cleanApellido = apellido.replace(/[^a-zA-Z0-9_-]/g, "");
-        const cleanNombre = nombre.replace(/[^a-zA-Z0-9_-]/g, "");
+            if (parts.length >= 2) {
+                apellido = parts[parts.length - 1];
+                nombre = parts.slice(0, -1).join("_");
+            } else {
+                apellido = parts[0] || "Trabajador";
+                nombre = "";
+            }
 
-        const filename = cleanNombre ? `${cleanApellido}_${cleanNombre}_${dateStr}_ActaEPP` : `${cleanApellido}_${dateStr}_ActaEPP`;
-        document.title = filename;
-    }
+            const dateObj = currentActiveOutflowForPrint.fecha ? new Date(currentActiveOutflowForPrint.fecha) : new Date();
+            const day = String(dateObj.getDate()).padStart(2, '0');
+            const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+            const year = dateObj.getFullYear();
+            const dateStr = `${day}-${month}-${year}`;
 
-    window.print();
+            const cleanApellido = apellido.replace(/[^a-zA-Z0-9_-]/g, "");
+            const cleanNombre = nombre.replace(/[^a-zA-Z0-9_-]/g, "");
 
-    setTimeout(() => {
-        document.title = originalTitle;
-    }, 500);
+            const filename = cleanNombre ? `${cleanApellido}_${cleanNombre}_${dateStr}_ActaEPP` : `${cleanApellido}_${dateStr}_ActaEPP`;
+            document.title = filename;
+        }
+
+        window.print();
+
+        setTimeout(() => {
+            document.title = originalTitle;
+        }, 500);
+    } finally { if (printingVoucherGeneration === generation) printingVoucherGeneration = null; }
 }
 
 // Gestión de Áreas

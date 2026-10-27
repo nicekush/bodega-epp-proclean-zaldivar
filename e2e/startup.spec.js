@@ -33,7 +33,9 @@ const test = base.extend({
                 }
                 const offset = Number(url.searchParams.get('offset') || 0);
                 const limit = Number(url.searchParams.get('limit') || 500);
-                return route.fulfill({ status: 200, headers, contentType: 'application/json', body: JSON.stringify(rpc ? 5 : (rows[table] || []).slice(offset, offset + limit)) });
+                const select = url.searchParams.get('select') || '*';
+                const selected = (rows[table] || []).slice(offset, offset + limit).map(row => select.split(',').includes('*') ? row : Object.fromEntries(select.split(',').filter(key => key in row).map(key => [key, row[key]])));
+                return route.fulfill({ status: 200, headers, contentType: 'application/json', body: JSON.stringify(rpc ? 5 : selected) });
             } finally { backend.active--; }
         });
         try { await use(backend); expect(errors).toEqual([]); }

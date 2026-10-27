@@ -2333,3 +2333,8 @@ body.dark-mode .sku-chip {
 #return-receipt td, #return-receipt th { border: 1px solid var(--border-color); text-align: left; }
 #return-receipt { overflow-x: auto; }
 #return-receipt p { margin: 12px 0; line-height: 1.5; overflow-wrap: anywhere; }
+#voucher-signature-retry[hidden] { display: none; }
+@media print {
+    #voucher-modal.active.signature-unconfirmed #voucher-print-area { display: none !important; }
+    #voucher-modal.active.signature-unconfirmed .modal-body::before { content: "Acta pendiente de cargar o verificar su firma. Cierre la impresión y reintente desde el sistema."; display: block; padding: 24px; color: #000; }
+}

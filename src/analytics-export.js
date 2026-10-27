@@ -1,4 +1,5 @@
 // Datos y serialización del reporte. No depende del DOM ni consulta la base de datos.
+import { outflowSignatureLabel } from './outflow-signatures.js';
 const DAY_MS = 86400000;
 const round = value => Math.round((value + Number.EPSILON) * 100) / 100;
 const numberOrNull = value => value !== '' && value != null && Number.isFinite(Number(value)) ? Number(value) : null;
@@ -84,7 +85,7 @@ function flattenDeliveries(deliveries, catalog) {
             reason: delivery.motivo_entrega || '', size: delivery.talla_ropa || '',
             clothingReason: delivery.razon_cambio_ropa || '', comments: delivery.comentarios || '',
             registeredBy: delivery.registrado_por || '',
-            signature: String(delivery.firma || '').startsWith('data:') ? 'Firma digital registrada' : delivery.firma || 'No registrada',
+            signature: outflowSignatureLabel(delivery),
             quality: [!date && 'Fecha inválida o ausente', !workerRut && 'Sin RUT', !product && 'SKU fuera del catálogo',
                 quantity === null && 'Cantidad no numérica', quantity !== null && quantity <= 0 && 'Cantidad no positiva']
                 .filter(Boolean).join(' | ')

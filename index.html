@@ -2212,6 +2212,7 @@
                     <div class="voucher-signature-area">
                         <div class="signature-block">
                             <div class="signed-image-container" style="position: relative; height: 90px; display: flex; align-items: center; justify-content: center;">
+                                <span id="v-signature-status" role="status" style="font-size: 0.75rem;">Firma pendiente de cargar</span>
                                 <img src="" id="v-signature-img" alt="Firma Trabajador" style="display: none; max-height: 80px; max-width: 100%;">
                                 <!-- Contenedor de firma física para imprimir y firmar a mano -->
                                 <div id="v-signature-physical" style="display: block; width: 100%; border-bottom: 1px dashed var(--border-color); height: 50px; margin-top: 20px;">
@@ -2237,7 +2238,8 @@
             <div class="modal-footer no-print-actions">
                 <button class="btn btn-secondary" onclick="closeVoucherModal()">Cerrar</button>
                 <button type="button" class="btn btn-secondary" id="voucher-return-button">Devolución / saldo</button>
-                <button class="btn btn-primary" onclick="printVoucher()">
+                <button type="button" class="btn btn-secondary" id="voucher-signature-retry" hidden>Reintentar firma</button>
+                <button class="btn btn-primary" id="voucher-print-button" onclick="printVoucher()" disabled>
                     <i class="fa-solid fa-print"></i> Imprimir Acta
                 </button>
             </div>

@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import { createGuiasRepository } from '../src/guias-db.js';
 import { createReturnsRepository } from '../src/returns-db.js';
+import { createOutflowSignaturesRepository } from '../src/outflow-signatures.js';
 
 const dbSource = readFileSync(new URL('../src/db.js', import.meta.url), 'utf8');
 const mainSource = readFileSync(new URL('../src/main.js', import.meta.url), 'utf8');
@@ -34,19 +35,20 @@ function harness({ rows = data, respond = async () => null, cache = {} } = {}) {
         try {
             const override = await respond(query);
             if (override) return override;
-            return { data: query.rpc ? 5 : structuredClone((rows[query.table] || []).slice(query.start || 0, (query.end ?? Infinity) + 1)), error: null };
+            const selected = (rows[query.table] || []).slice(query.start || 0, (query.end ?? Infinity) + 1);
+            return { data: query.rpc ? 5 : structuredClone(selected.map(row => !query.columns || query.columns.split(',').includes('*') ? row : Object.fromEntries(query.columns.split(',').filter(key => key in row).map(key => [key, row[key]])))), error: null };
         } finally { active--; }
     }
     const supabase = {
         from(table) { return {
-            table, select() { return this; }, order() { return this; },
+            table, select(columns = '*') { this.columns = columns; return this; }, order() { return this; },
             range(start, end) { this.start = start; this.end = end; return this; },
-            then(resolve, reject) { return request({ table: this.table, start: this.start, end: this.end }).then(resolve, reject); }
+            then(resolve, reject) { return request({ table: this.table, columns: this.columns, start: this.start, end: this.end }).then(resolve, reject); }
         }; },
         rpc(name) { return request({ table: name, rpc: true }); }
     };
     const context = vm.createContext({
-        supabase, createGuiasRepository, createReturnsRepository, currentUser: null,
+        supabase, createGuiasRepository, createReturnsRepository, createOutflowSignaturesRepository, currentUser: null,
         console: { warn() {}, error() {} },
         localStorage: { getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value) },
         document: { addEventListener(name, callback) { if (name === 'DOMContentLoaded') onLoad = callback; }, getElementById() { return null; } },
@@ -65,7 +67,7 @@ function harness({ rows = data, respond = async () => null, cache = {} } = {}) {
         state: () => JSON.parse(vm.runInContext('JSON.stringify({ dbCategorias, dbAreasFull, dbTurnos, dbInventario, dbIngresos, dbSalidas, dbDevoluciones, dbInsumos, dbInsumoMovimientos, dbSolicitudesAbastecimiento, dbEquiposSeriales, dbPrestamos, dbAjustesStock, dbGuias, dbGuiasCatalogos, dbGuiasConfig })', context)) };
 }
 
-test('arranque carga todos los datos y firmas; consulta guías y configuración una sola vez', async () => {
+test('arranque carga el historial completo sin firmas de actas; consulta guías y configuración una sola vez', async () => {
     const app = harness();
     await app.start();
     assert.equal(app.calls.length, 17);
@@ -74,7 +76,8 @@ test('arranque carga todos los datos y firmas; consulta guías y configuración 
     }
     const state = app.state();
     assert.deepEqual(state.dbInventario, data.inventario);
-    assert.deepEqual(state.dbSalidas, data.salidas);
+    assert.deepEqual(state.dbSalidas, data.salidas.map(({ firma, ...row }) => row));
+    assert.ok(app.calls.filter(query => query.table === 'salidas').every(query => !query.columns.split(',').includes('firma')));
     assert.deepEqual(state.dbDevoluciones, data.epp_devoluciones);
     assert.deepEqual(state.dbIngresos, data.ingresos);
     assert.deepEqual(state.dbCategorias, ['Manos']);

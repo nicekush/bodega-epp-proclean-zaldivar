@@ -6,6 +6,7 @@ import { createClient } from '@supabase/supabase-js';
 import { createGuiasRepository } from './guias-db.js';
 import { currentUser } from './auth.js';
 import { createReturnsRepository } from './returns-db.js';
+import { createOutflowSignaturesRepository } from './outflow-signatures.js';
 
 const supabaseUrl = 
     import.meta.env.VITE_SUPABASE_URL || 
@@ -32,6 +33,12 @@ export let dbTurnos = [];
 export let dbInventario = [];
 export let dbIngresos = [];
 export let dbSalidas = [];
+const outflowSignatures = createOutflowSignaturesRepository(supabase);
+export async function dbLoadOutflowSignature(id, options) {
+    const row = dbSalidas.find(item => String(item.id) === String(id));
+    if (!row) throw new Error('No se encontró el acta original. Actualiza el historial.');
+    return outflowSignatures.loadSignature(row, options);
+}
 export let dbDevoluciones = [];
 const returnsRepository = createReturnsRepository(supabase, () => currentUser);
 export const dbDevolucionesStatus = returnsRepository.state;
@@ -185,7 +192,7 @@ export async function initDatabase() {
             },
             async () => {
                 // 5. Cargar Salidas (Actas)
-                dbSalidas = (await allRows('salidas')).sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+                dbSalidas = (await outflowSignatures.loadSummaries()).sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
                 // Una entrega similar puede ser legítima. No eliminar actas ni restituir stock al cargar.
                 await dbFetchDevoluciones();
             },

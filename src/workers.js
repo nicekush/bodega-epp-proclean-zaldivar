@@ -5,6 +5,7 @@
 import { dbSalidas, dbInventario, dbAreas, dbTurnos, dbUpdateWorkerProfile, dbDevoluciones, dbDevolucionesStatus } from './db.js';
 import { deliveryBalances, netDeliveries } from './returns-model.js';
 import { returnSummaryHTML, escapeHTML } from './returns.js';
+import { hasOutflowSignature, outflowSignatureLabel } from './outflow-signatures.js';
 import { formatRut, cleanRut, matchesRut, currentUser } from './auth.js';
 import { showToast } from './utils.js';
 
@@ -294,7 +295,7 @@ export function searchWorkerProfile() {
             const hasSignature = del.firma && del.firma.startsWith("data:");
             const signatureHTML = hasSignature 
                 ? `<img src="${del.firma}" alt="Firma" style="max-height: 28px; background: #fff; border-radius: var(--radius-sm); border: 1px solid var(--border-color); padding: 2px;">` 
-                : `<span style="font-size:0.72rem; color:var(--text-muted);">Física / Acta</span>`;
+                : `<span style="font-size:0.72rem; color:var(--text-muted);">${escapeHTML(hasOutflowSignature(del) ? outflowSignatureLabel(del) : 'Consultar en acta')}</span>`;
 
             const tr = document.createElement("tr");
             tr.innerHTML = `

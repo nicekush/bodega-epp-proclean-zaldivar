@@ -27,7 +27,11 @@ const test = base.extend({
                 if (req.method() !== 'GET' && req.method() !== 'HEAD') return respond({ message: 'Escritura directa rechazada' }, 403);
                 if (['inventario', 'salidas', 'epp_devoluciones'].includes(target)) {
                     const rows = (await db.query(`SELECT * FROM public.${target} ORDER BY id LIMIT $1 OFFSET $2`, [Number(url.searchParams.get('limit') || 500), Number(url.searchParams.get('offset') || 0)])).rows;
-                    return respond(rows.map(row => target === 'inventario' ? { ...row, stock: Number(row.stock), stock_minimo: Number(row.stock_minimo) } : row));
+                    const select = url.searchParams.get('select') || '*';
+                    const selected = rows.filter(row => !url.searchParams.get('id') || String(row.id) === url.searchParams.get('id').replace(/^eq\./, ''))
+                        .map(row => select === '*' ? row : Object.fromEntries(select.split(',').filter(key => key in row).map(key => [key, row[key]])));
+                    if (req.headers().accept?.includes('application/vnd.pgrst.object+json')) return respond(selected[0] || null);
+                    return respond(selected.map(row => target === 'inventario' ? { ...row, stock: Number(row.stock), stock_minimo: Number(row.stock_minimo) } : row));
                 }
                 return respond([]);
             } catch (error) { return respond({ message: error.message, code: error.code }, 400); }

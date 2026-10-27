@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import { createGuiasRepository } from '../src/guias-db.js';
 import { createReturnsRepository } from '../src/returns-db.js';
+import { createOutflowSignaturesRepository } from '../src/outflow-signatures.js';
 
 const dbSource = readFileSync(new URL('../src/db.js', import.meta.url), 'utf8');
 const storageKey = 'db_guias_despacho_v2';
@@ -12,6 +13,7 @@ function harness({ cache = {}, response = () => ({ data: [], error: null }) } = 
     const storage = new Map(Object.entries(cache));
     const context = {
         createReturnsRepository,
+        createOutflowSignaturesRepository,
         createGuiasRepository: (client, cache) => createGuiasRepository(client, cache, () => ({ rut: '11.111.111-1' })),
         console: { warn() {}, error() {} },
         localStorage: {
