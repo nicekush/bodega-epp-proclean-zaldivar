@@ -58,8 +58,12 @@ async function mutate(key, rootId, action) {
 }
 function refresh() { renderGuiasTable(); if (activeDrawer) openGuiaDrawer(activeDrawer); }
 
-export async function initGuiasView() {
-    await Promise.all([dbFetchGuias(), dbFetchGuiasSettings()]);
+export async function initGuiasView({ reload = true } = {}) {
+    // Reutiliza las cargas confirmadas; conserva la recuperación si la primera falló.
+    const loads = [];
+    if (reload || !dbGuiasStatus.online) loads.push(dbFetchGuias());
+    if (reload || !dbGuiasStatus.settingsOnline || !dbGuiasStatus.schemaReady) loads.push(dbFetchGuiasSettings());
+    await Promise.all(loads);
     populateGuiasCatalogosDropdowns();
     renderGuiasTable();
     initSignaturePad();

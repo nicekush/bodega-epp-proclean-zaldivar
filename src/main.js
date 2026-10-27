@@ -176,7 +176,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         setCurrentDates();
         initReplenishment();
         initLoans();
-        await initGuiasView();
+        // initDatabase ya confirmó la carga de guías y su configuración.
+        await initGuiasView({ reload: false });
  
         // Renderizar vistas iniciales
         updateDashboardStats();

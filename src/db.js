@@ -105,133 +105,170 @@ export function safeLocalStorageSet(key, value) {
     }
 }
 
+// Limita las cargas independientes. Ante un fallo crítico, espera las que ya
+// comenzaron y detiene las pendientes antes de propagar el error al arranque.
+async function loadInParallel(loaders, concurrency = 3) {
+    let next = 0;
+    let failed = false;
+    let firstError;
+    await Promise.all(Array.from({ length: Math.min(concurrency, loaders.length) }, async () => {
+        while (!failed && next < loaders.length) {
+            const load = loaders[next++];
+            try {
+                await load();
+            } catch (error) {
+                if (!failed) firstError = error;
+                failed = true;
+            }
+        }
+    }));
+    if (failed) throw firstError;
+}
+
 // Inicialización asíncrona desde Supabase
 export async function initDatabase() {
     try {
-        // 1. Cargar Categorías
-        const { data: cats, error: errCats } = await supabase.from('categorias').select('nombre').order('nombre');
-        if (errCats) throw errCats;
-        dbCategorias = cats.map(c => c.nombre);
- 
-        // 2. Cargar Áreas (con Fallback Local para inicio sin conexión)
-        try {
-            const { data: ars, error: errArs } = await supabase.from('areas').select('*').order('nombre');
-            if (errArs) throw errArs;
-            dbAreasFull = ars.map(a => {
-                const localKit = localStorage.getItem(`area_kit_${a.nombre}`);
-                if (localKit && !a.kit) {
-                    try { a.kit = JSON.parse(localKit); } catch(e) {}
+        await loadInParallel([
+            async () => {
+                // 1. Cargar Categorías
+                const { data: cats, error: errCats } = await supabase.from('categorias').select('nombre').order('nombre');
+                if (errCats) throw errCats;
+                dbCategorias = cats.map(c => c.nombre);
+            },
+            async () => {
+                // 2. Cargar Áreas (con Fallback Local para inicio sin conexión)
+                try {
+                    const { data: ars, error: errArs } = await supabase.from('areas').select('*').order('nombre');
+                    if (errArs) throw errArs;
+                    dbAreasFull = ars.map(a => {
+                        const localKit = localStorage.getItem(`area_kit_${a.nombre}`);
+                        if (localKit && !a.kit) {
+                            try { a.kit = JSON.parse(localKit); } catch(e) {}
+                        }
+                        return a;
+                    });
+                    dbAreas = dbAreasFull.map(a => a.nombre);
+                    // Guardar copia local para inicio offline
+                    localStorage.setItem("db_areas_full", JSON.stringify(dbAreasFull));
+                } catch (e) {
+                    console.warn("Fallo al cargar areas de Supabase. Usando copia local.", e);
+                    const localAreas = localStorage.getItem("db_areas_full");
+                    if (localAreas) {
+                        dbAreasFull = JSON.parse(localAreas);
+                        dbAreas = dbAreasFull.map(a => a.nombre);
+                    } else {
+                        dbAreasFull = [];
+                        dbAreas = [];
+                    }
                 }
-                return a;
-            });
-            dbAreas = dbAreasFull.map(a => a.nombre);
-            // Guardar copia local para inicio offline
-            localStorage.setItem("db_areas_full", JSON.stringify(dbAreasFull));
-        } catch (e) {
-            console.warn("Fallo al cargar areas de Supabase. Usando copia local.", e);
-            const localAreas = localStorage.getItem("db_areas_full");
-            if (localAreas) {
-                dbAreasFull = JSON.parse(localAreas);
-                dbAreas = dbAreasFull.map(a => a.nombre);
-            } else {
-                dbAreasFull = [];
-                dbAreas = [];
+            },
+            async () => {
+                // 2.5 Cargar Turnos
+                try {
+                    const { data: trns, error: errTrns } = await supabase.from('turnos').select('nombre').order('nombre');
+                    if (errTrns) throw errTrns;
+                    dbTurnos = trns.map(t => t.nombre);
+                } catch (e) {
+                    console.warn("Tabla 'turnos' no disponible en Supabase. Usando valores por defecto.", e);
+                    dbTurnos = ['Turno A', 'Turno B'];
+                }
+            },
+            async () => {
+                // 3. Cargar Catálogo de Inventario
+                dbInventario = await allRows('inventario', 'codigo');
+            },
+            async () => {
+                // 4. Cargar Ingresos (Facturas)
+                const { data: ing, error: errIng } = await supabase.from('ingresos').select('*').order('fecha', { ascending: false });
+                if (errIng) throw errIng;
+                dbIngresos = ing;
+            },
+            async () => {
+                // 5. Cargar Salidas (Actas)
+                dbSalidas = (await allRows('salidas')).sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+                // Una entrega similar puede ser legítima. No eliminar actas ni restituir stock al cargar.
+                await dbFetchDevoluciones();
+            },
+            async () => {
+                // 6. Cargar Insumos para Mejoras
+                const { data: ins, error: errIns } = await supabase.from('insumos_mejoras').select('*').order('fecha_solicitud', { ascending: false });
+                if (errIns) throw errIns;
+                dbInsumos = ins;
+            },
+            async () => {
+                // 7. Cargar Historial de Movimientos de Insumos
+                const { data: mov, error: errMov } = await supabase.from('insumos_movimientos').select('*').order('fecha', { ascending: false });
+                if (errMov) throw errMov;
+                dbInsumoMovimientos = mov;
+            },
+            async () => {
+                // 8. Cargar Solicitudes de Abastecimiento de Bodega (con Fallback Local)
+                try {
+                    const { data: rep, error: errRep } = await supabase.from('solicitudes_abastecimiento').select('*').order('fecha', { ascending: false });
+                    if (errRep) throw errRep;
+                    dbSolicitudesAbastecimiento = rep || [];
+                } catch (e) {
+                    console.warn("Tabla 'solicitudes_abastecimiento' no detectada en Supabase. Usando persistencia en localStorage.");
+                    const localData = localStorage.getItem("db_solicitudes_abastecimiento");
+                    try {
+                        dbSolicitudesAbastecimiento = localData ? JSON.parse(localData) : [];
+                    } catch (parseErr) {
+                        dbSolicitudesAbastecimiento = [];
+                    }
+                    if (!Array.isArray(dbSolicitudesAbastecimiento)) {
+                        dbSolicitudesAbastecimiento = [];
+                    }
+                }
+            },
+            async () => {
+                // 9. Cargar Equipos Seriales (con Fallback Local)
+                try {
+                    const { data: serials, error: errSerials } = await supabase.from('equipos_seriales').select('*').order('numero_serie');
+                    if (errSerials) throw errSerials;
+                    dbEquiposSeriales = serials || [];
+                } catch (e) {
+                    console.warn("Tabla 'equipos_seriales' no disponible en Supabase. Usando localStorage.");
+                    const localSerials = localStorage.getItem("db_equipos_seriales");
+                    dbEquiposSeriales = localSerials ? JSON.parse(localSerials) : [];
+                }
+            },
+            async () => {
+                // 10. Cargar Préstamos (con Fallback Local)
+                try {
+                    const { data: prest, error: errPrest } = await supabase.from('prestamos').select('*').order('fecha_salida', { ascending: false });
+                    if (errPrest) throw errPrest;
+                    dbPrestamos = prest || [];
+                } catch (e) {
+                    console.warn("Tabla 'prestamos' no disponible en Supabase. Usando localStorage.");
+                    const localPrest = localStorage.getItem("db_prestamos");
+                    dbPrestamos = localPrest ? JSON.parse(localPrest) : [];
+                }
+            },
+            async () => {
+                // 11. Cargar Auditoría de Ajustes de Stock (con Fallback Local)
+                try {
+                    const { data: ajst, error: errAjst } = await supabase.from('ajustes_stock').select('*').order('fecha', { ascending: false });
+                    if (errAjst) throw errAjst;
+                    dbAjustesStock = ajst || [];
+                } catch (e) {
+                    console.warn("Tabla 'ajustes_stock' no disponible en Supabase. Usando localStorage.");
+                    const localAjst = localStorage.getItem("db_ajustes_stock");
+                    try {
+                        dbAjustesStock = localAjst ? JSON.parse(localAjst) : [];
+                    } catch (errParse) {
+                        dbAjustesStock = [];
+                    }
+                }
+            },
+            async () => {
+                // 12. Cargar Guías de Despacho. Una tabla vacía es un resultado válido.
+                await dbFetchGuias();
+            },
+            async () => {
+                // 13. Catálogos y parámetros administrados desde Configuración de Guías.
+                await dbFetchGuiasSettings();
             }
-        }
- 
-        // 2.5 Cargar Turnos
-        try {
-            const { data: trns, error: errTrns } = await supabase.from('turnos').select('nombre').order('nombre');
-            if (errTrns) throw errTrns;
-            dbTurnos = trns.map(t => t.nombre);
-        } catch (e) {
-            console.warn("Tabla 'turnos' no disponible en Supabase. Usando valores por defecto.", e);
-            dbTurnos = ['Turno A', 'Turno B'];
-        }
-
-        // 3. Cargar Catálogo de Inventario
-        dbInventario = await allRows('inventario', 'codigo');
-
-        // 4. Cargar Ingresos (Facturas)
-        const { data: ing, error: errIng } = await supabase.from('ingresos').select('*').order('fecha', { ascending: false });
-        if (errIng) throw errIng;
-        dbIngresos = ing;
-
-        // 5. Cargar Salidas (Actas)
-        dbSalidas = (await allRows('salidas')).sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
-        // Una entrega similar puede ser legítima. No eliminar actas ni restituir stock al cargar.
-        await dbFetchDevoluciones();
-
-        // 6. Cargar Insumos para Mejoras
-        const { data: ins, error: errIns } = await supabase.from('insumos_mejoras').select('*').order('fecha_solicitud', { ascending: false });
-        if (errIns) throw errIns;
-        dbInsumos = ins;
-
-        // 7. Cargar Historial de Movimientos de Insumos
-        const { data: mov, error: errMov } = await supabase.from('insumos_movimientos').select('*').order('fecha', { ascending: false });
-        if (errMov) throw errMov;
-        dbInsumoMovimientos = mov;
-
-        // 8. Cargar Solicitudes de Abastecimiento de Bodega (con Fallback Local)
-        try {
-            const { data: rep, error: errRep } = await supabase.from('solicitudes_abastecimiento').select('*').order('fecha', { ascending: false });
-            if (errRep) throw errRep;
-            dbSolicitudesAbastecimiento = rep || [];
-        } catch (e) {
-            console.warn("Tabla 'solicitudes_abastecimiento' no detectada en Supabase. Usando persistencia en localStorage.");
-            const localData = localStorage.getItem("db_solicitudes_abastecimiento");
-            try {
-                dbSolicitudesAbastecimiento = localData ? JSON.parse(localData) : [];
-            } catch (parseErr) {
-                dbSolicitudesAbastecimiento = [];
-            }
-            if (!Array.isArray(dbSolicitudesAbastecimiento)) {
-                dbSolicitudesAbastecimiento = [];
-            }
-        }
- 
-        // 9. Cargar Equipos Seriales (con Fallback Local)
-        try {
-            const { data: serials, error: errSerials } = await supabase.from('equipos_seriales').select('*').order('numero_serie');
-            if (errSerials) throw errSerials;
-            dbEquiposSeriales = serials || [];
-        } catch (e) {
-            console.warn("Tabla 'equipos_seriales' no disponible en Supabase. Usando localStorage.");
-            const localSerials = localStorage.getItem("db_equipos_seriales");
-            dbEquiposSeriales = localSerials ? JSON.parse(localSerials) : [];
-        }
- 
-        // 10. Cargar Préstamos (con Fallback Local)
-        try {
-            const { data: prest, error: errPrest } = await supabase.from('prestamos').select('*').order('fecha_salida', { ascending: false });
-            if (errPrest) throw errPrest;
-            dbPrestamos = prest || [];
-        } catch (e) {
-            console.warn("Tabla 'prestamos' no disponible en Supabase. Usando localStorage.");
-            const localPrest = localStorage.getItem("db_prestamos");
-            dbPrestamos = localPrest ? JSON.parse(localPrest) : [];
-        }
-
-        // 11. Cargar Auditoría de Ajustes de Stock (con Fallback Local)
-        try {
-            const { data: ajst, error: errAjst } = await supabase.from('ajustes_stock').select('*').order('fecha', { ascending: false });
-            if (errAjst) throw errAjst;
-            dbAjustesStock = ajst || [];
-        } catch (e) {
-            console.warn("Tabla 'ajustes_stock' no disponible en Supabase. Usando localStorage.");
-            const localAjst = localStorage.getItem("db_ajustes_stock");
-            try {
-                dbAjustesStock = localAjst ? JSON.parse(localAjst) : [];
-            } catch (errParse) {
-                dbAjustesStock = [];
-            }
-        }
-
-        // 12. Cargar Guías de Despacho. Una tabla vacía es un resultado válido.
-        await dbFetchGuias();
-
-        // 13. Catálogos y parámetros administrados desde Configuración de Guías.
-        await dbFetchGuiasSettings();
+        ]);
 
     } catch (error) {
         console.error("Error cargando base de datos desde Supabase:", error);
